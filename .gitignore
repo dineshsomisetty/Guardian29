@@ -1,0 +1,12 @@
+ui/node_modules/
+ui/dist/
+ui/tsconfig.tsbuildinfo
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.env
+.env.*
+!.env.example
+runs/
+targets/
