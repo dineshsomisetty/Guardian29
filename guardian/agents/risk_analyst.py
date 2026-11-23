@@ -128,6 +128,8 @@ def build_factors(f: Finding, pkg: tuple[str, str] | None, g: Gathered) -> RiskF
     else:
         ev = g.reach.get(pkg) if pkg else None
         tier = ev.facts["tier"] if ev else "unknown"
+        if ev is not None and tier == "imported" and called_for(ev.facts.get("called") or [], f):
+            tier = "called"  # a reviewed rule names the vulnerable function and production code calls it
         R = factor(REACHABILITY.get(tier, 0.5), tier, [ev.evidence_id] if ev else [], unknown=tier == "unknown")
     # P production scope
     sev = g.scope.get(f.component_purl or "")
@@ -168,6 +170,13 @@ def template_summary(f: Finding, a: RiskAssessment) -> str:
 
 
 # ---------------------------------------------------------------- selection
+
+
+def called_for(called: list[dict], f: Finding) -> bool:
+    """True when a function-level rule covering this finding's advisory has a call site (stretch goal 1)."""
+    ids = {i.upper() for i in [f.vuln_id, *f.aliases] if i}
+    return any(c.get("sites") and ("*" in c.get("vuln_ids", []) or ids & {v.upper() for v in c["vuln_ids"]})
+               for c in called)
 
 
 def _key(f: Finding, score: float) -> tuple:

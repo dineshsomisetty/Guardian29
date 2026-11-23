@@ -104,10 +104,13 @@ def reachability(ctx: ToolContext, args: PackagesArgs) -> ToolOutput:
     out = []
     for name in sorted(set(args.packages)):
         r = reach.reachability_import(root, name, args.ecosystem)
-        hit = r.hits[0] if r.hits else None
+        called = reach.reachability_called(root, name, args.ecosystem) if r.tier == "imported" else []
+        hit = (called[0]["sites"][0] if called else None) or (r.hits[0] if r.hits else None)
         out.append(_ev(ctx, "reachability", "reachability_import",
                        {"package": name, "ecosystem": args.ecosystem, "tier": r.tier, "files_scanned": r.files_scanned,
-                        "hits": r.hits, "method": "import search in production paths (tests excluded)"},
+                        "hits": r.hits, "called": called,
+                        "method": "import search in production paths (tests excluded); vulnerable-function calls "
+                                  "from data/reachability/vulnerable_functions.yaml"},
                        file_path=hit["file"] if hit else None, line=hit["line"] if hit else None,
                        excerpt=hit["excerpt"] if hit else None))
     n = sum(1 for e in out if e.facts["tier"] == "imported")
