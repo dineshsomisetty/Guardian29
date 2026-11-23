@@ -1,26 +1,35 @@
 """Guardian HTTP API (D3-03 + D3-09): read-only views of runs/<id>/ plus start-run and the human-gate decision.
 
-Localhost dev tool: there is NO authentication. Bind to 127.0.0.1 only (see `serve_api`) and allow
-CORS from the Vite dev server only. Work copies (runs/<id>/work, attempts/*/work) are never served:
-every route maps to a fixed file name or a strictly validated id, so no user path reaches the disk.
+Security (see guardian/api/auth.py):
+* authentication: bearer tokens from GUARDIAN_API_TOKENS (name:token:role); with none configured the API is a
+  local dev tool and `serve_api` refuses to bind anything but loopback;
+* authorization: viewer reads, operator starts runs, approver decides at the human gate; `decided_by` is the
+  authenticated name, never a request field;
+* runs can only target directories under the allowed target roots (GUARDIAN_TARGET_ROOTS, default targets/);
+* at most GUARDIAN_MAX_ACTIVE_RUNS background runs at once (429 beyond), one per run id (409);
+* CORS only from the UI origins (GUARDIAN_UI_ORIGINS, default the Vite dev server).
+Work copies (runs/<id>/work, attempts/*/work) are never served: every route maps to a fixed file name or a
+strictly validated id, so no user path reaches the disk.
 """
 
 from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 import threading
 from pathlib import Path
 from typing import Annotated, Any, Literal
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from guardian.core.config import load_settings
+from guardian.api.auth import Principal, TokenStore, check_bind, principal_for
+from guardian.core.config import REPO_ROOT, load_settings
 from guardian.core.models import Approval
 
 RUN_RE = r"^(latest|run_[A-Za-z0-9_]+)$"
@@ -40,9 +49,9 @@ SSE_GATE_IDLE_S = 3.0  # end the stream this long after the last line while wait
 
 class DecisionBody(BaseModel):
     decision: Literal["approve", "reject", "accept_risk"]
-    comment: str | None = None
-    plan_hash: str
-    decided_by: str = "human"
+    comment: str | None = Field(default=None, max_length=2000)
+    plan_hash: str = Field(pattern=r"^[0-9a-f]{12,64}$")
+    decided_by: str = Field(default="human", max_length=64)  # local dev mode only; token mode uses the caller
 
 
 class StartRunBody(BaseModel):
@@ -79,14 +88,30 @@ def _mark_failed(runs_dir: Path, run_id: str, exc: BaseException) -> None:
         pass
 
 
-def create_app(runs_dir: Path | None = None) -> FastAPI:
+def _target_roots() -> list[Path]:
+    raw = os.environ.get("GUARDIAN_TARGET_ROOTS")
+    roots = [Path(p) for p in raw.split(os.pathsep) if p.strip()] if raw else [REPO_ROOT / "targets"]
+    return [r.resolve() for r in roots]
+
+
+def create_app(runs_dir: Path | None = None, *, tokens: TokenStore | None = None,
+               target_roots: list[Path] | None = None, max_active: int | None = None) -> FastAPI:
     runs = Path(runs_dir) if runs_dir is not None else load_settings().runs_dir
-    app = FastAPI(title="Guardian API", docs_url=None, redoc_url=None)
+    store = tokens if tokens is not None else TokenStore.from_env()
+    roots = [Path(r).resolve() for r in target_roots] if target_roots is not None else _target_roots()
+    limit = max_active if max_active is not None else int(os.environ.get("GUARDIAN_MAX_ACTIVE_RUNS", "2"))
+
+    def viewer(request: Request) -> Principal:
+        # the browser's EventSource cannot send headers: only the SSE route takes ?access_token=
+        return principal_for(request, store, "viewer", allow_query=request.url.path.endswith("/events"))
+
+    app = FastAPI(title="Guardian API", docs_url=None, redoc_url=None, dependencies=[Depends(viewer)])
+    origins = os.environ.get("GUARDIAN_UI_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_origins=[o.strip() for o in origins.split(",") if o.strip()],
         allow_methods=["GET", "POST"],
-        allow_headers=["*"],
+        allow_headers=["Authorization", "Content-Type", "Last-Event-ID"],
     )
     active: set[str] = set()  # run ids with a background thread in flight
     lock = threading.Lock()
@@ -122,15 +147,29 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
         with lock:
             if run_id in active:
                 raise HTTPException(409, f"run {run_id} is already busy")
+            if len(active) >= limit:
+                raise HTTPException(429, f"{len(active)} runs already in progress (GUARDIAN_MAX_ACTIVE_RUNS={limit})",
+                                    headers={"Retry-After": "30"})
             active.add(run_id)
         threading.Thread(target=target, name=f"guardian-{run_id}", daemon=True).start()
 
     # ---- starting runs -------------------------------------------------
+    # ---- who am I ------------------------------------------------------
+    @app.get("/auth/me")
+    def me(request: Request) -> dict:
+        p = principal_for(request, store, "viewer")
+        return {"name": p.name, "role": p.role, "mode": "token" if store.enabled else "local-dev",
+                "can_start_runs": p.can("operator"), "can_decide": p.can("approver")}
+
     @app.post("/runs", status_code=202)
-    def start_run(body: StartRunBody) -> dict:
+    def start_run(body: StartRunBody, request: Request) -> dict:
+        principal_for(request, store, "operator")
         repo = Path(body.repo)
         if not repo.is_dir():
             raise HTTPException(400, f"repo is not an existing directory: {body.repo}")
+        resolved = repo.resolve()
+        if not any(resolved == r or r in resolved.parents for r in roots):
+            raise HTTPException(403, "repo is outside the allowed target roots (GUARDIAN_TARGET_ROOTS)")
         from guardian.graph import workflow  # lazy: may not exist yet while others build it
 
         run_id = workflow.new_run_id()
@@ -210,7 +249,8 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
 
     # ---- human gate ----------------------------------------------------
     @app.post("/runs/{run_id}/plans/{plan_id}/decision", status_code=202)
-    def decide(run_id: RunId, plan_id: Pid, body: DecisionBody) -> dict:
+    def decide(run_id: RunId, plan_id: Pid, body: DecisionBody, request: Request) -> dict:
+        who = principal_for(request, store, "approver")
         d = run_dir(run_id)
         pending_file = d / "pending_plan.json"
         if not pending_file.is_file():
@@ -220,12 +260,13 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
             raise HTTPException(400, "plan_id/plan_hash do not match the pending plan (G5.1)")
         if body.decision in ("reject", "accept_risk") and not (body.comment and body.comment.strip()):
             raise HTTPException(400, f"{body.decision} requires a comment (G5.2)")
+        decided_by = who.name if who.authenticated else (body.decided_by.strip() or "human")
         approval = Approval(plan_id=plan_id, plan_hash=body.plan_hash, decision=body.decision,
-                            comment=body.comment, decided_by=body.decided_by)
+                            comment=body.comment, decided_by=decided_by)
         from guardian.graph import workflow
 
         spawn(d.name, workflow.resume, d.name, approval, settings=load_settings(runs_dir=runs), echo=False)
-        return {"run_id": d.name, "plan_id": plan_id, "decision": body.decision}
+        return {"run_id": d.name, "plan_id": plan_id, "decision": body.decision, "decided_by": decided_by}
 
     # ---- live trace (SSE) ------------------------------------------------
     @app.get("/runs/{run_id}/events")
@@ -237,10 +278,26 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
         except ValueError:
             sent = 0
 
+        pos = {"bytes": 0, "lines": 0}
+
         def read_new(offset: int) -> list[str]:
+            """Complete lines after line `offset`. Keeps a byte cursor so a long trace is read once, not on
+            every poll; a partial last line stays unread until its newline arrives."""
             if not trace.is_file():
                 return []
-            return trace.read_text(encoding="utf-8").splitlines()[offset:]
+            with trace.open("rb") as fh:
+                if pos["lines"] > offset:  # client asked to rewind (Last-Event-ID): start over
+                    pos["bytes"] = pos["lines"] = 0
+                fh.seek(pos["bytes"])
+                chunk = fh.read()
+            end = chunk.rfind(b"\n")
+            if end < 0:
+                return []
+            lines = chunk[:end].decode("utf-8", errors="replace").split("\n")
+            pos["bytes"] += end + 1
+            first = pos["lines"]
+            pos["lines"] += len(lines)
+            return lines[max(0, offset - first):]
 
         async def stream():
             nonlocal sent
@@ -283,4 +340,6 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
 def serve_api(host: str = "127.0.0.1", port: int = 8000) -> None:
     import uvicorn
 
-    uvicorn.run(create_app(), host=host, port=port, log_level="info")
+    store = TokenStore.from_env()
+    check_bind(host, store)
+    uvicorn.run(create_app(tokens=store), host=host, port=port, log_level="info")

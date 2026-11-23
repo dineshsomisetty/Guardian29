@@ -112,7 +112,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 def _cmd_api(args: argparse.Namespace) -> int:
     from guardian.api.app import serve_api
 
-    serve_api(port=args.port)
+    serve_api(host=args.host, port=args.port)
     return 0
 
 
@@ -148,6 +148,8 @@ def main(argv: list[str] | None = None) -> int:
 
     a = sub.add_parser("api", help="FastAPI routes + SSE trace + decision endpoint on localhost (§4.4)")
     a.add_argument("--port", type=int, default=8000)
+    a.add_argument("--host", default="127.0.0.1",
+                   help="bind address; anything but loopback requires GUARDIAN_API_TOKENS (name:token:role,...)")
     a.set_defaults(func=_cmd_api)
 
     args = p.parse_args(argv)

@@ -11,6 +11,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from guardian.api import app as api_app
+from guardian.api.auth import TokenStore
 from guardian.core.models import Approval
 
 RUN = "run_20260101_abc"
@@ -18,6 +19,7 @@ FID = "fd_" + "A" * 26
 EID = "ev_" + "B" * 26
 PID = "pl_" + "C" * 26
 AID = "at_" + "D" * 26
+H1 = "a" * 64
 
 
 def write(path, obj):
@@ -47,7 +49,8 @@ def runs(tmp_path):
 
 @pytest.fixture()
 def client(runs):
-    return TestClient(api_app.create_app(runs))
+    # local dev mode (no tokens); runs may target anything under the test's tmp dir
+    return TestClient(api_app.create_app(runs, tokens=TokenStore(None), target_roots=[runs.parent]))
 
 
 def test_get_routes(client):
@@ -148,10 +151,11 @@ def decision_url(plan=PID):
 
 
 def test_decision_paths(client, runs, fake_workflow):
-    body = {"decision": "approve", "plan_hash": "h1", "decided_by": "sai"}
+    body = {"decision": "approve", "plan_hash": H1, "decided_by": "sai"}
     assert client.post(decision_url(), json=body).status_code == 409  # nothing pending
-    write(runs / RUN / "pending_plan.json", {"plan_id": PID, "plan_hash": "h1"})
-    assert client.post(decision_url(), json={**body, "plan_hash": "bad"}).status_code == 400
+    write(runs / RUN / "pending_plan.json", {"plan_id": PID, "plan_hash": H1})
+    assert client.post(decision_url(), json={**body, "plan_hash": "b" * 64}).status_code == 400
+    assert client.post(decision_url(), json={**body, "plan_hash": "not-a-hash"}).status_code == 422
     assert client.post(decision_url("pl_" + "X" * 26), json=body).status_code == 400
     for d in ("reject", "accept_risk"):
         assert client.post(decision_url(), json={**body, "decision": d}).status_code == 400
@@ -165,7 +169,7 @@ def test_decision_paths(client, runs, fake_workflow):
     run_id, approval, _ = fake_workflow["resume"]
     assert run_id == RUN and isinstance(approval, Approval)
     assert (approval.plan_id, approval.plan_hash, approval.decision, approval.comment, approval.decided_by) == (
-        PID, "h1", "reject", "too risky", "sai")
+        PID, H1, "reject", "too risky", "sai")
 
 
 def test_cors(client):
@@ -187,3 +191,65 @@ def test_risk_and_report_routes(client, runs):
     assert client.get(f"/runs/{RUN}/report.json").json() == {"run_id": RUN}
     r = client.get(f"/runs/{RUN}/report.html")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html") and "<body>r" in r.text
+
+
+# ---- authentication / authorization -----------------------------------------------------------------------
+
+TOKENS = "ana:" + "v" * 20 + ":viewer,ops:" + "o" * 20 + ":operator,sai:" + "s" * 20 + ":approver"
+
+
+def bearer(t):
+    return {"Authorization": f"Bearer {t * 20}"}
+
+
+@pytest.fixture()
+def secured(runs):
+    return TestClient(api_app.create_app(runs, tokens=TokenStore(TOKENS), target_roots=[runs.parent]))
+
+
+def test_token_mode_requires_auth_everywhere(secured):
+    assert secured.get("/runs").status_code == 401
+    assert secured.get("/runs", headers={"Authorization": "Bearer wrong-token-xxxxxxxx"}).status_code == 401
+    assert secured.get(f"/runs/{RUN}/findings", headers=bearer("v")).status_code == 200
+    me = secured.get("/auth/me", headers=bearer("v")).json()
+    assert me == {"name": "ana", "role": "viewer", "mode": "token", "can_start_runs": False, "can_decide": False}
+    # EventSource cannot send headers: only the SSE route accepts the token as a query parameter
+    assert secured.get(f"/runs/{RUN}/events?access_token={'v' * 20}").status_code == 200
+    assert secured.get(f"/runs/{RUN}/findings?access_token={'v' * 20}").status_code == 401
+
+
+def test_roles_gate_runs_and_decisions(secured, runs, fake_workflow, tmp_path):
+    write(runs / RUN / "pending_plan.json", {"plan_id": PID, "plan_hash": H1})
+    body = {"decision": "approve", "plan_hash": H1, "decided_by": "someone-else"}
+    assert secured.post("/runs", json={"repo": str(tmp_path)}, headers=bearer("v")).status_code == 403
+    assert secured.post(decision_url(), json=body, headers=bearer("o")).status_code == 403  # operator != approver
+    assert "resume" not in fake_workflow
+    r = secured.post(decision_url(), json=body, headers=bearer("s"))
+    assert r.status_code == 202 and r.json()["decided_by"] == "sai"
+    wait_for(fake_workflow, "resume")
+    assert fake_workflow["resume"][1].decided_by == "sai"  # the authenticated approver, not the body's claim
+    assert secured.post("/runs", json={"repo": str(tmp_path)}, headers=bearer("o")).status_code == 202
+
+
+def test_runs_are_confined_to_target_roots_and_capped(runs, fake_workflow, tmp_path):
+    inside = tmp_path / "targets" / "app"
+    inside.mkdir(parents=True)
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    c = TestClient(api_app.create_app(runs, tokens=TokenStore(None), target_roots=[tmp_path / "targets"],
+                                      max_active=0))
+    assert c.post("/runs", json={"repo": str(outside)}).status_code == 403
+    assert c.post("/runs", json={"repo": str(inside / ".." / ".." / "elsewhere")}).status_code == 403
+    r = c.post("/runs", json={"repo": str(inside)})
+    assert r.status_code == 429 and r.headers["retry-after"] == "30"  # cap reached (0 here)
+
+
+def test_token_store_and_bind_rules():
+    with pytest.raises(ValueError):
+        TokenStore("ana:short:viewer")  # tokens must be >= 16 chars
+    with pytest.raises(ValueError):
+        TokenStore("ana:" + "x" * 20 + ":root")  # unknown role
+    with pytest.raises(SystemExit):
+        api_app.check_bind("0.0.0.0", TokenStore(None))  # no unauthenticated API beyond loopback
+    api_app.check_bind("127.0.0.1", TokenStore(None))
+    api_app.check_bind("0.0.0.0", TokenStore(TOKENS))
