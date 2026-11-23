@@ -41,7 +41,7 @@ from guardian.graph.state import GraphState, RunContext, get_ctx
 from guardian.guardrails.approval import plan_hash
 from guardian.guardrails.grounding import value_matches
 from guardian.tools.registry import call_tool
-from guardian.tools.threat_intel import parse_purl
+from guardian.tools.threat_intel import parse_purl, version_key
 
 AGENT = "remediation"
 MAX_ATTEMPTS = 3  # G5.4
@@ -81,10 +81,13 @@ def _manifest_declares(rc: RunContext, rel: str, name: str) -> bool:
     return re.search(rf'"{re.escape(name)}"\s*:\s*"', text) is not None
 
 
-def _lookup(rc: RunContext, purl: str, vuln_ids: list[str], fixed: list[str]) -> Evidence | None:
+def _lookup(rc: RunContext, purl: str, vuln_ids: list[str], fixed: list[str], *, child: str | None = None,
+            child_fixed: str | None = None) -> Evidence | None:
     ctx = rc.tool_ctx
-    out = call_tool(AGENT, "safe_version_lookup", None, ctx, rc.store, rc.audit,
-                    args={"purl": purl, "vuln_ids": vuln_ids[:50], "scanner_fixed": fixed[:50]})
+    args = {"purl": purl, "vuln_ids": vuln_ids[:50], "scanner_fixed": fixed[:50]}
+    if child and child_fixed:
+        args |= {"child": child, "child_fixed": child_fixed}
+    out = call_tool(AGENT, "safe_version_lookup", None, ctx, rc.store, rc.audit, args=args)
     return out.evidence[0] if out and out.evidence else None
 
 
@@ -95,7 +98,7 @@ def _compat(rc: RunContext, purl: str, cur: str, to: str) -> Evidence | None:
 
 
 def _upgrade(rc: RunContext, f: Finding, purl: str, pkg_file: str, why: list, lookup: Evidence, target: str,
-             *, via: str | None = None) -> Candidate | None:
+             *, via: str | None = None, op: str = "set_dependency_version", spec: str = "^") -> Candidate | None:
     name, cur, _ = parse_purl(purl)
     compat = _compat(rc, purl, cur or "0.0.0", target)
     claims = list(why)
@@ -113,14 +116,16 @@ def _upgrade(rc: RunContext, f: Finding, purl: str, pkg_file: str, why: list, lo
     if via:
         claims.append((f"the vulnerable package is transitive; upgrading its direct parent {via} is not proven "
                        f"to pull a fixed version until the sandbox rebuild and rescan", None, None))
-    return Candidate("upgrade", [PatchOp(op="set_dependency_version", file_path=pkg_file,
-                                         args={"name": name, "version": f"^{target}"})],
+    version = f"{spec}{target}" if spec != "==" else target
+    return Candidate("upgrade", [PatchOp(op=op, file_path=pkg_file, args={"name": name, "version": version})],
                      target, claims, "scanner re-scan", evidence_ids=ev_ids, compat=hint)
 
 
 def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     """Upgrade candidates, safest first. Direct dependency: each fixed version; transitive: the direct parent."""
     purl = f.component_purl
+    if purl and purl.startswith("pkg:pypi/"):
+        return pip_candidates(rc, f)
     if not purl or not purl.startswith("pkg:npm/"):
         return []
     name, cur, _ = parse_purl(purl)
@@ -145,14 +150,61 @@ def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
         pname, pcur, _ = parse_purl(parent)
         if not _manifest_declares(rc, pkg_file, pname):
             continue
-        lk = _lookup(rc, parent, [], [])
+        child_fixed = min(f.fixed_versions, key=version_key) if f.fixed_versions else None
+        lk = _lookup(rc, parent, [], [], child=name if child_fixed else None, child_fixed=child_fixed)
         if lk is None:
             continue
         why = [(f"{f.vuln_id} affects {name} {cur}, which is pulled in by {pname} {pcur}", None, None)]
-        for v in lk.facts.get("candidates", [])[-1:]:  # the registry latest of the direct parent
-            c = _upgrade(rc, f, parent, pkg_file, why, lk, v, via=pname)
+        ranges = lk.facts.get("child_ranges") or {}
+        # safest first: the smallest parent upgrade whose dependency range provably excludes the vulnerable
+        # child; then the parent's registry latest. A failed attempt moves on to the next (G5.4: max 3).
+        order = [*lk.facts.get("pulls_fixed_child", []), *lk.facts.get("candidates", [])[-1:]]
+        for v in dict.fromkeys(order):
+            extra = []
+            if v in ranges:
+                extra.append((f"{pname} {v} depends on {name} {ranges[v]}, whose lowest allowed version is at or "
+                              f"above the fixed {child_fixed}", "child_ranges", ranges[v]))
+            c = _upgrade(rc, f, parent, pkg_file, why + extra, lk, v, via=None if v in ranges else pname)
             if c and ops_key(c.ops) not in {ops_key(o.ops) for o in out}:
                 out.append(c)
+    return out
+
+
+def _requirement_pins(rc: RunContext, rel: str, name: str) -> str | None:
+    """The exact `==` pin of `name` in requirements file `rel`, or None if it is not pinned there."""
+    from guardian.adapters.pypi import requirement_pins
+
+    try:
+        pins = requirement_pins(confined_path(rc, rel))
+    except (OSError, ValueError):
+        return None
+    norm = re.sub(r"[-_.]+", "-", name).lower()
+    return next((v for n, v, _s, _l in pins if re.sub(r"[-_.]+", "-", n).lower() == norm and v), None)
+
+
+def confined_path(rc: RunContext, rel: str):
+    from guardian.tools.patching import confined
+
+    return confined(rc.tool_ctx.repo, rel)
+
+
+def pip_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
+    """pip: every package in requirements*.txt is pinned directly, so the fix is a new `==` pin in the file the
+    scanner located, at a version from safe_version_lookup evidence (G4.5), lowest fixing version first."""
+    name, cur, _ = parse_purl(f.component_purl)
+    rel = (f.file_path or "").replace("\\", "/")
+    if not rel.endswith(".txt") or _requirement_pins(rc, rel, name) is None:
+        return []
+    ids = [i for i in [f.vuln_id, *f.aliases] if i]
+    lk = _lookup(rc, f.component_purl, ids, f.fixed_versions)
+    if lk is None:
+        return []
+    why = [(f"{f.vuln_id} affects {name} {cur}, pinned in {rel}", None, None)]
+    out = []
+    for v in lk.facts.get("candidates", []):
+        c = _upgrade(rc, f, f.component_purl, rel, why, lk, v, op="set_requirement_version", spec="==")
+        if c:
+            out.append(c)
     return out
 
 

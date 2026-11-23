@@ -10,7 +10,8 @@ target: juice-shop
 commit_prefix: c9f99228d
 
 summary:
-  status: done
+  # Day 2: a fresh run stops at the human gate (no change without approval); after decisions it is done
+  status: [done, awaiting_human]
   components: {min: 1400, max: 2000}     # 1,656 on 2026-11-23 (root + frontend lockfiles, resolved)
   direct: {min: 100}                     # 154 on 2026-11-23
   projects: [root, frontend]

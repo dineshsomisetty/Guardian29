@@ -2,6 +2,8 @@
 
 Ops (§5.1 PatchOp.op):
   set_dependency_version  package.json  {name, version}
+  set_requirement_version requirements*.txt {name, version}  pin `name==version` (pip; extras, markers and
+                                                             comments on the line are kept)
   remove_dependency       package.json  {name}
   replace_dependency      package.json  {name, new_name, version?}
   pin_action_sha          workflow.yml  {action, ref, sha}
@@ -117,6 +119,28 @@ def _set_version(text: str, a: dict) -> str:
     return "".join(lines)
 
 
+def _pep503(name: str) -> str:
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _set_requirement(text: str, a: dict) -> str:
+    """requirements.txt: rewrite the version specifier of the one line declaring `name` to `==version`."""
+    name, version = a["name"], str(a["version"])
+    _check_name(name)
+    if not re.fullmatch(r"[0-9][0-9A-Za-z.+!-]*", version):
+        raise PatchError(f"unexpected pip version {version!r}")
+    lines = text.splitlines(keepends=True)
+    pat = re.compile(r"^(\s*)([A-Za-z0-9][A-Za-z0-9._-]*)(\s*\[[^\]]*\])?(\s*(?:[<>=!~]=?|===)[^;#\s]*)?")
+    hits = [i for i, ln in enumerate(lines)
+            if (m := pat.match(ln)) and not ln.lstrip().startswith(("#", "-")) and _pep503(m.group(2)) == _pep503(name)]
+    if len(hits) != 1:
+        raise PatchError(f"{name}: expected exactly one requirement line, found {len(hits)}")
+    i = hits[0]
+    m = pat.match(lines[i])
+    lines[i] = f"{m.group(1)}{m.group(2)}{m.group(3) or ''}=={version}{lines[i][m.end():]}"
+    return "".join(lines)
+
+
 def _remove(text: str, a: dict) -> str:
     _check_name(a["name"])
     lines = text.splitlines(keepends=True)
@@ -158,6 +182,7 @@ def _drop_lock_disable(text: str, a: dict) -> str:
 
 _TEXT_OPS = {
     "set_dependency_version": _set_version,
+    "set_requirement_version": _set_requirement,
     "remove_dependency": _remove,
     "replace_dependency": _replace,
     "pin_action_sha": _pin_action,

@@ -56,3 +56,31 @@ def test_new_vuln_is_regressed(target, settings, fake_llm_factory, rig):  # noqa
     _decide(s, "run_rg", "approve")
     v = list_validations(run_dir)[0]
     assert v.verdict == "regressed" and "vuln:CVE-1 in x" in v.new_findings
+
+
+def test_patched_copy_lockfiles_resolved_before_rescan(target, settings, fake_llm_factory, rig, monkeypatch):  # noqa: F811
+    """The attempt is a fresh copy of the target, which may ship without lockfiles: the validator must
+    re-resolve them for the patched manifests *before* the SBOM rescan, else the diff is meaningless."""
+    from guardian.tools import resolve
+
+    fake, _ = rig
+    fake.test_exit = 0
+    order: list[str] = []
+    rescan = sandbox.rescan_patched
+
+    def fake_resolve(ctx):
+        order.append(f"resolve:{ctx.artifacts.get('target_name')}:{ctx.work_dir.name}")
+        return ToolOutput()
+
+    def tracked_rescan(ctx):
+        order.append("rescan")
+        return rescan(ctx)
+
+    monkeypatch.setattr(resolve, "resolve_lockfiles", fake_resolve)
+    monkeypatch.setattr(sandbox, "rescan_patched", tracked_rescan)
+    s = _settings(settings, plans=3)
+    llm, _b = fake_llm_factory(lambda *a: '{"assessments": []}')
+    workflow.run(target, run_id="run_rl", settings=s, llm=llm, echo=False)
+    order.clear()  # discovery resolved the original target; only the validator's calls matter here
+    _decide(s, "run_rl", "approve")
+    assert order[:2] == [f"resolve:{target.name}:work", "rescan"], order

@@ -89,8 +89,12 @@ def _osv_fixed(vuln: dict, name: str) -> list[str]:
 def osv_scan(ctx: ToolContext) -> ToolOutput:
     work = ctx.work_dir or ctx.repo
     locks = [p.lockfile for p in find_projects(work) if p.lockfile.exists()]
+    # pip: OSV-Scanner reads requirements.txt as a lockfile (pinned lines are what it can match)
+    from guardian.adapters import pypi
+
+    locks += [r for proj in pypi.find_projects(work) for r in proj.requirements]
     if not locks:
-        raise RuntimeError("no lockfiles for OSV")
+        raise RuntimeError("no lockfiles or requirements files for OSV")
     args = [find("osv-scanner"), "scan", "source", "--format", "json"]
     for lf in locks:
         args += ["-L", str(lf)]
@@ -102,12 +106,15 @@ def osv_scan(ctx: ToolContext) -> ToolOutput:
     evidence = [Evidence(run_id=ctx.run_id, kind="osv", source_tool=tool, facts={"results": len(data.get("results", []))},
                          artifact_path="osv.json", sha256=sha256_file(raw_path))]
     findings = []
-    from guardian.adapters.npm import purl as mk_purl
+    from guardian.adapters.npm import purl as npm_purl
+
+    def mk_purl(name: str, version: str, ecosystem: str) -> str:
+        return pypi.purl(name, version) if ecosystem.lower() == "pypi" else npm_purl(name, version)
 
     for res in data.get("results", []):
         for pkg in res.get("packages", []):
             info = pkg.get("package", {})
-            p = mk_purl(info.get("name", ""), info.get("version", ""))
+            p = mk_purl(info.get("name", ""), info.get("version", ""), info.get("ecosystem", "npm"))
             meta = _node_meta(ctx, p)
             groups = pkg.get("groups", [])
             for vuln in pkg.get("vulnerabilities", []):

@@ -76,3 +76,16 @@ def test_schema_parse_errors():
         parse_batch("not json")
     with pytest.raises(SchemaError):
         parse_batch('{"assessments": [{"finding_id": "x", "initial_risk": "severe", "explanation": "", "claims": []}]}')
+
+
+def test_version_extraction_ignores_sentence_period():
+    """G4.4 compares versions in LLM text with evidence; a sentence-ending period must not become part of the
+    version ("3.9-alpine." vs evidence "3.9-alpine"), while prerelease dots stay ("1.2.3-rc.1")."""
+    from guardian.guardrails.grounding import VERSION_RE
+
+    def versions(t):
+        return [m.group(1) for m in VERSION_RE.finditer(t)]
+
+    assert versions("pinned to python:3.9-alpine.") == ["3.9-alpine"]
+    assert versions("upgrade to 1.2.3-rc.1 now") == ["1.2.3-rc.1"]
+    assert versions("from 0.1.3. Then 8.5.1, done") == ["0.1.3", "8.5.1"]

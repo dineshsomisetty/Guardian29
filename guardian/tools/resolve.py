@@ -26,7 +26,8 @@ def _npm() -> str:
 def resolve_lockfiles(ctx: ToolContext) -> ToolOutput:
     work = ctx.work_dir or ctx.repo
     evidence, projects = [], []
-    fixtures = REPO_ROOT / "tests" / "fixtures" / ctx.repo.name
+    # a patched attempt copy lives in runs/<id>/attempts/<at>/work: the validator passes the target's name
+    fixtures = REPO_ROOT / "tests" / "fixtures" / (ctx.artifacts.get("target_name") or ctx.repo.name)
     for proj in find_projects(work):
         fixture_dir = fixtures / ("root" if proj.name == "root" else proj.name)
         had_lock = proj.lockfile.exists()
@@ -35,7 +36,7 @@ def resolve_lockfiles(ctx: ToolContext) -> ToolOutput:
         elif (fixture_dir / "package-lock.json").exists() and (fixture_dir / "package.json").exists() and \
                 sha256_file(fixture_dir / "package.json") == sha256_file(proj.manifest):
             shutil.copyfile(fixture_dir / "package-lock.json", proj.lockfile)
-            source = f"fixture tests/fixtures/{ctx.repo.name}/{fixture_dir.name} (manifest hash match)"
+            source = f"fixture tests/fixtures/{fixtures.name}/{fixture_dir.name} (manifest hash match)"
         else:
             args = [_npm(), "install", "--package-lock-only", "--ignore-scripts", "--package-lock=true",
                     "--no-audit", "--no-fund"]

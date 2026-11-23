@@ -256,4 +256,21 @@ def trim_packument(p: dict) -> dict:
         "latest_attestations": (lv.get("dist") or {}).get("attestations"),
         "latest_signatures": (lv.get("dist") or {}).get("signatures"),
         "version_list": list(versions.keys()),
+        "major_heads": major_heads(versions, latest),
     }
+
+
+def major_heads(versions: dict, latest: str | None, limit: int = 12) -> dict[str, dict[str, str]]:
+    """{version: dependencies} for the newest stable release of each major (newest majors first, capped).
+    Lets remediation prove that an older major of a direct parent already pulls a fixed transitive child
+    without a registry call per version."""
+    best: dict[int, str] = {}
+    lv = version_key(latest) if latest else None
+    for v in versions:
+        if not re.fullmatch(r"\d+\.\d+\.\d+", v) or (lv is not None and version_key(v) > lv):
+            continue  # stable releases only, never above the `latest` tag
+        major = int(v.split(".")[0])
+        if major not in best or version_key(v) > version_key(best[major]):
+            best[major] = v
+    heads = sorted(best.values(), key=version_key, reverse=True)[:limit]
+    return {v: dict((versions[v] or {}).get("dependencies") or {}) for v in heads}

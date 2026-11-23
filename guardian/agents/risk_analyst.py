@@ -177,7 +177,7 @@ def _key(f: Finding, score: float) -> tuple:
 
 def cve_plannable(f: Finding) -> bool:
     return (f.category is FindingCategory.CVE and bool(f.fixed_versions)
-            and (f.component_purl or "").startswith("pkg:npm/"))  # patch ops exist for package.json only
+            and (f.component_purl or "").startswith(("pkg:npm/", "pkg:pypi/")))  # package.json / requirements*.txt
 
 
 def select(findings: list[Finding], limit: int, scores: dict[str, float] | None = None) -> list[Finding]:

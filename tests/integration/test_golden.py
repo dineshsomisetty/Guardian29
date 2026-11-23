@@ -1,4 +1,4 @@
-"""D5-02: check the latest real run (runs/LATEST) against tests/golden/juice_shop_expected.yaml.
+"""D5-02: check the newest real Juice Shop run in runs/ against tests/golden/juice_shop_expected.yaml.
 
 Skipped when there is no run (fresh clone / CI without targets). Run explicitly:
     uv run pytest tests/integration/test_golden.py -q
@@ -24,11 +24,18 @@ def _run_dir() -> Path | None:
     if override:
         p = Path(override)
         return p if p.is_absolute() else REPO / p
-    latest = REPO / "runs" / "LATEST"
-    if not latest.is_file():
-        return None
-    run_id = latest.read_text(encoding="utf-8").strip()
-    return REPO / "runs" / run_id if run_id else None
+    # newest finished run *for the golden target*: runs/LATEST may point at another target (e.g. pygoat)
+    target = yaml.safe_load(GOLDEN.read_text(encoding="utf-8"))["target"]
+    best: tuple[str, Path] | None = None
+    for d in (REPO / "runs").glob("run_*"):
+        try:
+            s = json.loads((d / "run_summary.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if s.get("target") == target and s.get("status") in ("done", "awaiting_human") and s.get("finished_at"):
+            if best is None or s["finished_at"] > best[0]:
+                best = (s["finished_at"], d)
+    return best[1] if best else None
 
 
 @pytest.fixture(scope="module")
@@ -40,7 +47,7 @@ def golden() -> dict:
 def run(golden) -> dict:
     run_dir = _run_dir()
     if run_dir is None:
-        pytest.skip("no run to check: runs/LATEST missing (run `uv run python -m guardian run --repo targets/juice-shop`)")
+        pytest.skip("no finished juice-shop run in runs/ (run `uv run python -m guardian run --repo targets/juice-shop`)")
     if not (run_dir / "run_summary.json").is_file():
         pytest.skip(f"run folder {run_dir} has no run_summary.json (run not finished?)")
 
@@ -82,7 +89,8 @@ def _matches(f: dict, exp: dict) -> bool:
 
 def test_summary(run, golden):
     s, exp = run["summary"], golden["summary"]
-    assert s["status"] == exp["status"]
+    allowed = exp["status"] if isinstance(exp["status"], list) else [exp["status"]]
+    assert s["status"] in allowed
     assert str(s.get("commit", "")).startswith(golden["commit_prefix"]), f"run commit {s.get('commit')}"
     n = s["sbom"]["components"]
     assert exp["components"]["min"] <= n <= exp["components"]["max"], f"component count {n} out of range"

@@ -134,7 +134,9 @@ def _tool_specs() -> dict[str, ToolSpec]:
 # Detectors the validator re-runs on the patched copy (C4: non-CVE fixes are verified by their detector).
 EXTRA_ALLOW: dict[str, set[str]] = {
     "validator": {"detector:lockfile", "detector:typosquat", "detector:ci_pin", "detector:image_pin",
-                  "detector:install_scripts"},
+                  "detector:install_scripts",
+                  # re-resolve the patched copy's lockfiles (--ignore-scripts) so the rescan sees the upgrade
+                  "resolve_lockfiles"},
 }
 FORBIDDEN_WORDS = ("publish", "push", "merge", "deploy")  # G3.4
 _SPECS: dict[str, ToolSpec] | None = None

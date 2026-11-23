@@ -43,6 +43,22 @@ class SafeVersionArgs(BaseModel):
     purl: str = Field(pattern=PURL)
     vuln_ids: list[str] = Field(default=[], max_length=50)
     scanner_fixed: list[str] = Field(default=[], max_length=50)
+    # transitive fix: the vulnerable child of this (direct parent) package and the child's lowest fixed version
+    child: str | None = Field(default=None, max_length=214, pattern=r"^[@a-zA-Z0-9][\w.@/-]*$")
+    child_fixed: str | None = Field(default=None, max_length=64, pattern=r"^\d+(\.\d+){0,2}")
+
+
+def range_floor(spec: str | None) -> str | None:
+    """Lowest version an npm range admits, for the common forms (^x, ~x, >=x, x, x - y); None if unbounded or
+    not understood ("*", "latest", "||" unions, git/url specs) so it is never treated as a proof."""
+    s = (spec or "").strip()
+    if not s or "||" in s or s in ("*", "x", "latest") or ":" in s or "/" in s:
+        return None
+    m = re.match(r"^(?:\^|~|>=|=)?\s*v?(\d+)(?:\.(\d+|x|\*))?(?:\.(\d+|x|\*))?(?:\s|$|-)", s)
+    if not m:
+        return None
+    parts = [m.group(1), m.group(2) or "0", m.group(3) or "0"]
+    return ".".join("0" if p in ("x", "*") else p for p in parts)
 
 
 class CompatArgs(BaseModel):
@@ -184,12 +200,27 @@ def safe_version_lookup(ctx: ToolContext, args: SafeVersionArgs) -> ToolOutput:
     cands = {v for v in pool if floor is None or version_key(v) >= version_key(floor)}
     if latest and _stable(latest) and (floor is None or version_key(latest) >= version_key(floor)):
         cands.add(latest)
+    child_ranges: dict[str, str] = {}
+    pulls_fixed: list[str] = []
+    if args.child and args.child_fixed and meta:
+        # an older major of the parent may already pull a fixed child: prove it from the registry's
+        # dependency range (its lowest admitted version >= the child's fixed version), never assume it
+        for v, deps in (meta.get("major_heads") or {}).items():
+            if args.child in deps:
+                child_ranges[v] = deps[args.child]
+                floor_v = range_floor(deps[args.child])
+                if floor_v and version_key(floor_v) >= version_key(args.child_fixed):
+                    pulls_fixed.append(v)
+        cands |= set(pulls_fixed)
     cands = sorted((v for v in cands if cur is None or version_key(v) > version_key(cur)), key=version_key)
+    pulls_fixed = [v for v in cands if v in pulls_fixed]
     source = "osv+scanner" if res["all_fixed"] else ("scanner" if args.scanner_fixed else "registry")
     ev = _ev(ctx, "osv", "safe_version_lookup",
              {"purl": args.purl, "package": name, "installed": cur, "vuln_ids": args.vuln_ids,
               "fixed_version": res["fixed_version"] or floor, "candidates": cands, "latest": latest,
-              "scanner_fixed": args.scanner_fixed, "affected_range": res["affected_range"], "source": source})
+              "scanner_fixed": args.scanner_fixed, "affected_range": res["affected_range"], "source": source,
+              **({"child": args.child, "child_fixed": args.child_fixed, "child_ranges": child_ranges,
+                  "pulls_fixed_child": pulls_fixed} if args.child else {})})
     return ToolOutput(evidence=[ev], summary=f"{name}: candidates {cands or 'none'} ({source})")
 
 

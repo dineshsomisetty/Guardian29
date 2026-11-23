@@ -116,7 +116,8 @@ def validator_node(state: GraphState) -> dict:
     if applied is not None:
         attempt_dir = applied.artifacts["attempt_dir"]
         actx = ToolContext(run_id=ctx.run_id, run_dir=ctx.run_dir, repo=attempt_dir, settings=ctx.settings,
-                           work_dir=attempt_dir, budget=ctx.budget, artifacts={"attempt_id": attempt_id})
+                           work_dir=attempt_dir, budget=ctx.budget,
+                           artifacts={"attempt_id": attempt_id, "target_name": ctx.repo.name})
         for d in detectors:
             out = call_tool(AGENT, d, None, actx, store, audit)
             if out is not None:
@@ -129,6 +130,12 @@ def validator_node(state: GraphState) -> dict:
         if sandbox.mode() == "off":
             sb = sandbox.SandboxResult(reason="GUARDIAN_SANDBOX=off")
         else:
+            # The attempt is a fresh copy of the target, which may ship without lockfiles (Juice Shop:
+            # .npmrc package-lock=false). Resolve them for the *patched* manifests before the rescan, else the
+            # SBOM diff compares a full tree with a manifest-only one and the upgrade is never actually seen.
+            rl = call_tool(AGENT, "resolve_lockfiles", "guardian.tools.resolve:resolve_lockfiles", actx, store, audit)
+            if rl is not None:
+                log_ev += [e.evidence_id for e in rl.evidence]
             rs = call_tool(AGENT, "rescan_patched", None, actx, store, audit)
             if rs is not None:
                 rescanned = "sbom.after.cdx.json"
@@ -139,7 +146,7 @@ def validator_node(state: GraphState) -> dict:
             sv = call_tool(AGENT, "sandbox_validate", None, actx, store, audit)
             if sv is not None:
                 sb = sv.artifacts["sandbox_result"]
-                log_ev = [e.evidence_id for e in sv.evidence]
+                log_ev += [e.evidence_id for e in sv.evidence]
             else:
                 sb = sandbox.SandboxResult(reason="sandbox tool failed")
         if not sb.ran:

@@ -147,3 +147,40 @@ def test_simulate_after_and_report(rc):
     html = h.read_text()
     assert "<script src" not in html and "http://" not in html and "GHSA-aaaa" in html
     assert render_html(build_report(rc.tool_ctx.run_dir, summary={})).startswith("<!doctype html>")
+
+
+def test_pip_cves_with_a_fix_are_plannable():
+    from guardian.agents.risk_analyst import cve_plannable
+    from guardian.core.models import Finding, FindingCategory
+
+    def cve(purl, fixed):
+        return Finding(run_id="r", category=FindingCategory.CVE, title="t", detector="grype", component_purl=purl,
+                       fixed_versions=fixed, evidence_ids=["ev_1"])
+
+    assert cve_plannable(cve("pkg:pypi/django@3.2.18", ["3.2.19"]))
+    assert cve_plannable(cve("pkg:npm/lodash@2.4.2", ["4.17.21"]))
+    assert not cve_plannable(cve("pkg:pypi/django@3.2.18", []))
+    assert not cve_plannable(cve("pkg:maven/org.x/y@1.0", ["1.1"]))
+
+
+def test_transitive_fix_prefers_smallest_parent_major_that_provably_pulls_fixed_child(rc, monkeypatch):
+    """jsonwebtoken@0.1.0 (fixed in 4.2.2) comes in through express-jwt@0.1.3. Older express-jwt majors whose
+    jsonwebtoken range floor is >= 4.2.2 are proven fixes: attempt 1 is the smallest such jump, attempt 2 the
+    next, and ~4.2.0 (floor 4.2.0 < 4.2.2) is never offered. Each target and range is cited evidence (G4.5)."""
+    from guardian.tools.threat_intel import IntelClient
+
+    (rc.tool_ctx.repo / "package.json").write_text('{\n  "dependencies": {\n    "express-jwt": "0.1.3"\n  }\n}\n')
+    heads = {"8.5.1": {"jsonwebtoken": "^9.0.0"}, "6.1.2": {"jsonwebtoken": "^8.1.0"},
+             "3.4.0": {"jsonwebtoken": "^5.0.0"}, "2.1.0": {"jsonwebtoken": "~4.2.0"}}
+    monkeypatch.setattr(IntelClient, "registry_metadata",
+                        lambda self, purl: {"latest": "8.5.1", "major_heads": heads} if "express-jwt" in purl else None)
+    child = "pkg:npm/jsonwebtoken@0.1.0"
+    f = cve(rc, fixed=("4.2.2",), paths=[["root", "pkg:npm/express-jwt@0.1.3", child]])
+    f.component_purl = child
+    cands = rem.cve_candidates(rc, f)
+    assert [c.target for c in cands] == ["3.4.0", "6.1.2", "8.5.1"]
+    assert cands[0].ops[0].args == {"name": "express-jwt", "version": "^3.4.0"}
+    plan = rem.build_plan(rc, f, cands[0], 1)
+    assert plan is not None and plan.target_version == "3.4.0"
+    proof = next(c for c in plan.rationale if "depends on jsonwebtoken ^5.0.0" in c.text)
+    assert proof.label.value == "verified"

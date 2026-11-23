@@ -448,3 +448,20 @@ def test_ls_remote_prefers_peeled_tag_and_validates_sha(monkeypatch):
     proc.stdout = "not-a-sha\trefs/heads/v3\n"
     with pytest.raises(PatchError, match="not found"):
         patching.ls_remote("actions/checkout", "v3")
+
+
+def test_set_requirement_version_rewrites_one_pin_and_keeps_the_line():
+    from guardian.tools.patching import PatchError, _set_requirement
+
+    text = "Django==3.2.18  # web framework\nrequests[socks]>=2.0 ; python_version>'3'\ndjango-cors==1.0\n"
+    out = _set_requirement(text, {"name": "django", "version": "4.2.20"})
+    assert out.splitlines() == ["Django==4.2.20  # web framework", "requests[socks]>=2.0 ; python_version>'3'",
+                                "django-cors==1.0"]
+    out = _set_requirement(text, {"name": "Requests", "version": "2.32.3"})
+    assert "requests[socks]==2.32.3 ; python_version>'3'" in out
+    import pytest
+
+    with pytest.raises(PatchError):
+        _set_requirement(text, {"name": "flask", "version": "3.0.0"})  # not declared
+    with pytest.raises(PatchError):
+        _set_requirement(text, {"name": "django", "version": "4.2; rm -rf /"})  # not a version
