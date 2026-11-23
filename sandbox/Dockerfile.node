@@ -1,0 +1,12 @@
+# Guardian validation sandbox for npm targets (D2-08, Dev2).
+# Deps-installed BASE image: built once per target from the unpatched lockfile so each validation attempt only
+# installs the delta. Runs as the image's non-root `node` user (G6.1). Base image pinned by digest.
+FROM node:24@sha256:9d266751ca3d7fdbe651c878ffd5ad0a42fed49a18c283509267c97f025b7496
+ENV NPM_CONFIG_FUND=false NPM_CONFIG_AUDIT=false NPM_CONFIG_UPDATE_NOTIFIER=false CI=true
+RUN mkdir -p /app && chown node:node /app
+WORKDIR /app
+USER node
+COPY --chown=node:node package.json package-lock.json ./
+# Dependency install scripts run ONLY here, inside the sandbox (plan §0 rule 6). `npm rebuild` runs the
+# dependencies' install scripts but not the project's own postinstall (which builds the Angular frontend).
+RUN npm ci --ignore-scripts --package-lock=true && npm rebuild
