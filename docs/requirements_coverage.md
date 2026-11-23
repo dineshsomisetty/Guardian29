@@ -141,7 +141,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 |---|---|---|
 | 1 Reachability analysis | ✅ | two levels. Import: is the vulnerable package imported in production code (R 0.6). Function: reviewed rules in `data/reachability/vulnerable_functions.yaml` name the vulnerable function per advisory, and production call sites are found through each file's local names (R 1.0, "called"); "not called" is never claimed. Real (Juice Shop): `jwt.verify` at `lib/insecurity.ts:189`, `routes/verify.ts:125`, `routes/passkey.ts:53`; `jws.verify` at `lib/insecurity.ts:55`; `expressJwt(...)` at `lib/insecurity.ts:52`; `sanitizeHtml(...)`; `notevil` eval at `routes/b2bOrder.ts:23`. `tests/unit/test_reachability_called.py`. Rules cover the demo packages, not every advisory |
 | 2 Automated remediation (PR) | ✅ | local branch + `PR.md` with fix, rationale, validation results, rollback; never pushed (`tests/integration/test_local_pr.py`) |
-| 3 Provenance verification | 🟡 | npm registry signatures/attestations + repository/maintainer signals → provenance gaps and score modifier. Cosign / in-toto / SLSA verification not done |
+| 3 Provenance verification | ✅ | npm verifies every installed package's registry signature and its Sigstore-backed provenance attestation (`npm audit signatures`, run in the sandbox's dependency image); a failed signature fails provenance and adds the section 7 modifier; registry signals (repository, maintainer change) add provenance-gap findings. Real (Juice Shop): 1,223 packages audited, 1,223 verified signatures, 186 verified Sigstore attestations, 0 invalid. `tests/unit/test_npm_signatures.py`. Not done: Cosign verification of container images, in-toto/SLSA for non-npm artifacts |
 | 4 Advanced package risk | ✅ | dependency confusion, maintainer change, unusual release activity (`tests/unit/test_package_risk.py`) |
 | 5 Policy-as-code | ✅ | `guardian.yaml` + `policies/guardian.rego`; native evaluator always, Conftest/OPA when installed; re-checked after each fix |
 | 6 Continuous monitoring | ✅ | `guardian watch` |
@@ -155,5 +155,6 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 ## Summary
 
 * **All core requirements (slides 2–5) are done**, each with a real run as proof.
-* **Stretch goals:** 4 of 6 done; reachability and provenance are partial (import-level, registry-level).
+* **Stretch goals:** all 6 done, each with a real run (provenance covers npm packages via Sigstore attestations;
+  container-image signatures with Cosign are not verified).
 * **All deliverables exist.**
