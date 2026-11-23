@@ -39,21 +39,40 @@ install_anchore() { # name version
   unpack "$TMP/$f" "$n"
 }
 
-install_anchore syft  "$SYFT_VERSION"
-install_anchore grype "$GRYPE_VERSION"
+have() { # tool version: already installed at exactly this version? (re-runs skip the download)
+  [ -x "$BIN/$1$EXE" ] && "$BIN/$1$EXE" version 2>/dev/null | grep -q "$2"
+}
+
+have syft  "$SYFT_VERSION"  || install_anchore syft  "$SYFT_VERSION"
+have grype "$GRYPE_VERSION" || install_anchore grype "$GRYPE_VERSION"
 
 # OSV-Scanner ships a bare binary + a SHA256SUMS file
-OSV_BASE="https://github.com/google/osv-scanner/releases/download/v$OSV_SCANNER_VERSION"
-OSV_F="osv-scanner_${OS}_${ARCH}$EXE"
-fetch "$OSV_BASE/$OSV_F" "$TMP/$OSV_F"; fetch "$OSV_BASE/osv-scanner_SHA256SUMS" "$TMP/osvsums"
-verify "$TMP/$OSV_F" "$(grep " $OSV_F\$" "$TMP/osvsums" | cut -d' ' -f1)"
-cp "$TMP/$OSV_F" "$BIN/osv-scanner$EXE"; chmod +x "$BIN"/* 2>/dev/null || true
+if ! { [ -x "$BIN/osv-scanner$EXE" ] && "$BIN/osv-scanner$EXE" --version | grep -q "$OSV_SCANNER_VERSION"; }; then
+  OSV_BASE="https://github.com/google/osv-scanner/releases/download/v$OSV_SCANNER_VERSION"
+  OSV_F="osv-scanner_${OS}_${ARCH}$EXE"
+  fetch "$OSV_BASE/$OSV_F" "$TMP/$OSV_F"; fetch "$OSV_BASE/osv-scanner_SHA256SUMS" "$TMP/osvsums"
+  verify "$TMP/$OSV_F" "$(grep " $OSV_F\$" "$TMP/osvsums" | cut -d' ' -f1)"
+  cp "$TMP/$OSV_F" "$BIN/osv-scanner$EXE"
+fi
+
+# Cosign (D2-12): bare binary + cosign_checksums.txt
+if ! have cosign "$COSIGN_VERSION"; then
+  CO_BASE="https://github.com/sigstore/cosign/releases/download/v$COSIGN_VERSION"
+  CO_F="cosign-${OS}-${ARCH}$EXE"
+  fetch "$CO_BASE/$CO_F" "$TMP/$CO_F"; fetch "$CO_BASE/cosign_checksums.txt" "$TMP/cosums"
+  verify "$TMP/$CO_F" "$(grep " $CO_F\$" "$TMP/cosums" | cut -d' ' -f1)"
+  cp "$TMP/$CO_F" "$BIN/cosign$EXE"
+fi
+chmod +x "$BIN"/* 2>/dev/null || true
 
 export PATH="$BIN:$PATH"
-echo "Pre-downloading Grype vulnerability DB..."
-GRYPE_DB_AUTO_UPDATE=true grype db update
+if [ "${SKIP_GRYPE_DB:-0}" != "1" ]; then
+  echo "Pre-downloading Grype vulnerability DB..."
+  GRYPE_DB_AUTO_UPDATE=true grype db update
+fi
 
 echo "---- installed versions ----"
 syft version | grep -E '^Version'
 grype version | grep -E '^Version'
 osv-scanner --version | head -1
+cosign version 2>/dev/null | grep -E '^GitVersion'
