@@ -2,7 +2,7 @@ import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronRight, Circle, 
 import { useEffect, useMemo, useState } from "react";
 import type { Evidence, Finding, RemediationPlan, ValidationResult } from "../api/types";
 import { bandOf } from "../lib/format";
-import { evidenceTitle, plainTitle } from "../lib/labels";
+import { evidenceTitle, plainTitle, verdictFail } from "../lib/labels";
 import { planSummary } from "../lib/plan";
 import { useStore } from "../store";
 import { useCountTween, useEvidence, useEvidenceMany } from "./hooks";
@@ -13,14 +13,7 @@ interface Attempt {
   val: ValidationResult | undefined;
 }
 
-const FAIL_WORD: Record<string, string> = {
-  failed_build: "the build failed",
-  failed_tests: "tests failed",
-  failed_rescan: "the vulnerability was still present after the fix",
-  new_findings: "the fix introduced new findings",
-  no_fix: "the upgrade did not remove the vulnerability",
-};
-const failWord = (v: string) => FAIL_WORD[v] ?? v.replace(/_/g, " ");
+const failWord = verdictFail;
 
 export default function ValidationView() {
   const { data, findingsById, riskById } = useStore();

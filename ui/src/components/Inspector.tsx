@@ -2,7 +2,7 @@ import { ChevronDown, ChevronUp, MapPin, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Finding } from "../api/types";
 import { bandOf, purlLabel, purlName, purlVersion } from "../lib/format";
-import { BAND_COPY, CATEGORY_WHY, categoryLabel, evidenceTitle, findingRef, plainTitle } from "../lib/labels";
+import { BAND_COPY, CATEGORY_WHY, categoryLabel, evidenceTitle, findingRef, plainTitle, statusText } from "../lib/labels";
 import { useStore } from "../store";
 import { inertProps, typingTarget, useEvidence } from "./hooks";
 import { FactorTable } from "./RiskTable";
@@ -293,7 +293,7 @@ function FindingPane({ id }: { id: string }) {
               <Fact k="Finding id" v={f.finding_id} mono />
               <Fact k="Found by" v={f.detector} mono />
               {f.component_purl && <Fact k="Package URL" v={f.component_purl} mono />}
-              <Fact k="Status" v={f.status.replace(/_/g, " ")} />
+              <Fact k="Status" v={statusText(f.status)} />
               {f.initial_risk && <Fact k="First rating" v={`${f.initial_risk} (${f.initial_risk_source === "llm" ? "AI" : "rule"})`} />}
             </dl>
           </details>

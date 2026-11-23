@@ -1,7 +1,7 @@
 import { Activity, ChevronDown, Download, Info, Keyboard, LogOut, Shield } from "lucide-react";
 import { useCallback, useState } from "react";
 import { fmtDate, shortCommit } from "../lib/format";
-import { LLM_NAME, llmMode } from "../lib/labels";
+import { LLM_NAME, llmMode, statusText } from "../lib/labels";
 import { useStore } from "../store";
 import { useDismiss, useReportLinks } from "./hooks";
 import { Tip } from "./ui";
@@ -115,7 +115,7 @@ function RunDetails() {
             <dt>Scan id</dt><dd className="mono">{data.runId}</dd>
             <dt>Started</dt><dd>{fmtDate(s.started_at)}</dd>
             {s.finished_at && (<><dt>Finished</dt><dd>{fmtDate(s.finished_at)}</dd></>)}
-            <dt>Status</dt><dd>{status.replace(/_/g, " ")}</dd>
+            <dt>Status</dt><dd>{statusText(status)}</dd>
             <dt>AI model</dt><dd>{LLM_NAME(s.llm?.model)} {s.llm?.model ? <span className="mono faint">({s.llm.model})</span> : null}</dd>
             <dt>AI mode</dt><dd>{mode.word}<br /><span className="muted">{mode.help}</span></dd>
             <dt>Data source</dt><dd>{kind === "api" ? "Live Guardian service" : kind === "static" ? "Static run folder" : "Built-in offline sample"}</dd>

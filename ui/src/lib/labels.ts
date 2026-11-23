@@ -281,3 +281,35 @@ export function llmMode(mode: string | null | undefined): { word: string; help: 
       return { word: mode ?? "off", help: "No AI model was used." };
   }
 }
+
+// ------------------------------------------------------------------ statuses and verdicts in plain words
+
+/** Run and finding statuses as the backend writes them (models.FindingStatus, run_summary.status). */
+const STATUS_TEXT: Record<string, string> = {
+  open: "Open",
+  assessed: "Assessed",
+  planned: "Fix planned",
+  awaiting_human: "Awaiting your approval",
+  validating: "Being validated",
+  verified: "Fixed and verified",
+  accepted: "Risk accepted",
+  escalated: "Escalated for security review",
+  below_threshold: "Below the risk threshold",
+  running: "Running",
+  done: "Finished",
+  failed: "Stopped with an error",
+};
+
+export const statusText = (s: string | null | undefined) =>
+  s ? STATUS_TEXT[s] ?? s.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase()) : "Unknown";
+
+/** Validation verdicts (models.ValidationResult.verdict), phrased as what went wrong. */
+const VERDICT_FAIL: Record<string, string> = {
+  failed_build: "the build failed",
+  failed_tests: "tests that passed before the fix now fail",
+  regressed: "the fix introduced new vulnerabilities or packages",
+  not_resolved: "the vulnerability was still there after the fix",
+  timeout: "a sandbox step ran out of time",
+};
+
+export const verdictFail = (v: string) => VERDICT_FAIL[v] ?? v.replace(/_/g, " ");

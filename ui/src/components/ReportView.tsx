@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { loadReport } from "../api/client";
 import type { ReportJson } from "../api/types";
 import { bandOf, fmtDate, purlLabel } from "../lib/format";
-import { plainTitle } from "../lib/labels";
+import { plainTitle, verdictFail } from "../lib/labels";
 import { useStore } from "../store";
 import { useReportLinks } from "./hooks";
 import { EmptyState, Section, SevPill, Skeleton } from "./ui";
@@ -72,8 +72,12 @@ export default function ReportView() {
         )}
         {rep === null && links !== "pending" && (
           <EmptyState icon={<FileText size={32} aria-hidden />} title="The report is not ready yet" center>
-            Guardian writes the report when the scan is complete. This scan is {status.replace(/_/g, " ")}
-            {data.summary.pending_plan ? " and is waiting for your decision on a fix" : ""}. Come back after it finishes.
+            Guardian writes the report when the scan is complete.{" "}
+            {data.summary.pending_plan || status === "awaiting_human"
+              ? "This scan is paused until you decide on the proposed fix. Approve, reject or accept the risk on the Approval page, and the report follows."
+              : status === "failed"
+                ? "This scan stopped with an error, so no report was written. The activity log shows where it stopped."
+                : "This scan is still running. The report appears here when it finishes."}
           </EmptyState>
         )}
         {rep && rep !== "loading" && (
@@ -97,7 +101,7 @@ export default function ReportView() {
                     <span className={`pill ${a.approval?.decision === "approve" ? "ok" : ""}`}>{a.approval ? DEC_WORD[a.approval.decision] ?? a.approval.decision : "No decision"}</span>
                     {a.validations.map((v) => (
                       <span key={v.attempt_id} className={`pill ${v.verdict === "verified" ? "ok" : "bad"}`}>
-                        {v.verdict === "verified" ? "Validated" : `Failed: ${v.verdict.replace(/_/g, " ")}`}
+                        {v.verdict === "verified" ? "Validated" : `Failed: ${verdictFail(v.verdict)}`}
                       </span>
                     ))}
                   </li>
