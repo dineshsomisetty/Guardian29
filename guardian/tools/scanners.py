@@ -20,6 +20,7 @@ from guardian.core.graph_build import paths_to
 from guardian.core.models import new_id
 from guardian.tools.sbom import find_tool
 
+
 def _purl(p: str) -> str:
     return p.split("?", 1)[0]
 
@@ -118,3 +119,109 @@ def grype_scan(ctx):
     findings, evidence = scan_sbom(Path(ctx.sbom_path), Path(ctx.run_dir), ctx.graph, ctx.run_id)
     fds, evs = to_models(findings, evidence)
     return ToolOutput(findings=fds, evidence=evs, summary=f"{len(fds)} vulnerabilities (grype, offline DB)")
+
+
+# ---------------------------------------------------------------- OSV-Scanner cross-check (P1)
+def run_osv(lockfiles: list[Path], out_json: Path, timeout: int = 600) -> dict:
+    """`osv-scanner scan source -L <lock> ... --format json`. Queries api.osv.dev (allowlisted, §14).
+    Exit code 1 means "vulnerabilities found", not failure."""
+    args = [find_tool("osv-scanner"), "scan", "source"]
+    for lf in lockfiles:
+        args += ["-L", str(lf)]
+    args += ["--format", "json", "--output-file", str(out_json)]
+    proc = subprocess.run(args, capture_output=True, text=True, timeout=timeout, encoding="utf-8")
+    if proc.returncode not in (0, 1) or not Path(out_json).is_file():
+        raise RuntimeError(f"osv-scanner failed (rc={proc.returncode}): {proc.stderr[-800:]}")
+    return json.loads(Path(out_json).read_text(encoding="utf-8"))
+
+
+def _osv_range(vuln: dict, name: str) -> tuple[list[str], str | None]:
+    """Fixed versions and a readable affected range ("<4.17.21", "<=6.6.1") for this package."""
+    fixed, parts = [], []
+    for aff in vuln.get("affected", []):
+        if (aff.get("package") or {}).get("name") != name:
+            continue
+        for rng in aff.get("ranges", []):
+            if rng.get("type") not in ("SEMVER", "ECOSYSTEM"):
+                continue
+            intro = None
+            for ev in rng.get("events", []):
+                if "introduced" in ev:
+                    intro = ev["introduced"]
+                elif "fixed" in ev:
+                    fixed.append(ev["fixed"])
+                    parts.append((f">={intro}, " if intro not in (None, "0") else "") + f"<{ev['fixed']}")
+                elif "last_affected" in ev:
+                    parts.append((f">={intro}, " if intro not in (None, "0") else "") + f"<={ev['last_affected']}")
+    return sorted(set(fixed)), (" || ".join(dict.fromkeys(parts)) or None)
+
+
+def parse_osv(doc: dict, G: nx.DiGraph | None, run_id: str, raw_file: Path | None = None,
+              tool_version: str = "unknown") -> tuple[list[dict], list[dict]]:
+    """OSV-Scanner JSON -> (findings, evidence). One finding per (purl, alias group)."""
+    G = getattr(G, "G", G)
+    sha = hashlib.sha256(Path(raw_file).read_bytes()).hexdigest() if raw_file and Path(raw_file).is_file() else None
+    now = datetime.now(timezone.utc).isoformat()
+    findings, evidence, seen = [], [], set()
+    for res in doc.get("results", []):
+        src = (res.get("source") or {}).get("path", "").replace("\\", "/")
+        project = "frontend" if "/frontend/" in src else "root"
+        for pkg in res.get("packages", []):
+            info = pkg["package"]
+            purl = _purl(info.get("purl") or f"pkg:npm/{info['name']}@{info['version']}")
+            by_id = {v["id"]: v for v in pkg.get("vulnerabilities", [])}
+            for grp in pkg.get("groups", []) or [{"ids": [i]} for i in by_id]:
+                ids = grp.get("ids", [])
+                vid = next((i for i in ids if i.startswith("GHSA-")), ids[0])  # GHSA first: matches Grype ids
+                if (purl, vid) in seen or vid not in by_id:
+                    continue
+                seen.add((purl, vid))
+                v = by_id[vid]
+                aliases = sorted((set(grp.get("aliases", [])) | set(v.get("aliases", []))) - {vid})
+                fixed, rng = _osv_range(v, info["name"])
+                try:
+                    cvss = float(grp.get("max_severity")) if grp.get("max_severity") else None
+                except ValueError:
+                    cvss = None
+                severity = ((v.get("database_specific") or {}).get("severity") or "").lower() or None
+                if severity == "moderate":
+                    severity = "medium"
+                node = G.nodes[purl] if G is not None and purl in G else {}
+                paths = paths_to(G, purl, 5) if node else []
+                facts = {"vuln_id": vid, "aliases": aliases, "purl": purl, "name": info["name"],
+                         "version": info["version"], "cvss": cvss, "severity": severity, "fixed_versions": fixed,
+                         "affected_range": rng, "lockfile": src, "dependency_paths": paths}
+                ev = {"evidence_id": new_id("ev"), "run_id": run_id, "kind": "scanner_output",
+                      "source_tool": f"osv-scanner@{tool_version}", "created_at": now, "facts": facts,
+                      "excerpt": (v.get("summary") or "")[:300] or None,
+                      "artifact_path": str(raw_file) if raw_file else None, "sha256": sha}
+                findings.append({
+                    "finding_id": new_id("fd"), "run_id": run_id, "category": "cve",
+                    "title": f"{vid} in {info['name']}@{info['version']}", "detector": "osv-scanner",
+                    "component_purl": purl, "scope": node.get("scope", "unknown"),
+                    "project": node.get("project", project), "dependency_paths": paths, "vuln_id": vid,
+                    "aliases": aliases, "cvss": cvss, "severity": severity, "fixed_versions": fixed,
+                    "affected_range": rng, "evidence_ids": [ev["evidence_id"]], "status": "open"})
+                evidence.append(ev)
+    return findings, evidence
+
+
+def _osv_version() -> str:
+    out = subprocess.run([find_tool("osv-scanner"), "--version"], capture_output=True, text=True).stdout
+    first = out.splitlines()[0] if out else ""  # "osv-scanner version: 2.7.1"
+    return first.split(":", 1)[1].strip() if ":" in first else "unknown"
+
+
+def osv_scan(ctx):
+    """Tool entry point (registry binding `osv`): cross-check on the resolved lockfiles.
+    Dev1's detection node dedupes against Grype by (purl, id/alias)."""
+    from guardian.tools.registry import ToolOutput
+
+    work = Path(ctx.work_dir or ctx.repo)
+    locks = [p for p in (work / "package-lock.json", work / "frontend" / "package-lock.json") if p.is_file()]
+    if not locks:
+        return ToolOutput(summary="no lockfiles to cross-check")
+    raw = Path(ctx.run_dir) / "osv.json"
+    doc = run_osv(locks, raw)
+    fds, evs = to_models(*parse_osv(doc, ctx.graph, ctx.run_id, raw, _osv_version()))
+    return ToolOutput(findings=fds, evidence=evs, summary=f"{len(fds)} vulnerabilities (osv-scanner cross-check)")

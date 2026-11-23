@@ -60,3 +60,21 @@ def test_converts_to_pydantic_models():
     F, E = parse_grype(doc, graph_for(doc), "run_x")
     fds, evs = to_models(F, E)
     assert fds[0].category.value == "cve" and fds[0].evidence_ids == [evs[0].evidence_id]
+
+
+OSV_FX = Path(__file__).resolve().parents[1] / "fixtures" / "juice-shop" / "osv_sample.json"
+
+
+def test_parse_osv_fields_ranges_and_aliases():
+    from guardian.tools.scanners import parse_osv
+
+    F, E = parse_osv(json.loads(OSV_FX.read_text()), None, "run_x", None, "2.7.1")
+    assert len(F) == len(E) and F
+    lod = next(f for f in F if f["vuln_id"] == "GHSA-35jh-r3h4-6jhm")
+    assert lod["fixed_versions"] == ["4.17.21"] and lod["affected_range"] == "<4.17.21"
+    assert "CVE-2021-23337" in lod["aliases"] and lod["vuln_id"] not in lod["aliases"]
+    assert lod["cvss"] == 7.2 and lod["project"] == "root"
+    ell = next(f for f in F if f["component_purl"].startswith("pkg:npm/elliptic@"))
+    assert ell["fixed_versions"] == [] or ell["affected_range"]
+    assert all(e["source_tool"] == "osv-scanner@2.7.1" for e in E)
+    assert all(f["vuln_id"] not in f["aliases"] for f in F)

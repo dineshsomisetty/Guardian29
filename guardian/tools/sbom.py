@@ -27,7 +27,9 @@ def run_syft(source: str, out_file: Path, timeout: int = 600) -> dict:
     if not out_file.name.endswith(".cdx.json"):
         raise ValueError("SBOM file name must end with .cdx.json")
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, SYFT_CHECK_FOR_APP_UPDATE="false")
+    # Syft omits npm devDependencies by default; we want them (they run at build time). Scope is kept
+    # per package (prod/dev) in the graph and lowers priority via factor P.
+    env = dict(os.environ, SYFT_CHECK_FOR_APP_UPDATE="false", SYFT_JAVASCRIPT_INCLUDE_DEV_DEPENDENCIES="true")
     proc = subprocess.run([find_tool("syft"), source, "-o", f"cyclonedx-json={out_file}", "-q"],
                           capture_output=True, text=True, timeout=timeout, env=env)
     if proc.returncode != 0:
