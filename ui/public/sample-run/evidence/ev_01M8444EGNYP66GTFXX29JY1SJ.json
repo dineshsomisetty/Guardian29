@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNYP66GTFXX29JY1SJ",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-83g3-92jg-28cx",
+    "aliases": [
+      "CVE-2026-26960"
+    ],
+    "severity": "High",
+    "cvss": 7.1,
+    "fixed_versions": [
+      "7.5.8"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<7.5.8",
+    "purl": "pkg:npm/tar@6.2.1",
+    "name": "tar",
+    "version": "6.2.1",
+    "data_source": "https://github.com/advisories/GHSA-83g3-92jg-28cx"
+  },
+  "excerpt": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

@@ -1,0 +1,22 @@
+{
+  "evidence_id": "ev_01M8444JC6Y54ZYSNVJGFN6D51",
+  "run_id": "run_20261123_172422",
+  "kind": "file_excerpt",
+  "source_tool": "detector:ci_pin",
+  "created_at": "2026-11-23T11:54:51.654475Z",
+  "facts": {
+    "action": "peter-evans/create-pull-request",
+    "ref": "v8",
+    "pinned_to_sha": false,
+    "lines": [
+      42
+    ],
+    "workflow": ".github/workflows/image_actions.yml",
+    "pinned_actions_in_repo": 87
+  },
+  "excerpt": "uses: peter-evans/create-pull-request@v8",
+  "file_path": ".github/workflows/image_actions.yml",
+  "line": 42,
+  "artifact_path": null,
+  "sha256": null
+}

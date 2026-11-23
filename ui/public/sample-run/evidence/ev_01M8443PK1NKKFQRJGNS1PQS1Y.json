@@ -1,0 +1,18 @@
+{
+  "evidence_id": "ev_01M8443PK1NKKFQRJGNS1PQS1Y",
+  "run_id": "run_20261123_172422",
+  "kind": "detector_result",
+  "source_tool": "workspace",
+  "created_at": "2026-11-23T11:54:23.201352Z",
+  "facts": {
+    "source": "D:\\Guardian29-full\\targets\\juice-shop",
+    "work_copy": "work/",
+    "files": 1498,
+    "git_stripped": true
+  },
+  "excerpt": null,
+  "file_path": null,
+  "line": null,
+  "artifact_path": null,
+  "sha256": null
+}

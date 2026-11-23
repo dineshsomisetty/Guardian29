@@ -1,0 +1,23 @@
+{
+  "evidence_id": "ev_01M8444J8H98RQAK66BBX0GAY1",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.537586Z",
+  "facts": {
+    "vuln_id": "GHSA-848j-6mx2-7j84",
+    "aliases": [
+      "CVE-2025-14505"
+    ],
+    "cvss": 5.6,
+    "fixed_versions": [],
+    "purl": "pkg:npm/elliptic@6.6.1",
+    "name": "elliptic",
+    "version": "6.6.1"
+  },
+  "excerpt": "Elliptic Uses a Cryptographic Primitive with a Risky Implementation",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

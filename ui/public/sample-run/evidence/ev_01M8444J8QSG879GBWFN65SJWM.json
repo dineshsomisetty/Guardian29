@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8QSG879GBWFN65SJWM",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-23hp-3jrh-7fpw",
+    "aliases": [
+      "CVE-2026-59873"
+    ],
+    "cvss": 9.2,
+    "fixed_versions": [
+      "7.5.19"
+    ],
+    "purl": "pkg:npm/tar@6.2.1",
+    "name": "tar",
+    "version": "6.2.1"
+  },
+  "excerpt": "node-tar: Decompression/parse DoS via unlimited input",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

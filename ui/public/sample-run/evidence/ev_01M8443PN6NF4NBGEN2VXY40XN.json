@@ -1,0 +1,19 @@
+{
+  "evidence_id": "ev_01M8443PN6NF4NBGEN2VXY40XN",
+  "run_id": "run_20261123_172422",
+  "kind": "detector_result",
+  "source_tool": "resolve:npm",
+  "created_at": "2026-11-23T11:54:23.270648Z",
+  "facts": {
+    "project": "root",
+    "lockfile": "package-lock.json",
+    "lockfile_in_target": false,
+    "source": "fixture tests/fixtures/juice-shop/root (manifest hash match)",
+    "install_scripts_executed": false
+  },
+  "excerpt": null,
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": null,
+  "sha256": "93234b0e79d23ae9395decdab06b5b63d14d8f47a7aad9cc52732104a6f109ec"
+}

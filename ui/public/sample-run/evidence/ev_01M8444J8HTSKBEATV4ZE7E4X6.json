@@ -1,0 +1,28 @@
+{
+  "evidence_id": "ev_01M8444J8HTSKBEATV4ZE7E4X6",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.537586Z",
+  "facts": {
+    "vuln_id": "GHSA-96hv-2xvq-fx4p",
+    "aliases": [
+      "CVE-2026-48779"
+    ],
+    "cvss": 7.5,
+    "fixed_versions": [
+      "5.2.5",
+      "6.2.4",
+      "7.5.11",
+      "8.21.0"
+    ],
+    "purl": "pkg:npm/ws@8.18.0",
+    "name": "ws",
+    "version": "8.18.0"
+  },
+  "excerpt": "ws: Memory exhaustion DoS from tiny fragments and data chunks",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

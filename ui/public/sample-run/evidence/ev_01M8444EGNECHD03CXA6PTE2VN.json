@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNECHD03CXA6PTE2VN",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-x3q4-9hxx-gx8m",
+    "aliases": [
+      "CVE-2026-113654"
+    ],
+    "severity": "Medium",
+    "cvss": 5.3,
+    "fixed_versions": [
+      "2.18.0"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<2.18.0",
+    "purl": "pkg:npm/sanitize-html@1.4.2",
+    "name": "sanitize-html",
+    "version": "1.4.2",
+    "data_source": "https://github.com/advisories/GHSA-x3q4-9hxx-gx8m"
+  },
+  "excerpt": "ApostropheCMS sanitize-html: nonTextTags discard region ends early on an implied close, letting <noscript> content render",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

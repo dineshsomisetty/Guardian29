@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8Q7G7PQ8VJDVHG9C88",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-q69g-4hcv-6jg4",
+    "aliases": [
+      "CVE-2026-71538"
+    ],
+    "cvss": 8.5,
+    "fixed_versions": [
+      "6.0.0"
+    ],
+    "purl": "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1",
+    "name": "@cyclonedx/cyclonedx-npm",
+    "version": "4.2.1"
+  },
+  "excerpt": "@cyclonedx/cyclonedx-npm: Shell Injection via Unsanitized --workspace Argument on Windows",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

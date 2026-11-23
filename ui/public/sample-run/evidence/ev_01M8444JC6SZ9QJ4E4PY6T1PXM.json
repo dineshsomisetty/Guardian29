@@ -1,0 +1,22 @@
+{
+  "evidence_id": "ev_01M8444JC6SZ9QJ4E4PY6T1PXM",
+  "run_id": "run_20261123_172422",
+  "kind": "file_excerpt",
+  "source_tool": "detector:ci_pin",
+  "created_at": "2026-11-23T11:54:51.654475Z",
+  "facts": {
+    "action": "actions/checkout",
+    "ref": "v6",
+    "pinned_to_sha": false,
+    "lines": [
+      30
+    ],
+    "workflow": ".github/workflows/image_actions.yml",
+    "pinned_actions_in_repo": 87
+  },
+  "excerpt": "uses: actions/checkout@v6",
+  "file_path": ".github/workflows/image_actions.yml",
+  "line": 30,
+  "artifact_path": null,
+  "sha256": null
+}
