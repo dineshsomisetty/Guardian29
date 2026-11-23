@@ -10,7 +10,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 
 | Run | Target | Result |
 |---|---|---|
-| `run_juice_shop_demo` | OWASP Juice Shop (npm), DeepSeek live (record) | 1,656 packages (154 direct, 1,502 transitive), 91 findings, top risk 90.17 (`jsonwebtoken` 0.1.0 via `express-jwt` 0.1.3), plan `express-jwt` → 3.4.0, paused at the human gate |
+| `run_juice_shop_demo` | OWASP Juice Shop (npm), DeepSeek live (record) | 1,656 packages (154 direct, 1,502 transitive), 91 findings, top risk 98.17 (`jsonwebtoken` 0.1.0 via `express-jwt` 0.1.3; R = called: `jwt.verify` in `lib/insecurity.ts`), plan `express-jwt` → 3.4.0, paused at the human gate |
 | `run_juice_shop_demo_offline` | same, `GUARDIAN_OFFLINE=1` + LLM replay, network blocked | identical 91 findings, 52 LLM answers from cache, **0 network attempts, 0 errors** |
 | `run_pygoat_demo` / `_offline` | PyGoat (pip, Django) | 58 packages, 470 findings, top risk 88.65 (`django` 3.2.18), plan `django` → 4.2.26 in the exact requirements file; offline replay **0 network attempts, 0 errors** |
 | batch `runs/batch_*.json` | Juice Shop, PyGoat, NodeGoat (npm) | 1,656 / 58 / 1,091 packages; top risks 90 / 89 / 84; all paused at the gate |
