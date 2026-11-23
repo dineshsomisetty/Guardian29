@@ -96,9 +96,10 @@ def parse_grype(doc: dict, G: nx.DiGraph | None, run_id: str, raw_file: Path | N
     return findings, evidence
 
 
-def scan_sbom(sbom_file: Path, run_path: Path, G: nx.DiGraph, run_id: str) -> tuple[list[dict], list[dict]]:
+def scan_sbom(sbom_file: Path, run_path: Path, G: nx.DiGraph, run_id: str,
+              raw_name: str = "grype.json") -> tuple[list[dict], list[dict]]:
     """Run Grype on `sbom_file` and return (findings, evidence) with traced paths from graph `G`."""
-    raw = Path(run_path) / "grype.json"
+    raw = Path(run_path) / raw_name
     doc = run_grype(sbom_file, raw)
     return parse_grype(doc, G, run_id, raw)
 
@@ -224,3 +225,19 @@ def osv_scan(ctx):
     doc = run_osv(locks, raw)
     fds, evs = to_models(*parse_osv(doc, ctx.graph, ctx.run_id, raw, _osv_version()))
     return ToolOutput(findings=fds, evidence=evs, summary=f"{len(fds)} vulnerabilities (osv-scanner cross-check)")
+
+
+def image_scan(ctx):
+    """Tool entry point (registry binding `grype_image`): Grype on the image SBOM (D2-11). App packages found
+    again in the image are merged by Dev1's (purl, id/alias) dedupe; OS-package CVEs are new."""
+    from guardian.tools.registry import ToolOutput
+
+    sbom = ctx.artifacts.get("image_sbom_path")
+    if not sbom:
+        return ToolOutput(summary="no image SBOM")
+    findings, evidence = scan_sbom(Path(sbom), Path(ctx.run_dir), ctx.graph, ctx.run_id, "grype.image.json")
+    for f in findings:
+        f["project"] = f["project"] or "image"
+    fds, evs = to_models(findings, evidence)
+    os_n = sum(1 for f in fds if not (f.component_purl or "").startswith("pkg:npm/"))
+    return ToolOutput(findings=fds, evidence=evs, summary=f"{len(fds)} vulnerabilities in image ({os_n} OS packages)")

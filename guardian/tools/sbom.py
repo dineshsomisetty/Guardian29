@@ -58,3 +58,48 @@ def generate_sbom(ctx):
                   artifact_path=r["artifact_path"], sha256=r["sha256"])
     return ToolOutput(evidence=[ev], artifacts={"sbom_path": out},
                       summary=f"{r['facts']['components']} components in CycloneDX SBOM")
+
+
+# ---------------------------------------------------------------- container image SBOM (D2-11)
+# Published image used when nothing else is configured. Juice Shop: `snapshot` tag (closest to the pinned
+# develop commit 20.4.0-SNAPSHOT), pinned by digest so results do not drift. Read straight from the registry by
+# Syft: no Docker daemon and nothing is executed.
+KNOWN_IMAGES = {
+    "juice-shop": "registry:bkimminich/juice-shop@sha256:"
+                  "ec3504cf36610deca5b8716421fc5acca1be6510cb796737ed6b2f24c24a8748",
+}
+
+
+def image_source(ctx) -> str | None:
+    """Image to inventory: ctx.artifacts['image_ref'] (e.g. the sandbox-built `docker:<tag>`) >
+    $GUARDIAN_IMAGE_REF > KNOWN_IMAGES[target name]."""
+    return (ctx.artifacts.get("image_ref") or os.environ.get("GUARDIAN_IMAGE_REF")
+            or KNOWN_IMAGES.get(Path(ctx.repo).name))
+
+
+def image_sbom(ctx):
+    """Tool entry point (registry binding `image_sbom`): Syft SBOM of the container image, merged into the graph
+    under root `image` (OS + app packages). Evidence records WHICH image (published vs local build)."""
+    from guardian.core.models import Evidence
+    from guardian.tools.registry import ToolOutput
+
+    src = image_source(ctx)
+    if not src:
+        return ToolOutput(summary="no container image configured (set GUARDIAN_IMAGE_REF)")
+    out = Path(ctx.run_dir) / "sbom.image.cdx.json"
+    plat = ["--platform", "linux/amd64"] if src.startswith("registry:") else []
+    env = dict(os.environ, SYFT_CHECK_FOR_APP_UPDATE="false")
+    proc = subprocess.run([find_tool("syft"), src, *plat, "-o", f"cyclonedx-json={out}", "-q"],
+                          capture_output=True, text=True, timeout=1200, env=env)
+    if proc.returncode != 0:
+        raise RuntimeError(f"syft (image) failed: {proc.stderr[-800:]}")
+    merged = {}
+    if ctx.graph is not None and hasattr(ctx.graph, "merge_image"):
+        merged = ctx.graph.merge_image(out, src.split(":", 1)[1])
+    kind = "published registry image" if src.startswith("registry:") else "local image"
+    ev = Evidence(run_id=ctx.run_id, kind="sbom", source_tool="syft (image)", artifact_path=str(out),
+                  sha256=hashlib.sha256(out.read_bytes()).hexdigest(),
+                  facts={"image_ref": src, "image_source": kind, **merged})
+    return ToolOutput(evidence=[ev], artifacts={"image_sbom_path": out},
+                      summary=f"image {src.split('@')[0]} ({kind}): +{merged.get('added', '?')} packages "
+                              f"({merged.get('os_packages', '?')} OS), {merged.get('shared_with_app', '?')} shared")

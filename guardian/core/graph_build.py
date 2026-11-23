@@ -269,6 +269,46 @@ def export_graph(G: nx.DiGraph, out_file: Path) -> dict:
             "roots": data["roots"], "edge_source": dict(G.graph["edge_source"])}
 
 
+IMAGE_ROOT = "image"
+
+
+def merge_image_sbom(G: nx.DiGraph, image_sbom: Path, image_ref: str | None = None) -> dict:
+    """D2-11: add container components from an image SBOM under root `image`.
+
+    * OS packages (deb/apk/rpm) and npm packages not already in the app graph -> new nodes, project "image",
+      edge image -> node (they are what the image ships).
+    * npm packages that ARE in the app graph (same purl) -> marked `in_image: true`; no extra edge, so the UI
+      graph does not get hundreds of duplicate children under the image root.
+    Returns counts for Evidence/run_summary.
+    """
+    sbom = _load_json(image_sbom)
+    if IMAGE_ROOT not in G:
+        G.add_node(IMAGE_ROOT, id=IMAGE_ROOT, kind="project", label=image_ref or "image", risk=None, finding_ids=[])
+        G.graph["roots"].append(IMAGE_ROOT)
+    G.graph["edge_source"][IMAGE_ROOT] = "image-sbom"
+    added = shared = os_pkgs = 0
+    for c in sbom.get("components", []):
+        purl = c.get("purl", "")
+        if c.get("type") != "library" or not purl.startswith("pkg:"):
+            continue
+        nid = _purl(purl)
+        eco = purl[4:].split("/", 1)[0]
+        if nid in G:
+            G.nodes[nid]["in_image"] = True
+            if IMAGE_ROOT not in G.nodes[nid].setdefault("projects", []):
+                G.nodes[nid]["projects"].append(IMAGE_ROOT)
+            shared += 1
+            continue
+        G.add_node(nid, id=nid, kind="package", label=c.get("name"), version=c.get("version"), ecosystem=eco,
+                   direct=True, scope="prod", project=IMAGE_ROOT, projects=[IMAGE_ROOT], origin=None,
+                   integrity=None, deprecated=False, has_install_script=False, in_image=True,
+                   risk=None, finding_ids=[])
+        G.add_edge(IMAGE_ROOT, nid)
+        added += 1
+        os_pkgs += eco in ("deb", "apk", "rpm")
+    return {"image_ref": image_ref, "added": added, "shared_with_app": shared, "os_packages": os_pkgs}
+
+
 class DependencyGraph:
     """Object handed to the pipeline as `ctx.graph` (contract: to_json, paths_to, stats, add_pseudo_nodes, nodes)."""
 
@@ -296,11 +336,17 @@ class DependencyGraph:
     def to_json(self) -> dict:
         return to_json(self.G)
 
+    def merge_image(self, image_sbom: Path, image_ref: str | None = None) -> dict:
+        return merge_image_sbom(self.G, image_sbom, image_ref)
+
     def stats(self) -> dict:
-        pk = [d for _, d in self.G.nodes(data=True) if d.get("kind") == "package"]
+        """App counts (root + frontend) drive the header strip; image counts are reported separately."""
+        all_pk = [d for _, d in self.G.nodes(data=True) if d.get("kind") == "package"]
+        pk = [d for d in all_pk if d.get("project") != IMAGE_ROOT]
         return {"components": len(pk), "direct": sum(1 for d in pk if d["direct"]),
                 "transitive": sum(1 for d in pk if not d["direct"]), "projects": list(self.G.graph["roots"]),
-                "edge_source": dict(self.G.graph["edge_source"])}
+                "edge_source": dict(self.G.graph["edge_source"]),
+                "image_packages": sum(1 for d in all_pk if d.get("in_image"))}
 
 
 def build_graph(ctx):
