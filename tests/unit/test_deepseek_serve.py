@@ -24,8 +24,9 @@ class _Resp:
 
 
 def test_deepseek_defaults(monkeypatch):
-    monkeypatch.delenv("GUARDIAN_MODEL", raising=False)
-    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    # set to "" rather than deleted: load_settings() re-reads .env, which would bring a local value back
+    monkeypatch.setenv("GUARDIAN_MODEL", "")
+    monkeypatch.setenv("LLM_BASE_URL", "")
     monkeypatch.setenv("GUARDIAN_LLM_PROVIDER", "deepseek")
     s = load_settings()
     assert s.llm_model == "deepseek-chat" and s.llm_base_url == "https://api.deepseek.com"
