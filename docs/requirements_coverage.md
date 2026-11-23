@@ -124,7 +124,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | Apply the remediation in a controlled branch or sandbox | ✅ | fresh copy under `runs/<id>/attempts/`; local branch for a verified fix |
 | Build the application | ✅ | sandbox build phase (real: Juice Shop `tsc`) |
 | Run unit and integration tests | ✅ | `test:server` + `test:api` (npm), `manage.py test` (Django). Real: PyGoat Django suite 54/54; Juice Shop unit 439/441 (= baseline). Juice Shop's API suite needs the built Angular frontend and is disclosed as not runnable in the sandbox |
-| Rescan the resulting artifact | ✅ | patched tree always; built image with `GUARDIAN_IMAGE_BUILD=1` |
+| Rescan the resulting artifact | ✅ | patched tree always; built image with `GUARDIAN_IMAGE_BUILD=1`. Real: PyGoat's own Dockerfile built in the sandbox (177 s, limits, keys/.env excluded), Syft + Grype on the image found 797 matches (OS packages included), image removed afterwards |
 | Compare before-and-after SBOM | ✅ | `sbom_diff` evidence, UI table |
 | Detect newly introduced vulnerabilities or dependencies | ✅ | `regressed` verdict |
 | Report: original finding and supporting evidence | ✅ | `report.json.findings` |
