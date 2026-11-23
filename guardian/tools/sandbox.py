@@ -106,6 +106,8 @@ class SandboxResult:
     integration_tests: dict[str, int] = field(default_factory=dict)
     phases: list[Phase] = field(default_factory=list)
     tests_ran: bool = False
+    failed_names: dict[str, list[str]] = field(default_factory=dict)  # phase -> failing tests
+    baseline: dict | None = None  # the unpatched copy's test result, when compared
     image: str | None = None
     artifact_image: str | None = None  # G6.7: tag of the built + rescanned image (removed afterwards)
     image_vulns: set[tuple[str, str]] = field(default_factory=set)  # (vuln id, package) found in that image
@@ -148,7 +150,10 @@ def lock_hash(work: Path, kind: str) -> str:
 def parse_counts(text: str) -> dict[str, int]:
     """Best-effort pass/fail counts from jest, mocha or pytest output."""
     passed = failed = None
-    if m := re.search(r"Tests:\s+(?:(\d+) failed,\s*)?(?:\d+ skipped,\s*)?(?:(\d+) passed)?", text):
+    node_pass, node_fail = re.findall(r"^# pass (\d+)$", text, re.M), re.findall(r"^# fail (\d+)$", text, re.M)
+    if node_pass and node_fail:  # node --test (TAP): the last summary is the run's total
+        passed, failed = int(node_pass[-1]), int(node_fail[-1])
+    elif m := re.search(r"Tests:\s+(?:(\d+) failed,\s*)?(?:\d+ skipped,\s*)?(?:(\d+) passed)?", text):
         failed, passed = int(m.group(1) or 0), int(m.group(2) or 0)
     else:
         mp, mf = re.search(r"(\d+) passing", text), re.search(r"(\d+) failing", text)
@@ -164,6 +169,21 @@ def parse_counts(text: str) -> dict[str, int]:
     if passed is None:
         return {}
     return {"passed": passed, "failed": failed or 0, "total": passed + (failed or 0)}
+
+
+def failing_tests(text: str) -> set[str]:
+    """Names of failed tests (node TAP leaf `not ok`, Django/unittest FAIL:/ERROR:, pytest FAILED, jest/mocha),
+    so a patched run can be compared with the unpatched baseline test by test."""
+    names: set[str] = set()
+    tap = re.findall(r"^( *)not ok \d+ - (.+)$", text, re.M)
+    # node prints a suite's failed children before the suite itself: an entry right after a deeper one is a
+    # parent that failed only because of them, so only the leaves are tests
+    lines = [(len(indent), name.strip()) for indent, name in tap]
+    names |= {name for k, (lvl, name) in enumerate(lines) if k == 0 or lines[k - 1][0] <= lvl}
+    names |= {m.strip() for m in re.findall(r"^(?:FAIL|ERROR): (.+)$", text, re.M)}
+    names |= {m.strip() for m in re.findall(r"^FAILED (\S+)", text, re.M)}
+    names |= {m.strip() for m in re.findall(r"^\s*[✕✗×] (.+?)(?: \(\d+ ?ms\))?$", text, re.M)}
+    return names
 
 
 def _name(attempt_id: str, tag: str) -> str:
@@ -333,8 +353,8 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
                     res.tests_ran = True
                     res.unit_tests = parsed
                 if ph.exit_code != 0:
-                    res.verdict = "failed_tests"
-                    return res
+                    res.verdict = "failed_tests"  # decided after every test phase ran (see sandbox_validate)
+                    res.failed_names[phase_name] = sorted(failing_tests(ph.output))
         if not build_ran:
             res.build_ok = None  # install ok, no build script to run
         return res
@@ -367,10 +387,68 @@ def _evidence(ctx: ToolContext, res: SandboxResult, attempt_id: str) -> list[Evi
                    "phases": [{"name": p.name, "exit_code": p.exit_code, "timed_out": p.timed_out,
                                "seconds": round(p.seconds, 1),
                                "network": NETWORK.get(p.name, "none")} for p in phs],
-                   **({"unit_tests": res.unit_tests, "integration_tests": res.integration_tests or "not run"}
+                   **({"unit_tests": res.unit_tests, "integration_tests": res.integration_tests or "not run",
+                       "failing_tests": res.failed_names,
+                       "baseline": ({k: res.baseline.get(k) for k in ("unit_tests", "integration_tests", "failed_names")}
+                                    if res.baseline else None)}
                       if kind == "test_result" else {})},
             excerpt=tail(text)))
     return out
+
+
+def _baseline(ctx: ToolContext, runner: Runner) -> dict | None:
+    """Test result of the *unpatched* project (discovery's work copy, lockfiles resolved), cached per lockfile
+    hash in runs/<id>/sandbox_baseline.json. Run on a scratch copy so the work copy is never modified."""
+    src = ctx.run_dir / "work"
+    kind = detect_kind(src) if src.is_dir() else None
+    if kind is None:
+        return None
+    key = lock_hash(src, kind)
+    cache = ctx.run_dir / "sandbox_baseline.json"
+    try:
+        cached = json.loads(cache.read_text(encoding="utf-8"))
+        if cached.get("lock_hash") == key:
+            return cached
+    except (OSError, ValueError):
+        pass
+    copy = ctx.run_dir / "baseline" / "work"
+    shutil.rmtree(copy, ignore_errors=True)
+    from guardian.core.workspace import IGNORE
+
+    shutil.copytree(src, copy, ignore=IGNORE)
+    try:
+        b = run_sandbox(copy, "at_baseline" + key[:16], runner, phase_timeout())
+    finally:
+        shutil.rmtree(copy.parent, ignore_errors=True)
+    out = {"lock_hash": key, "verdict": b.verdict, "build_ok": b.build_ok, "unit_tests": b.unit_tests,
+           "integration_tests": b.integration_tests, "failed_names": b.failed_names}
+    cache.write_text(json.dumps(out, indent=1), encoding="utf-8")
+    return out
+
+
+def compare_with_baseline(ctx: ToolContext, res: SandboxResult, runner: Runner) -> None:
+    """A test that already fails on the unpatched project is not caused by the fix. The patched run fails only
+    if a test fails that passed before (by name), or, when names cannot be parsed, if more tests fail."""
+    base = _baseline(ctx, runner)
+    res.baseline = base
+    if not base or base.get("verdict") not in ("failed_tests", None):
+        return
+    new: dict[str, list[str]] = {}
+    for phase, names in res.failed_names.items():
+        before = set((base.get("failed_names") or {}).get(phase, []))
+        counts_after = res.integration_tests if phase == "integration" else res.unit_tests
+        counts_before = base.get("integration_tests" if phase == "integration" else "unit_tests") or {}
+        if names and before:
+            extra = sorted(set(names) - before)
+        else:
+            fa, fb = counts_after.get("failed", 1), counts_before.get("failed", 0)
+            # names unknown on one side: judge by counts, and say so (never an empty list for a real increase)
+            extra = (names or [f"{phase}: {fa} failing after the patch vs {fb} before"]) if fa > fb else []
+        if extra:
+            new[phase] = extra
+    res.failed_names = {**res.failed_names, "new_vs_baseline": sorted({n for v in new.values() for n in v})}
+    if not new:
+        res.verdict = None  # every failure was already there before the patch: disclosed, not blamed on the fix
 
 
 def sandbox_validate(ctx: ToolContext) -> ToolOutput:
@@ -388,6 +466,8 @@ def sandbox_validate(ctx: ToolContext) -> ToolOutput:
                 " [GUARDIAN_SANDBOX=docker was requested]" if m == "docker" else "")
         else:
             res = run_sandbox(work, attempt_id, runner, phase_timeout())
+            if res.verdict == "failed_tests":
+                compare_with_baseline(ctx, res, runner)
             if res.verdict is None and image_build_enabled() and (work / "Dockerfile").is_file():
                 build_artifact(work, ctx.run_dir, ctx.run_id, attempt_id, runner, phase_timeout(), res)
     return ToolOutput(evidence=[*_evidence(ctx, res, attempt_id), *res.extra_evidence] if res.ran or res.phases else [],

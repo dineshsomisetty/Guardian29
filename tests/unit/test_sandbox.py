@@ -11,9 +11,10 @@ from guardian.tools.registry import ToolContext
 
 
 class FakeDocker:
-    def __init__(self, test_exit=0, timeout_on=None, info_rc=0):
+    def __init__(self, test_exit=0, timeout_on=None, info_rc=0, baseline_exit=0):
         self.calls: list[list[str]] = []
         self.test_exit, self.timeout_on, self.info_rc = test_exit, timeout_on, info_rc
+        self.baseline_exit = baseline_exit  # the unpatched project's tests (sandbox baseline) pass by default
 
     def __call__(self, argv, timeout):
         self.calls.append(argv)
@@ -31,8 +32,9 @@ class FakeDocker:
         if self.timeout_on and self.timeout_on in script:
             raise subprocess.TimeoutExpired(argv, timeout, output="partial")
         if "test:server" in script:
-            return cp(self.test_exit, "Tests: 1 failed, 2 passed, 3 total" if self.test_exit else
-                      "Tests: 3 passed, 3 total")
+            mount = next((a for a in argv if a.startswith("type=bind")), "")
+            rc = self.baseline_exit if "baseline" in mount.replace("\\", "/") else self.test_exit
+            return cp(rc, "Tests: 1 failed, 2 passed, 3 total" if rc else "Tests: 3 passed, 3 total")
         return cp(0, "build ok token=abcdef123456")
 
 
@@ -174,3 +176,64 @@ def test_base_image_follows_target_toolchain(tmp_path):
     assert base_image(pip, "pip") == "python:3.10-slim"
     (pip / "Dockerfile").unlink()
     assert base_image(pip, "pip") == PY_IMAGE
+
+
+class TapDocker(FakeDocker):
+    """node --test style output; the patched copy lives under attempts/, the baseline under baseline/."""
+
+    def __init__(self, baseline_fail, patched_fail):
+        super().__init__()
+        self.baseline_fail, self.patched_fail = baseline_fail, patched_fail
+
+    def __call__(self, argv, timeout):
+        if argv[1] == "run" and "test:server" in argv[-1]:
+            self.calls.append(argv)
+            mount = next(a for a in argv if a.startswith("type=bind"))
+            failing = self.baseline_fail if "baseline" in mount.replace("\\", "/") else self.patched_fail
+            body = "".join(f"    not ok {i} - {n}\n" for i, n in enumerate(failing, 1))
+            body += "not ok 9 - suite\n" if failing else ""
+            out = f"{body}# tests 10\n# pass {10 - len(failing)}\n# fail {len(failing)}\n"
+            return subprocess.CompletedProcess(argv, 1 if failing else 0, out, "")
+        return super().__call__(argv, timeout)
+
+
+def _baseline_rig(tmp_path, monkeypatch, baseline_fail, patched_fail):
+    base = tmp_path / "run" / "work"
+    base.mkdir(parents=True)
+    (base / "package.json").write_text(json.dumps({"scripts": {"build:server": "tsc", "test:server": "node --test"}}))
+    (base / "package-lock.json").write_text("{}")
+    w = tmp_path / "run" / "attempts" / ("at_" + "B" * 26) / "work"
+    w.mkdir(parents=True)
+    (w / "package.json").write_text((base / "package.json").read_text())
+    (w / "package-lock.json").write_text('{"changed": true}')
+    fake = TapDocker(baseline_fail, patched_fail)
+    use(monkeypatch, fake)
+    return sandbox.sandbox_validate(ctx_for(w, tmp_path)), fake
+
+
+def test_failures_that_already_fail_unpatched_are_not_blamed_on_the_fix(tmp_path, monkeypatch):
+    """Juice Shop's own suite has 2 failing jwtForgedChallenge tests on the unmodified app: a fix must still pass."""
+    out, _ = _baseline_rig(tmp_path, monkeypatch, ["jwt forged A", "jwt forged B"], ["jwt forged A", "jwt forged B"])
+    res = out.artifacts["sandbox_result"]
+    assert res.verdict is None and res.unit_tests == {"passed": 8, "failed": 2, "total": 10}
+    assert res.failed_names["test"] == ["jwt forged A", "jwt forged B"] and res.failed_names["new_vs_baseline"] == []
+    facts = next(e for e in out.evidence if e.kind == "test_result").facts
+    assert facts["baseline"]["failed_names"]["test"] == ["jwt forged A", "jwt forged B"]  # disclosed
+    assert (tmp_path / "run" / "sandbox_baseline.json").is_file()
+    assert not (tmp_path / "run" / "work" / "build").exists()  # baseline ran on a scratch copy
+
+
+def test_a_test_that_newly_fails_after_the_patch_fails_validation(tmp_path, monkeypatch):
+    out, fake = _baseline_rig(tmp_path, monkeypatch, ["jwt forged A"], ["jwt forged A", "login works"])
+    res = out.artifacts["sandbox_result"]
+    assert res.verdict == "failed_tests" and res.failed_names["new_vs_baseline"] == ["login works"]
+    assert all("--network" in c and "none" in c for c in fake.calls if c[1] == "run")  # G6.3
+
+
+def test_failing_tests_parses_tap_leaves_django_and_pytest():
+    tap = "        not ok 4 - child one\n        not ok 5 - child two\n    not ok 5 - parent\nnot ok 40 - verify\n"
+    assert sandbox.failing_tests(tap) == {"child one", "child two"}
+    assert sandbox.failing_tests("FAIL: test_login (app.tests.LoginTest)\nERROR: test_x (a.B)\n") == {
+        "test_login (app.tests.LoginTest)", "test_x (a.B)"}
+    assert sandbox.failing_tests("FAILED tests/test_a.py::test_b - assert 1\n") == {"tests/test_a.py::test_b"}
+    assert sandbox.parse_counts("# tests 443\n# pass 439\n# fail 2\n") == {"passed": 439, "failed": 2, "total": 441}

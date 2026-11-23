@@ -222,8 +222,11 @@ def validator_node(state: GraphState) -> dict:
 
     risk_before, risk_after = _risk_scores(ctx.run_dir, f, plan, resolved and verdict == "verified")
     clean = rescanned is not None and not new_vulns
-    high = (verdict == "verified" and sb.build_ok is True and sb.tests_ran
-            and sb.unit_tests.get("failed", 0) == 0 and clean)
+    # HIGH needs build + tests + a clean rescan; failures that already happen on the unpatched project
+    # (sandbox baseline) do not count against the fix, they are disclosed in the test_result evidence
+    no_new_failures = sb.unit_tests.get("failed", 0) == 0 or (
+        sb.baseline is not None and not sb.failed_names.get("new_vs_baseline"))
+    high = verdict == "verified" and sb.build_ok is True and sb.tests_ran and no_new_failures and clean
     summary_ev = Evidence(run_id=ctx.run_id, kind="test_result", source_tool="validator",
                           facts={"attempt_id": attempt_id, "plan_id": plan.plan_id, "verdict": verdict,
                                  "target_finding_resolved": resolved, "new_findings": new,

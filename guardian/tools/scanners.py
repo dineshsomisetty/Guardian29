@@ -109,6 +109,9 @@ def osv_scan(ctx: ToolContext) -> ToolOutput:
     from guardian.adapters import pypi
 
     locks += [r for proj in pypi.find_projects(work) for r in proj.requirements]
+    # Maven: OSV-Scanner reads pom.xml (top level and one module level down; never target/ build output)
+    locks += [p for p in [work / "pom.xml", *sorted(work.glob("*/pom.xml"))]
+              if p.is_file() and "target" not in p.relative_to(work).parts]
     if not locks:
         raise RuntimeError("no lockfiles or requirements files for OSV")
     cache = _osv_cache_path(work, locks)
