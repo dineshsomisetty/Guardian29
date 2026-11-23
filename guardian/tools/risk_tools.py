@@ -171,6 +171,34 @@ def package_scope(ctx: ToolContext, args: PurlsArgs) -> ToolOutput:
 # ---------------------------------------------------------------- provenance (npm registry signals)
 
 
+def npm_signatures(ctx: ToolContext) -> ToolOutput:
+    """Stretch goal 3: `npm audit signatures` over the installed dependency tree (registry signatures and
+    Sigstore-backed provenance attestations, verified by npm), read from the sandbox's deps image."""
+    from guardian.tools import sandbox
+
+    res, why = sandbox.signature_audit(ctx.work_dir or ctx.repo)
+    if res is None:
+        return ToolOutput(summary=f"signature audit not run: {why}")
+    ctx.artifacts["npm_signatures"] = res
+    ev = _ev(ctx, "provenance", "npm audit signatures (Sigstore)", {k: v for k, v in res.items() if k != "image"})
+    return ToolOutput(evidence=[ev], summary=(
+        f"{res.get('verified_signatures')} verified registry signatures, {res.get('verified_attestations')} verified "
+        f"attestations, {len(res['invalid'])} invalid, {len(res['missing'])} missing"))
+
+
+def _audit_for(ctx: ToolContext, purl: str) -> dict | None:
+    sig = ctx.artifacts.get("npm_signatures")
+    if not sig:
+        return None
+    name, version, _ = parse_purl(purl)
+    key = f"{name}@{version}"
+    if key in sig["invalid"]:
+        return {"signature_verified": False}
+    if key in sig["missing"]:
+        return {"signature_verified": None}
+    return {"signature_verified": True}  # audited, not reported invalid or missing
+
+
 def provenance_signals(ctx: ToolContext, args: PurlsArgs) -> ToolOutput:
     client = intel(ctx, "risk_analyst")
     out = []
@@ -178,7 +206,7 @@ def provenance_signals(ctx: ToolContext, args: PurlsArgs) -> ToolOutput:
         meta = client.registry_metadata(p)
         if meta is None:
             continue
-        out.append(_ev(ctx, "provenance", "registry_metadata", {"purl": p, **prov.provenance_for(meta)}))
+        out.append(_ev(ctx, "provenance", "registry_metadata", {"purl": p, **prov.provenance_for(meta, _audit_for(ctx, p))}))
     return ToolOutput(evidence=out, summary=f"provenance for {len(out)} packages, "
                                             f"{sum(1 for e in out if e.facts['score_modifier'])} failed")
 

@@ -121,6 +121,7 @@ def _tool_specs() -> dict[str, ToolSpec]:
               "guardian.tools.risk_tools:PurlsArgs"),
         _spec("provenance_signals", "guardian.tools.risk_tools:provenance_signals", {"risk_analyst"},
               "guardian.tools.risk_tools:PurlsArgs"),
+        _spec("npm_signatures", "guardian.tools.risk_tools:npm_signatures", {"risk_analyst"}),
         _spec("safe_version_lookup", "guardian.tools.risk_tools:safe_version_lookup", {"remediation"},
               "guardian.tools.risk_tools:SafeVersionArgs"),
         _spec("compat_hint", "guardian.tools.risk_tools:compat_hint", {"remediation"},

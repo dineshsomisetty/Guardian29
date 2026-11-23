@@ -330,6 +330,7 @@ def risk_analyst_node(state: GraphState) -> dict:
     top = sorted(findings, key=lambda f: -assessments[f.finding_id].score)
     purls = [f.component_purl for f in top if (f.component_purl or "").startswith("pkg:npm/")][:PROVENANCE_TOP]
     if purls:
+        call_tool(AGENT, "npm_signatures", None, ctx, store, audit)  # Sigstore / registry signatures, if sandboxed
         out = call_tool(AGENT, "provenance_signals", None, ctx, store, audit, args={"purls": purls})
         for e in out.evidence if out else []:
             g.prov[e.facts["purl"]] = e

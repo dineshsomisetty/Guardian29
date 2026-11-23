@@ -38,7 +38,7 @@ from guardian.tools.registry import ToolContext, ToolOutput
 LOG_LINES = 200
 NODE_IMAGE = "node:22-slim"  # default when package.json has no engines.node
 PY_IMAGE = "python:3.11-slim"  # default when the target's Dockerfile names no python base
-DEPS_RECIPE = "r4"  # bump when the deps-image recipe changes, so a stale cached image is not reused
+DEPS_RECIPE = "r5"  # bump when the deps-image recipe changes, so a stale cached image is not reused
 # native addons only: top-level packages (incl. scoped) that ship a binding.gyp; failures are printed, not hidden
 NATIVE_REBUILD = (
     "native=$(find node_modules -mindepth 2 -maxdepth 3 -name binding.gyp -not -path '*/node_modules/*/node_modules/*' "
@@ -249,6 +249,56 @@ def _run_args(name: str, image: str, work: Path, script: str, network: bool = Fa
     return argv
 
 
+def deps_tag(work: Path, kind: str) -> str:
+    base = base_image(work, kind)
+    return f"guardian-deps:{kind}-{lock_hash(work, kind)}-{re.sub(r'[^a-z0-9.]+', '-', base)}-{DEPS_RECIPE}"
+
+
+def parse_signatures(text: str, data: dict | None) -> dict:
+    """`npm audit signatures` text + --json output -> counts and the packages that failed."""
+    def num(pat):
+        m = re.search(pat, text or "")
+        return int(m.group(1)) if m else None
+
+    def pkgs(key):
+        return sorted({f"{p.get('name')}@{p.get('version')}" for p in (data or {}).get(key, []) if isinstance(p, dict)})
+
+    return {"packages_audited": num(r"audited (\d+) packages?"),
+            "verified_signatures": num(r"(\d+) packages? ha(?:s|ve) (?:a )?verified registry signatures?"),
+            "verified_attestations": num(r"(\d+) packages? ha(?:s|ve) (?:a )?verified attestations?"),
+            "invalid": pkgs("invalid"), "missing": pkgs("missing")}
+
+
+def signature_audit(work: Path, runner: Runner | None = None) -> tuple[dict | None, str]:
+    """(result, reason). Builds the deps image if needed (shared with validation) and reads the npm signature
+    audit recorded in it, with --network none. None when the sandbox is off, Docker is missing or not npm."""
+    runner = runner or _runner or default_runner
+    if mode() == "off":
+        return None, "GUARDIAN_SANDBOX=off"
+    if detect_kind(work) != "npm":
+        return None, "not an npm project"
+    ok, why = docker_available(runner)
+    if not ok:
+        return None, f"Docker not available ({why})"
+    tag = deps_tag(work, "npm")
+    res = SandboxResult()
+    if not _build_deps_image(runner, work, "npm", tag, phase_timeout(), res):
+        return None, "dependency image could not be built"
+    out = {}
+    for ext in ("txt", "json"):
+        p = runner([_docker(), "run", "--rm", "--network", "none", *HARDEN, tag, "cat",
+                    f"/deps/.guardian-signatures.{ext}"], 60)
+        out[ext] = (p.stdout or "") if p.returncode == 0 else ""
+    try:
+        data = json.loads(out["json"]) if out["json"].strip() else {}
+    except ValueError:
+        data = {}
+    parsed = parse_signatures(out["txt"], data if isinstance(data, dict) else {})
+    if parsed["packages_audited"] is None and not parsed["invalid"]:
+        return None, "npm audit signatures produced no result"
+    return {**parsed, "image": tag}, "ok"
+
+
 def _build_deps_image(runner: Runner, work: Path, kind: str, tag: str, timeout: int, res: SandboxResult) -> bool:
     ctx = Path(tempfile.mkdtemp(prefix="guardian-deps-"))
     try:
@@ -264,6 +314,10 @@ def _build_deps_image(runner: Runner, work: Path, kind: str, tag: str, timeout: 
                 cmd = "npm ci --ignore-scripts" if lock.exists() else "npm install --ignore-scripts"
                 peer = " --legacy-peer-deps" if rel else ""  # as discovery resolved subprojects (D2-02)
                 runs.append(f"RUN cd /deps/{rel} && {cmd}{peer} --no-audit --no-fund && {NATIVE_REBUILD}\n")
+            # provenance (stretch goal 3): registry signatures + Sigstore provenance attestations of the installed
+            # tree, verified by npm; recorded in the image, read back later with --network none
+            runs.append("RUN cd /deps && (npm audit signatures --json > /deps/.guardian-signatures.json 2>/dev/null;"
+                        " npm audit signatures > /deps/.guardian-signatures.txt 2>&1; true)\n")
             for rel in prebuilt_subprojects(work):
                 for f in _source_files(work / rel):
                     dst = ctx / f.relative_to(work)
@@ -362,8 +416,7 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
         res.reason = "no package.json or requirements.txt: nothing to build"
         return res
     res.kind, res.ran = kind, True
-    base = base_image(work, kind)
-    tag = f"guardian-deps:{kind}-{lock_hash(work, kind)}-{re.sub(r'[^a-z0-9.]+', '-', base)}-{DEPS_RECIPE}"
+    tag = deps_tag(work, kind)
     res.image = tag
     containers: list[str] = []
     links = [work / r / "node_modules" for r in (npm_projects(work) if kind == "npm" else [])]
