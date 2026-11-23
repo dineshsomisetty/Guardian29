@@ -1,0 +1,4941 @@
+[
+  {
+    "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-35jh-r3h4-6jhm in lodash@2.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/lodash@2.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2",
+        "pkg:npm/lodash@2.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-35jh-r3h4-6jhm",
+    "aliases": [
+      "CVE-2021-23337"
+    ],
+    "cvss": 7.2,
+    "severity": "High",
+    "fixed_versions": [
+      "4.17.21"
+    ],
+    "affected_range": "<4.17.21",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+      "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ],
+    "status": "assessed",
+    "explanation": "lodash@2.4.2 is affected by a command injection issue (GHSA-35jh-r3h4-6jhm, CVSS 7.2). It is a transitive production dependency reached via sanitize-html; the CVSS of 7.2 gives high. The fix is 4.17.21.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.2 (High).",
+        "field": "cvss",
+        "value": "7.2",
+        "evidence_ids": [
+          "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+          "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is lodash@2.4.2, within the affected range <4.17.21.",
+        "field": "version",
+        "value": "2.4.2",
+        "evidence_ids": [
+          "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+          "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 4.17.21.",
+        "field": "fixed_versions",
+        "value": "4.17.21",
+        "evidence_ids": [
+          "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+          "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive and in production scope, reached via sanitize-html.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMKVJ5Y2PTX1T9140M"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8hfj-j24r-96c4 in moment@2.0.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/moment@2.0.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0",
+        "pkg:npm/moment@2.0.0"
+      ]
+    ],
+    "vuln_id": "GHSA-8hfj-j24r-96c4",
+    "aliases": [
+      "CVE-2022-24785"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+      "2.29.2"
+    ],
+    "affected_range": "<2.29.2",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGMK09580FE5BBMDHVF",
+      "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ],
+    "status": "assessed",
+    "explanation": "moment@2.0.0 is affected by a path traversal issue in moment.locale (GHSA-8hfj-j24r-96c4, CVSS 7.5). It is a transitive production dependency reached via express-jwt and jsonwebtoken, so it ships with the app; the scanner CVSS of 7.5 puts it at high. A fix is available in 2.29.2.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5 (High).",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGMK09580FE5BBMDHVF",
+          "ev_01M8444J8QA5C33HVSEY8ARMKC"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is moment@2.0.0, within the affected range <2.29.2.",
+        "field": "version",
+        "value": "2.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGMK09580FE5BBMDHVF",
+          "ev_01M8444J8QA5C33HVSEY8ARMKC"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.29.2.",
+        "field": "fixed_versions",
+        "value": "2.29.2",
+        "evidence_ids": [
+          "ev_01M8444EGMK09580FE5BBMDHVF",
+          "ev_01M8444J8QA5C33HVSEY8ARMKC"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive and in production scope, reached via express-jwt and jsonwebtoken.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMK09580FE5BBMDHVF"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGMNM7A7KPXBG8MJFY1",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-c7hr-j4mj-j2w6 in jsonwebtoken@0.1.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.1.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0"
+      ]
+    ],
+    "vuln_id": "GHSA-c7hr-j4mj-j2w6",
+    "aliases": [
+      "CVE-2015-9235"
+    ],
+    "cvss": 9.8,
+    "severity": "Critical",
+    "fixed_versions": [
+      "4.2.2"
+    ],
+    "affected_range": "<4.2.2",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGMN1Z0465DPCH6QC2A",
+      "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken@0.1.0 is affected by a verification bypass (GHSA-c7hr-j4mj-j2w6, CVE-2015-9235) with a CVSS of 9.8, and it is pulled in transitively in production via express-jwt@0.1.3. A token verification bypass in a production auth path is severe, and a fix is available in 4.2.2.",
+    "claims": [
+      {
+        "text": "The affected range is <4.2.2.",
+        "field": "affected_range",
+        "value": "<4.2.2",
+        "evidence_ids": [
+          "ev_01M8444EGMN1Z0465DPCH6QC2A"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 9.8.",
+        "field": "cvss",
+        "value": "9.8",
+        "evidence_ids": [
+          "ev_01M8444EGMN1Z0465DPCH6QC2A"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 4.2.2.",
+        "field": "fixed_versions",
+        "value": "4.2.2",
+        "evidence_ids": [
+          "ev_01M8444EGMN1Z0465DPCH6QC2A",
+          "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is jsonwebtoken@0.1.0, reached transitively via express-jwt@0.1.3 in the production dependency path.",
+        "field": "purl",
+        "value": "pkg:npm/jsonwebtoken@0.1.0",
+        "evidence_ids": [
+          "ev_01M8444EGMN1Z0465DPCH6QC2A",
+          "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGMS13JE7WWYP9Q8MD9",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-c7hr-j4mj-j2w6 in jsonwebtoken@0.4.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.4.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0"
+      ]
+    ],
+    "vuln_id": "GHSA-c7hr-j4mj-j2w6",
+    "aliases": [
+      "CVE-2015-9235"
+    ],
+    "cvss": 9.8,
+    "severity": "Critical",
+    "fixed_versions": [
+      "4.2.2"
+    ],
+    "affected_range": "<4.2.2",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+      "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken@0.4.0 is a direct production dependency (root -> jsonwebtoken) affected by a verification bypass advisory with CVSS 9.8, meaning token signature checks may be circumvented. The scanner reports a fix in 4.2.2, so upgrading resolves it.",
+    "claims": [
+      {
+        "text": "The affected range is <4.2.2 and the installed version is 0.4.0.",
+        "field": "affected_range",
+        "value": "<4.2.2",
+        "evidence_ids": [
+          "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+          "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 9.8 (Critical).",
+        "field": "cvss",
+        "value": "9.8",
+        "evidence_ids": [
+          "ev_01M8444EGMKTQRER3ZX61B5TDQ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 4.2.2 is available.",
+        "field": "fixed_versions",
+        "value": "4.2.2",
+        "evidence_ids": [
+          "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+          "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The package is a direct production dependency of the root project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMKTQRER3ZX61B5TDQ"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGMPKTQJYD90F0SE13G",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-87vv-r9j6-g5qv in moment@2.0.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/moment@2.0.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0",
+        "pkg:npm/moment@2.0.0"
+      ]
+    ],
+    "vuln_id": "GHSA-87vv-r9j6-g5qv",
+    "aliases": [
+      "CVE-2016-4055"
+    ],
+    "cvss": 6.5,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.11.2"
+    ],
+    "affected_range": "<2.11.2",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+      "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ],
+    "status": "assessed",
+    "explanation": "moment@2.0.0 is vulnerable to regular expression denial of service. It is a transitive production dependency (root -> express-jwt@0.1.3 -> jsonwebtoken@0.1.0 -> moment@2.0.0) with CVSS 6.5, so it is rated medium; a fix exists in 2.11.2.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 6.5.",
+        "field": "cvss",
+        "value": "6.5",
+        "evidence_ids": [
+          "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+          "ev_01M8444J8QGQABADJPYAY0HDXN"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <2.11.2 and the fixed version is 2.11.2.",
+        "field": "fixed_versions",
+        "value": "2.11.2",
+        "evidence_ids": [
+          "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+          "ev_01M8444J8QGQABADJPYAY0HDXN"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "moment@2.0.0 is reached transitively through express-jwt@0.1.3 and jsonwebtoken@0.1.0 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMN9KGC0Q92BM5A6HM"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGMSMY80WVD7WPYZGDB",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-jf85-cpcp-j695 in lodash@2.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/lodash@2.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2",
+        "pkg:npm/lodash@2.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-jf85-cpcp-j695",
+    "aliases": [
+      "CVE-2019-10744",
+      "SNYK-JS-LODASH-450202"
+    ],
+    "cvss": 9.1,
+    "severity": "Critical",
+    "fixed_versions": [
+      "4.17.12"
+    ],
+    "affected_range": "<4.17.12",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+      "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ],
+    "status": "assessed",
+    "explanation": "lodash@2.4.2 is a transitive production dependency via sanitize-html and is affected by a prototype pollution advisory with CVSS 9.1. The scanner reports a fix in 4.17.12, which would require the parent dependency to accept the newer lodash.",
+    "claims": [
+      {
+        "text": "The affected range is <4.17.12 and the installed version is 2.4.2.",
+        "field": "affected_range",
+        "value": "<4.17.12",
+        "evidence_ids": [
+          "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+          "ev_01M8444J8QD151JVGGMVQM3Q49"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 9.1 (Critical).",
+        "field": "cvss",
+        "value": "9.1",
+        "evidence_ids": [
+          "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+          "ev_01M8444J8QD151JVGGMVQM3Q49"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 4.17.12 is available.",
+        "field": "fixed_versions",
+        "value": "4.17.12",
+        "evidence_ids": [
+          "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+          "ev_01M8444J8QD151JVGGMVQM3Q49"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive via sanitize-html in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMBNNPXMPQCHYZ8TB3"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGMG404YWZ2DWZZKB13",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-446m-mv8f-q348 in moment@2.0.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/moment@2.0.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0",
+        "pkg:npm/moment@2.0.0"
+      ]
+    ],
+    "vuln_id": "GHSA-446m-mv8f-q348",
+    "aliases": [
+      "CVE-2017-18214"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+      "2.19.3"
+    ],
+    "affected_range": "<2.19.3",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGMTEMHYST75XBD4BXZ",
+      "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ],
+    "status": "assessed",
+    "explanation": "moment@2.0.0 has a regular expression denial of service issue (GHSA-446m-mv8f-q348, CVSS 7.5). It is a transitive production dependency via express-jwt and jsonwebtoken, so it is present at runtime; the CVSS of 7.5 gives high. The fix is 2.19.3.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5 (High).",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGMTEMHYST75XBD4BXZ",
+          "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is moment@2.0.0, within the affected range <2.19.3.",
+        "field": "version",
+        "value": "2.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGMTEMHYST75XBD4BXZ",
+          "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.19.3.",
+        "field": "fixed_versions",
+        "value": "2.19.3",
+        "evidence_ids": [
+          "ev_01M8444EGMTEMHYST75XBD4BXZ",
+          "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive and in production scope, reached via express-jwt and jsonwebtoken.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMTEMHYST75XBD4BXZ"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGM8HFZPHNJS12CB5FF",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-fvqr-27wr-82fm in lodash@2.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/lodash@2.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2",
+        "pkg:npm/lodash@2.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-fvqr-27wr-82fm",
+    "aliases": [
+      "CVE-2018-3721"
+    ],
+    "cvss": 6.5,
+    "severity": "Medium",
+    "fixed_versions": [
+      "4.17.5"
+    ],
+    "affected_range": "<4.17.5",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+      "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ],
+    "status": "assessed",
+    "explanation": "lodash@2.4.2 is vulnerable to prototype pollution. It is a transitive production dependency (root -> sanitize-html@1.4.2 -> lodash@2.4.2) with CVSS 6.5, so it is rated medium; a fix exists in 4.17.5.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 6.5.",
+        "field": "cvss",
+        "value": "6.5",
+        "evidence_ids": [
+          "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+          "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <4.17.5 and the fixed version is 4.17.5.",
+        "field": "fixed_versions",
+        "value": "4.17.5",
+        "evidence_ids": [
+          "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+          "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "lodash@2.4.2 is reached transitively through sanitize-html@1.4.2 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMRC4WAFH9F32X0Q7F"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGM1RT80B4BS6RN8JKW",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-cgfm-xwp7-2cvr in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-cgfm-xwp7-2cvr",
+    "aliases": [
+      "CVE-2022-25887"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+      "2.7.1"
+    ],
+    "affected_range": "<2.7.1",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGMQCSEC5QCVT21HEXF",
+      "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html@1.4.2 is affected by a ReDoS issue (GHSA-cgfm-xwp7-2cvr, CVSS 7.5). It is a direct production dependency, so it is directly exposed to application input; the CVSS of 7.5 gives high. The fix is 2.7.1.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5 (High).",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGMQCSEC5QCVT21HEXF",
+          "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is sanitize-html@1.4.2, within the affected range <2.7.1.",
+        "field": "version",
+        "value": "1.4.2",
+        "evidence_ids": [
+          "ev_01M8444EGMQCSEC5QCVT21HEXF",
+          "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.7.1.",
+        "field": "fixed_versions",
+        "value": "2.7.1",
+        "evidence_ids": [
+          "ev_01M8444EGMQCSEC5QCVT21HEXF",
+          "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is direct and in production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMQCSEC5QCVT21HEXF"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGMJDWPR8BFPCDA9Q03",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-4xc9-xhrj-v574 in lodash@2.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/lodash@2.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2",
+        "pkg:npm/lodash@2.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-4xc9-xhrj-v574",
+    "aliases": [
+      "CVE-2018-16487"
+    ],
+    "cvss": 6.8,
+    "severity": "High",
+    "fixed_versions": [
+      "4.17.11"
+    ],
+    "affected_range": "<4.17.11",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+      "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ],
+    "status": "assessed",
+    "explanation": "lodash@2.4.2 is vulnerable to prototype pollution. It is a transitive production dependency (root -> sanitize-html@1.4.2 -> lodash@2.4.2) with CVSS 6.8, so it is rated medium; a fix exists in 4.17.11.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 6.8.",
+        "field": "cvss",
+        "value": "6.8",
+        "evidence_ids": [
+          "ev_01M8444EGMVQ8SP6QERGHY3CFX"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <4.17.11 and the fixed version is 4.17.11.",
+        "field": "fixed_versions",
+        "value": "4.17.11",
+        "evidence_ids": [
+          "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+          "ev_01M8444J8Q74C77PEFHEZRJZYB"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "lodash@2.4.2 is reached transitively through sanitize-html@1.4.2 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMVQ8SP6QERGHY3CFX"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGM76ARM7RV0AMGY1TS",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-96hv-2xvq-fx4p in ws@8.18.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/ws@8.18.0",
+    "scope": "prod",
+    "project": "frontend",
+    "file_path": "frontend/package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "frontend",
+        "pkg:npm/ethers@5.8.0",
+        "pkg:npm/%40ethersproject/providers@5.8.0",
+        "pkg:npm/ws@8.18.0"
+      ]
+    ],
+    "vuln_id": "GHSA-96hv-2xvq-fx4p",
+    "aliases": [
+      "CVE-2026-48779"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+      "8.21.0"
+    ],
+    "affected_range": ">=8.0.0,<8.21.0",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+      "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ],
+    "status": "assessed",
+    "explanation": "ws@8.18.0 has a memory-exhaustion DoS issue (GHSA-96hv-2xvq-fx4p, CVSS 7.5). It is a transitive production dependency in the frontend, reached via ethers and @ethersproject/providers; the CVSS of 7.5 gives high. The fix is 8.21.0.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5 (High).",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+          "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is ws@8.18.0, within the affected range >=8.0.0,<8.21.0.",
+        "field": "version",
+        "value": "8.18.0",
+        "evidence_ids": [
+          "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+          "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 8.21.0.",
+        "field": "fixed_versions",
+        "value": "8.21.0",
+        "evidence_ids": [
+          "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+          "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive in the frontend production scope, reached via ethers and @ethersproject/providers.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMB3B54SYNJWZ3RE1A"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGM7N5XWDATZTHWQ7AH",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-rjqq-98f6-6j3r in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-rjqq-98f6-6j3r",
+    "aliases": [
+      "CVE-2021-26539"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.3.1"
+    ],
+    "affected_range": "<2.3.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+      "ev_01M8444J8Q8BV1247V36PV704V"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html@1.4.2 is a direct production dependency (root -> sanitize-html) affected by an improper input validation issue (GHSA-rjqq-98f6-6j3r, CVSS 5.3). The scanner reports a fix in 2.3.1. With a CVSS of 5.3 the initial risk is medium.",
+    "claims": [
+      {
+        "text": "The vulnerable package is sanitize-html@1.4.2, a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+          "ev_01M8444J8Q8BV1247V36PV704V"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+          "ev_01M8444J8Q8BV1247V36PV704V"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.3.1.",
+        "field": "fixed_versions",
+        "value": "2.3.1",
+        "evidence_ids": [
+          "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+          "ev_01M8444J8Q8BV1247V36PV704V"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNMFWMMZ78TSW5X91B",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-mjxr-4v3x-q3m4 in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-mjxr-4v3x-q3m4",
+    "aliases": [
+      "CVE-2021-26540"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.3.2"
+    ],
+    "affected_range": "<2.3.2",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+      "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html@1.4.2 is a direct production dependency affected by a second improper input validation issue (GHSA-mjxr-4v3x-q3m4, CVSS 5.3). The scanner reports a fix in 2.3.2. CVSS 5.3 places this at medium.",
+    "claims": [
+      {
+        "text": "The vulnerable package is sanitize-html@1.4.2, a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+          "ev_01M8444J8QMENQK8T9AFY8MV76"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+          "ev_01M8444J8QMENQK8T9AFY8MV76"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.3.2.",
+        "field": "fixed_versions",
+        "value": "2.3.2",
+        "evidence_ids": [
+          "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+          "ev_01M8444J8QMENQK8T9AFY8MV76"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNTKBM9A4QYMVCSTE1",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-6g6m-m6h5-w9gf in express-jwt@0.1.3",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/express-jwt@0.1.3",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3"
+      ]
+    ],
+    "vuln_id": "GHSA-6g6m-m6h5-w9gf",
+    "aliases": [
+      "CVE-2020-15084"
+    ],
+    "cvss": 7.7,
+    "severity": "High",
+    "fixed_versions": [
+      "6.0.0"
+    ],
+    "affected_range": "<=5.3.3",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGN87KRA7S9AJGFX39B",
+      "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ],
+    "status": "assessed",
+    "explanation": "express-jwt@0.1.3 is flagged for an authorization bypass (GHSA-6g6m-m6h5-w9gf, CVSS 7.7). It is a direct production dependency in package-lock.json, so the vulnerable middleware is used directly by the application. A fix exists in 6.0.0, a major-version jump from the installed 0.1.3.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 7.7 for this advisory.",
+        "field": "cvss",
+        "value": "7.7",
+        "evidence_ids": [
+          "ev_01M8444EGN87KRA7S9AJGFX39B",
+          "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=5.3.3 and the fixed version is 6.0.0.",
+        "field": "fixed_versions",
+        "value": "6.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN87KRA7S9AJGFX39B",
+          "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "express-jwt@0.1.3 is a direct production dependency of the root project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN87KRA7S9AJGFX39B"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNN6W8383Q7YRG53B6",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-xc6g-ggrc-qq4r in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-xc6g-ggrc-qq4r",
+    "aliases": [
+      "CVE-2017-16016"
+    ],
+    "cvss": 6.1,
+    "severity": "Medium",
+    "fixed_versions": [
+      "1.11.4"
+    ],
+    "affected_range": "<=1.11.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNRPY04A555V22YS9M",
+      "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html 1.4.2 is affected by a cross-site scripting issue. It is a direct production dependency, so any unsanitized output could reach users; the scanner CVSS of 6.1 maps to medium. A fix is available in 1.11.4.",
+    "claims": [
+      {
+        "text": "The advisory affects versions up to and including 1.11.1.",
+        "field": "affected_range",
+        "value": "<=1.11.1",
+        "evidence_ids": [
+          "ev_01M8444EGNRPY04A555V22YS9M",
+          "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 6.1.",
+        "field": "cvss",
+        "value": "6.1",
+        "evidence_ids": [
+          "ev_01M8444EGNRPY04A555V22YS9M"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 1.11.4.",
+        "field": "fixed_versions",
+        "value": "1.11.4",
+        "evidence_ids": [
+          "ev_01M8444EGNRPY04A555V22YS9M",
+          "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNRPY04A555V22YS9M",
+          "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNF416ECXW2FZNJ0XP",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8g4m-cjm2-96wq in notevil@1.3.3",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/notevil@1.3.3",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/notevil@1.3.3"
+      ]
+    ],
+    "vuln_id": "GHSA-8g4m-cjm2-96wq",
+    "aliases": [
+      "CVE-2021-23771"
+    ],
+    "cvss": 6.5,
+    "severity": "Medium",
+    "fixed_versions": [],
+    "affected_range": "<=1.3.3",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN2WD64HCEP7D1QQPW",
+      "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ],
+    "status": "assessed",
+    "explanation": "notevil@1.3.3 allows a sandbox escape. It is a direct production dependency with CVSS 6.5, so it is rated medium; the advisory states no fix is available, so remediation requires replacing or removing the package.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 6.5.",
+        "field": "cvss",
+        "value": "6.5",
+        "evidence_ids": [
+          "ev_01M8444EGN2WD64HCEP7D1QQPW",
+          "ev_01M8444J8QF4R9YRXM2A8914J7"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=1.3.3 and the fix state is not-fixed with no fixed versions.",
+        "field": "fix_state",
+        "value": "not-fixed",
+        "evidence_ids": [
+          "ev_01M8444EGN2WD64HCEP7D1QQPW"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "notevil@1.3.3 is a direct dependency in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN2WD64HCEP7D1QQPW"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNA6BY6BGPNPWB5CHN",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-xwcq-pm8m-c4vf in crypto-js@3.3.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/crypto-js@3.3.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/pdfkit@0.11.0",
+        "pkg:npm/crypto-js@3.3.0"
+      ]
+    ],
+    "vuln_id": "GHSA-xwcq-pm8m-c4vf",
+    "aliases": [
+      "CVE-2023-46233"
+    ],
+    "cvss": 9.1,
+    "severity": "Critical",
+    "fixed_versions": [
+      "4.2.0"
+    ],
+    "affected_range": "<4.2.0",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGNKCS2H48WPJYSXHA3",
+      "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ],
+    "status": "assessed",
+    "explanation": "crypto-js@3.3.0 is a transitive production dependency via pdfkit and is affected by a weak PBKDF2 advisory with CVSS 9.1. The scanner reports a fix in 4.2.0; whether the weak hashing is actually exercised depends on how pdfkit uses crypto-js, which is unknown here.",
+    "claims": [
+      {
+        "text": "The affected range is <4.2.0 and the installed version is 3.3.0.",
+        "field": "affected_range",
+        "value": "<4.2.0",
+        "evidence_ids": [
+          "ev_01M8444EGNKCS2H48WPJYSXHA3",
+          "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 9.1 (Critical).",
+        "field": "cvss",
+        "value": "9.1",
+        "evidence_ids": [
+          "ev_01M8444EGNKCS2H48WPJYSXHA3",
+          "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 4.2.0 is available.",
+        "field": "fixed_versions",
+        "value": "4.2.0",
+        "evidence_ids": [
+          "ev_01M8444EGNKCS2H48WPJYSXHA3",
+          "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive via pdfkit in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNKCS2H48WPJYSXHA3"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNQS4QJ6D8G1CFM4J6",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-rm97-x556-q36h in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-rm97-x556-q36h",
+    "aliases": [
+      "CVE-2024-21501"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.12.1"
+    ],
+    "affected_range": "<2.12.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+      "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html@1.4.2, a direct production dependency, is affected by an information exposure issue (GHSA-rm97-x556-q36h, CVSS 5.3). The scanner reports a fix in 2.12.1. CVSS 5.3 gives an initial medium risk.",
+    "claims": [
+      {
+        "text": "The vulnerable package is sanitize-html@1.4.2, a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+          "ev_01M8444J8QSNJ54S3181DEWRM6"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+          "ev_01M8444J8QSNJ54S3181DEWRM6"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.12.1.",
+        "field": "fixed_versions",
+        "value": "2.12.1",
+        "evidence_ids": [
+          "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+          "ev_01M8444J8QSNJ54S3181DEWRM6"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNH0XS3NTN8Q97DDGY",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-23hp-3jrh-7fpw in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-23hp-3jrh-7fpw",
+    "aliases": [
+      "CVE-2026-59873"
+    ],
+    "cvss": 9.2,
+    "severity": "Critical",
+    "fixed_versions": [
+      "7.5.19"
+    ],
+    "affected_range": "<=7.5.18",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGN9XM861CC87KYP2M1",
+      "ev_01M8444J8QSG879GBWFN65SJWM"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is pulled in transitively through sqlite3 in the production dependency tree and is affected by a decompression/parse denial-of-service advisory with CVSS 9.2. The scanner reports a fix in 7.5.19, though the transitive path means the parent dependency may need updating.",
+    "claims": [
+      {
+        "text": "The affected range is <=7.5.18 and the installed version is 6.2.1.",
+        "field": "affected_range",
+        "value": "<=7.5.18",
+        "evidence_ids": [
+          "ev_01M8444EGN9XM861CC87KYP2M1",
+          "ev_01M8444J8QSG879GBWFN65SJWM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 9.2 (Critical).",
+        "field": "cvss",
+        "value": "9.2",
+        "evidence_ids": [
+          "ev_01M8444EGN9XM861CC87KYP2M1",
+          "ev_01M8444J8QSG879GBWFN65SJWM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 7.5.19 is available.",
+        "field": "fixed_versions",
+        "value": "7.5.19",
+        "evidence_ids": [
+          "ev_01M8444EGN9XM861CC87KYP2M1",
+          "ev_01M8444J8QSG879GBWFN65SJWM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive via sqlite3 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN9XM861CC87KYP2M1"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN0A4X9FBRAES3HFKK",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-rg76-677x-56q9 in crypto-js@3.3.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/crypto-js@3.3.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/pdfkit@0.11.0",
+        "pkg:npm/crypto-js@3.3.0"
+      ]
+    ],
+    "vuln_id": "GHSA-rg76-677x-56q9",
+    "aliases": [
+      "CVE-2026-71851"
+    ],
+    "cvss": 9.0,
+    "severity": "Critical",
+    "fixed_versions": [
+      "4.0.0"
+    ],
+    "affected_range": "<4.0.0",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGN3H3JF4K1A51WA8H1",
+      "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ],
+    "status": "assessed",
+    "explanation": "The same crypto-js@3.3.0 transitive production dependency via pdfkit is also flagged for insufficient entropy in secret generation with CVSS 9.0. The scanner reports a fix in 4.0.0, which is a lower version than the fix for the other crypto-js finding, so upgrading to the highest fixed version is advisable.",
+    "claims": [
+      {
+        "text": "The affected range is <4.0.0 and the installed version is 3.3.0.",
+        "field": "affected_range",
+        "value": "<4.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN3H3JF4K1A51WA8H1",
+          "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 9.0 (Critical).",
+        "field": "cvss",
+        "value": "9.0",
+        "evidence_ids": [
+          "ev_01M8444EGN3H3JF4K1A51WA8H1",
+          "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 4.0.0 is available.",
+        "field": "fixed_versions",
+        "value": "4.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN3H3JF4K1A51WA8H1",
+          "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive via pdfkit in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN3H3JF4K1A51WA8H1"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNC0SXH45SM4J0SBQF",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-34x7-hfp2-rc4v in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-34x7-hfp2-rc4v",
+    "aliases": [
+      "CVE-2026-24842"
+    ],
+    "cvss": 8.2,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.7"
+    ],
+    "affected_range": "<7.5.7",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNT7PWM9YZ3318XYD5",
+      "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is flagged for arbitrary file creation/overwrite via hardlink path traversal (GHSA-34x7-hfp2-rc4v, CVSS 8.2). It is a transitive production dependency reached via sqlite3@5.1.7 in package-lock.json. A fix exists in 7.5.7, though that is a major-version jump from the installed 6.2.1.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.2 for this advisory.",
+        "field": "cvss",
+        "value": "8.2",
+        "evidence_ids": [
+          "ev_01M8444EGNT7PWM9YZ3318XYD5",
+          "ev_01M8444J8QSV9EM1E369R42M3Q"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <7.5.7 and the fixed version is 7.5.7.",
+        "field": "fixed_versions",
+        "value": "7.5.7",
+        "evidence_ids": [
+          "ev_01M8444EGNT7PWM9YZ3318XYD5",
+          "ev_01M8444J8QSV9EM1E369R42M3Q"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in the production dependency path.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNT7PWM9YZ3318XYD5"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNQH2JYWY72MVDJ57D",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-3j7m-hmh3-9jmp in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-3j7m-hmh3-9jmp",
+    "aliases": [
+      "CVE-2016-1000237"
+    ],
+    "cvss": 6.1,
+    "severity": "Medium",
+    "fixed_versions": [
+      "1.4.3"
+    ],
+    "affected_range": "<1.4.3",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+      "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html 1.4.2 is affected by a cross-site scripting issue. It is a direct production dependency, so unsanitized output could reach users; the scanner CVSS of 6.1 maps to medium. A fix is available in 1.4.3.",
+    "claims": [
+      {
+        "text": "The advisory affects versions below 1.4.3.",
+        "field": "affected_range",
+        "value": "<1.4.3",
+        "evidence_ids": [
+          "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+          "ev_01M8444J8QM26SRA8PDG9Q82P5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 6.1.",
+        "field": "cvss",
+        "value": "6.1",
+        "evidence_ids": [
+          "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+          "ev_01M8444J8QM26SRA8PDG9Q82P5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 1.4.3.",
+        "field": "fixed_versions",
+        "value": "1.4.3",
+        "evidence_ids": [
+          "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+          "ev_01M8444J8QM26SRA8PDG9Q82P5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+          "ev_01M8444J8QM26SRA8PDG9Q82P5"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN9HJY4B8ZTEZYR508",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8qq5-rm4j-mr97 in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-8qq5-rm4j-mr97",
+    "aliases": [
+      "CVE-2026-23745"
+    ],
+    "cvss": 8.2,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.3"
+    ],
+    "affected_range": "<=7.5.2",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNZ549ZW6SW93871CM",
+      "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is flagged for arbitrary file overwrite and symlink poisoning via insufficient path sanitization (GHSA-8qq5-rm4j-mr97, CVSS 8.2). It is a transitive production dependency reached via sqlite3@5.1.7 in package-lock.json. A fix exists in 7.5.3.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.2 for this advisory.",
+        "field": "cvss",
+        "value": "8.2",
+        "evidence_ids": [
+          "ev_01M8444EGNZ549ZW6SW93871CM",
+          "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=7.5.2 and the fixed version is 7.5.3.",
+        "field": "fixed_versions",
+        "value": "7.5.3",
+        "evidence_ids": [
+          "ev_01M8444EGNZ549ZW6SW93871CM",
+          "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in the production dependency path.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNZ549ZW6SW93871CM"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN4DDTENM1VFK5934W",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-7f5c-rpf4-86p8 in hbs@4.4.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/hbs@4.4.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/hbs@4.4.0"
+      ]
+    ],
+    "vuln_id": "GHSA-7f5c-rpf4-86p8",
+    "aliases": [
+      "CVE-2021-32822"
+    ],
+    "cvss": 4.0,
+    "severity": "Medium",
+    "fixed_versions": [],
+    "affected_range": "<=4.4.0",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+      "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ],
+    "status": "assessed",
+    "explanation": "hbs@4.4.0 is a direct production dependency (root -> hbs) affected by a sensitive-information exposure issue. The scanner rates it CVSS 4.0 (Medium), which maps to medium; the evidence shows no fixed version available, so remediation may require replacing or removing the package.",
+    "claims": [
+      {
+        "text": "hbs@4.4.0 is a direct production dependency of the root project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+          "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory CVSS score is 4.0.",
+        "field": "cvss",
+        "value": "4.0",
+        "evidence_ids": [
+          "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+          "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "No fixed version is listed; fix state is not-fixed.",
+        "field": "fix_state",
+        "value": "not-fixed",
+        "evidence_ids": [
+          "ev_01M8444EGNGSFTT3S78R0PKNZQ"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNVMZ5BTSB9KP34PJR",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8cf7-32gw-wr33 in jsonwebtoken@0.1.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.1.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0"
+      ]
+    ],
+    "vuln_id": "GHSA-8cf7-32gw-wr33",
+    "aliases": [
+      "CVE-2022-23539"
+    ],
+    "cvss": 8.1,
+    "severity": "High",
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "affected_range": "<=8.5.1",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+      "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken@0.1.0 is flagged for unrestricted key type allowing legacy key usage (GHSA-8cf7-32gw-wr33, CVSS 8.1). It is a transitive production dependency reached via express-jwt@0.1.3 in package-lock.json. A fix exists in 9.0.0, a major-version jump from the installed 0.1.0.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.1 for this advisory.",
+        "field": "cvss",
+        "value": "8.1",
+        "evidence_ids": [
+          "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+          "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=8.5.1 and the fixed version is 9.0.0.",
+        "field": "fixed_versions",
+        "value": "9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+          "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "jsonwebtoken@0.1.0 is reached transitively through express-jwt@0.1.3 in the production dependency path.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNRCAZ8RMNYQC15QVP"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN2CPPP6J0MQBFVT00",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8cf7-32gw-wr33 in jsonwebtoken@0.4.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.4.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0"
+      ]
+    ],
+    "vuln_id": "GHSA-8cf7-32gw-wr33",
+    "aliases": [
+      "CVE-2022-23539"
+    ],
+    "cvss": 8.1,
+    "severity": "High",
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "affected_range": "<=8.5.1",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+      "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken@0.4.0 is flagged for unrestricted key type allowing legacy key usage (GHSA-8cf7-32gw-wr33, CVSS 8.1). It is a direct production dependency in package-lock.json, so it is used directly by the application. A fix exists in 9.0.0, a major-version jump from the installed 0.4.0.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.1 for this advisory.",
+        "field": "cvss",
+        "value": "8.1",
+        "evidence_ids": [
+          "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+          "ev_01M8444J8QTEGEE16YYZ1P57CS"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=8.5.1 and the fixed version is 9.0.0.",
+        "field": "fixed_versions",
+        "value": "9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+          "ev_01M8444J8QTEGEE16YYZ1P57CS"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "jsonwebtoken@0.4.0 is a direct production dependency of the root project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNC9WMG6YGQ3X1MB5Z"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNDTHPXX9KNBMKBZWM",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-hjrf-2m68-5959 in jsonwebtoken@0.1.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.1.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0"
+      ]
+    ],
+    "vuln_id": "GHSA-hjrf-2m68-5959",
+    "aliases": [
+      "CVE-2022-23541"
+    ],
+    "cvss": 5.0,
+    "severity": "Medium",
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "affected_range": "<=8.5.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNFV912BNZGY7DWN5M",
+      "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken@0.1.0 is a transitive production dependency (root -> express-jwt@0.1.3 -> jsonwebtoken) affected by an insecure key retrieval implementation that could allow forgeable tokens (GHSA-hjrf-2m68-5959, CVSS 5.0). The scanner reports a fix in 9.0.0. CVSS 5.0 gives an initial medium risk.",
+    "claims": [
+      {
+        "text": "jsonwebtoken@0.1.0 is reached transitively through express-jwt@0.1.3 in production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNFV912BNZGY7DWN5M",
+          "ev_01M8444J8QMNHK97SEF2SM39P7"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.0.",
+        "field": "cvss",
+        "value": "5.0",
+        "evidence_ids": [
+          "ev_01M8444EGNFV912BNZGY7DWN5M",
+          "ev_01M8444J8QMNHK97SEF2SM39P7"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 9.0.0.",
+        "field": "fixed_versions",
+        "value": "9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNFV912BNZGY7DWN5M",
+          "ev_01M8444J8QMNHK97SEF2SM39P7"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNWDRY75J0860ZRZQ6",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-hjrf-2m68-5959 in jsonwebtoken@0.4.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.4.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0"
+      ]
+    ],
+    "vuln_id": "GHSA-hjrf-2m68-5959",
+    "aliases": [
+      "CVE-2022-23541"
+    ],
+    "cvss": 5.0,
+    "severity": "Medium",
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "affected_range": "<=8.5.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNFK7FGG10AHPMBYQV",
+      "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken@0.4.0 is a direct production dependency (root -> jsonwebtoken) affected by an insecure key-retrieval issue that can allow forged tokens. The scanner rates it CVSS 5.0 (Medium), which maps to medium; a fix is available in 9.0.0, a major-version jump from 0.4.0.",
+    "claims": [
+      {
+        "text": "The affected package is jsonwebtoken@0.4.0, a direct production dependency of the root project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNFK7FGG10AHPMBYQV",
+          "ev_01M8444J8QD0DSAF1769HFBJQV"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory severity is Medium with a CVSS score of 5.0.",
+        "field": "cvss",
+        "value": "5.0",
+        "evidence_ids": [
+          "ev_01M8444EGNFK7FGG10AHPMBYQV",
+          "ev_01M8444J8QD0DSAF1769HFBJQV"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 9.0.0.",
+        "field": "fixed_versions",
+        "value": "9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNFK7FGG10AHPMBYQV",
+          "ev_01M8444J8QD0DSAF1769HFBJQV"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNEKEGB5N7N2SPXV4Q",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-qffp-2rhf-9h96 in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-qffp-2rhf-9h96",
+    "aliases": [
+      "CVE-2026-29786"
+    ],
+    "cvss": 8.2,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.10"
+    ],
+    "affected_range": "<=7.5.9",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNZYMCVKKS20QAVDSF",
+      "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is flagged for hardlink path traversal via drive-relative linkpath (GHSA-qffp-2rhf-9h96, CVSS 8.2). It is a transitive production dependency reached via sqlite3@5.1.7 in package-lock.json. A fix exists in 7.5.10.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.2 for this advisory.",
+        "field": "cvss",
+        "value": "8.2",
+        "evidence_ids": [
+          "ev_01M8444EGNZYMCVKKS20QAVDSF",
+          "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=7.5.9 and the fixed version is 7.5.10.",
+        "field": "fixed_versions",
+        "value": "7.5.10",
+        "evidence_ids": [
+          "ev_01M8444EGNZYMCVKKS20QAVDSF",
+          "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in the production dependency path.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNZYMCVKKS20QAVDSF"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN1BJP9Z4N1DV2ZW28",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-r292-9mhp-454m in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-r292-9mhp-454m",
+    "aliases": [
+      "CVE-2026-73566"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.21"
+    ],
+    "affected_range": "<=7.5.20",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGN72MNCPQHH1836HVN",
+      "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is affected by an uncontrolled-recursion stack-overflow DoS (GHSA-r292-9mhp-454m, CVSS 7.5). It is a transitive production dependency reached via sqlite3; the CVSS of 7.5 gives high. The fix is 7.5.21.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5 (High).",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGN72MNCPQHH1836HVN",
+          "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is tar@6.2.1, within the affected range <=7.5.20.",
+        "field": "version",
+        "value": "6.2.1",
+        "evidence_ids": [
+          "ev_01M8444EGN72MNCPQHH1836HVN",
+          "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 7.5.21.",
+        "field": "fixed_versions",
+        "value": "7.5.21",
+        "evidence_ids": [
+          "ev_01M8444EGN72MNCPQHH1836HVN",
+          "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive and in production scope, reached via sqlite3.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN72MNCPQHH1836HVN"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNKWPEHRPBNMGK8N5A",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-58qx-3vcg-4xpx in ws@8.18.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/ws@8.18.0",
+    "scope": "prod",
+    "project": "frontend",
+    "file_path": "frontend/package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "frontend",
+        "pkg:npm/ethers@5.8.0",
+        "pkg:npm/%40ethersproject/providers@5.8.0",
+        "pkg:npm/ws@8.18.0"
+      ]
+    ],
+    "vuln_id": "GHSA-58qx-3vcg-4xpx",
+    "aliases": [
+      "CVE-2026-45736"
+    ],
+    "cvss": 4.4,
+    "severity": "Medium",
+    "fixed_versions": [
+      "8.20.1"
+    ],
+    "affected_range": ">=8.0.0,<8.20.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNCA9TV9PS17KFWDDE",
+      "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ],
+    "status": "assessed",
+    "explanation": "ws@8.18.0 is pulled in transitively in the frontend production tree via ethers -> @ethersproject/providers, and is affected by an uninitialized memory disclosure issue. The scanner rates it CVSS 4.4 (Medium), which maps to medium; a fix exists in 8.20.1.",
+    "claims": [
+      {
+        "text": "ws@8.18.0 is a transitive production dependency reached through ethers and @ethersproject/providers.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNCA9TV9PS17KFWDDE",
+          "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory CVSS score is 4.4.",
+        "field": "cvss",
+        "value": "4.4",
+        "evidence_ids": [
+          "ev_01M8444EGNCA9TV9PS17KFWDDE",
+          "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 8.20.1.",
+        "field": "fixed_versions",
+        "value": "8.20.1",
+        "evidence_ids": [
+          "ev_01M8444EGNCA9TV9PS17KFWDDE",
+          "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNX66BHAF4DQ2Q0M9T",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8x88-c5mf-7j5w in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-8x88-c5mf-7j5w",
+    "aliases": [
+      "CVE-2026-59874"
+    ],
+    "cvss": 8.7,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.18"
+    ],
+    "affected_range": "<=7.5.17",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+      "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1, a transitive production dependency via sqlite3, is affected by an infinite loop on negative tar entry size with CVSS 8.7. The scanner reports a fix in 7.5.18, which is lower than the fix for the other tar finding, so upgrading to the highest fixed version is advisable.",
+    "claims": [
+      {
+        "text": "The affected range is <=7.5.17 and the installed version is 6.2.1.",
+        "field": "affected_range",
+        "value": "<=7.5.17",
+        "evidence_ids": [
+          "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+          "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 8.7 (High).",
+        "field": "cvss",
+        "value": "8.7",
+        "evidence_ids": [
+          "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+          "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 7.5.18 is available.",
+        "field": "fixed_versions",
+        "value": "7.5.18",
+        "evidence_ids": [
+          "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+          "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive via sqlite3 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN1Q83PCZ2YGRV9RVV"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNPG2HRJFA8RSC50M5",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-w8wr-v893-vjvp in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-w8wr-v893-vjvp",
+    "aliases": [
+      "CVE-2026-59871"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "7.5.18"
+    ],
+    "affected_range": "<=7.5.17",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+      "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is a transitive production dependency (root -> sqlite3@5.1.7 -> tar) affected by a process crash via PAX path type confusion (GHSA-w8wr-v893-vjvp, CVSS 5.3). The scanner reports a fix in 7.5.18. CVSS 5.3 gives an initial medium risk.",
+    "claims": [
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+          "ev_01M8444J8QEGXHNQW8M40B8CEC"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+          "ev_01M8444J8QEGXHNQW8M40B8CEC"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 7.5.18.",
+        "field": "fixed_versions",
+        "value": "7.5.18",
+        "evidence_ids": [
+          "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+          "ev_01M8444J8QEGXHNQW8M40B8CEC"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNTDAB3K453X4TP29S",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-qwph-4952-7xr6 in jsonwebtoken@0.1.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.1.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/express-jwt@0.1.3",
+        "pkg:npm/jsonwebtoken@0.1.0"
+      ]
+    ],
+    "vuln_id": "GHSA-qwph-4952-7xr6",
+    "aliases": [
+      "CVE-2022-23540"
+    ],
+    "cvss": 6.4,
+    "severity": "Medium",
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "affected_range": "<9.0.0",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+      "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken 0.1.0 has a signature validation bypass due to an insecure default algorithm in jwt.verify(). It is a transitive production dependency pulled in via express-jwt, so it sits on the production request path; the scanner CVSS of 6.4 maps to medium. A fix is available in 9.0.0.",
+    "claims": [
+      {
+        "text": "The advisory affects versions below 9.0.0.",
+        "field": "affected_range",
+        "value": "<9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+          "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 6.4.",
+        "field": "cvss",
+        "value": "6.4",
+        "evidence_ids": [
+          "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+          "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 9.0.0.",
+        "field": "fixed_versions",
+        "value": "9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+          "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a transitive production dependency reached through express-jwt.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+          "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNVBH19YV9VTHH2S7X",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-qwph-4952-7xr6 in jsonwebtoken@0.4.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jsonwebtoken@0.4.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0"
+      ]
+    ],
+    "vuln_id": "GHSA-qwph-4952-7xr6",
+    "aliases": [
+      "CVE-2022-23540"
+    ],
+    "cvss": 6.4,
+    "severity": "Medium",
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "affected_range": "<9.0.0",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN4Z2G1311JMW7TBEE",
+      "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ],
+    "status": "assessed",
+    "explanation": "jsonwebtoken 0.4.0 is affected by the same signature validation bypass via an insecure default algorithm in jwt.verify(). It is a direct production dependency, so it is on the production path; the scanner CVSS of 6.4 maps to medium. A fix is available in 9.0.0.",
+    "claims": [
+      {
+        "text": "The advisory affects versions below 9.0.0.",
+        "field": "affected_range",
+        "value": "<9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN4Z2G1311JMW7TBEE",
+          "ev_01M8444J8QQS07ERN0YTE7AMS5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 6.4.",
+        "field": "cvss",
+        "value": "6.4",
+        "evidence_ids": [
+          "ev_01M8444EGN4Z2G1311JMW7TBEE",
+          "ev_01M8444J8QQS07ERN0YTE7AMS5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 9.0.0.",
+        "field": "fixed_versions",
+        "value": "9.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN4Z2G1311JMW7TBEE",
+          "ev_01M8444J8QQS07ERN0YTE7AMS5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN4Z2G1311JMW7TBEE",
+          "ev_01M8444J8QQS07ERN0YTE7AMS5"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN2KYRD4MV8Q8V9F1F",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-3g3m-2fjr-6pw4 in glob@10.5.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/glob@10.5.0",
+    "scope": "dev",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1",
+        "pkg:npm/libxmljs2@0.37.0",
+        "pkg:npm/node-gyp@11.5.0",
+        "pkg:npm/make-fetch-happen@14.0.3",
+        "pkg:npm/cacache@19.0.1",
+        "pkg:npm/glob@10.5.0"
+      ]
+    ],
+    "vuln_id": "GHSA-3g3m-2fjr-6pw4",
+    "aliases": [
+      "CVE-2026-118773"
+    ],
+    "cvss": 6.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "14.0.2"
+    ],
+    "affected_range": ">=9.0.0,<=14.0.1",
+    "provenance": null,
+    "initial_risk": "low",
+    "evidence_ids": [
+      "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+      "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ],
+    "status": "assessed",
+    "explanation": "glob@10.5.0 is a transitive dev-only dependency (via @cyclonedx/cyclonedx-npm -> libxmljs2 -> node-gyp -> make-fetch-happen -> cacache) affected by an AbortSignal cancellation bypass allowing post-timeout filesystem traversal. The scanner rates it CVSS 6.3, normally medium, but the dev-only build-tooling path lowers it one level; a fix exists in 14.0.2.",
+    "claims": [
+      {
+        "text": "glob@10.5.0 is a transitive dev-scope dependency reached through the cyclonedx-npm build tooling chain.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+          "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory CVSS score is 6.3.",
+        "field": "cvss",
+        "value": "6.3",
+        "evidence_ids": [
+          "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+          "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 14.0.2.",
+        "field": "fixed_versions",
+        "value": "14.0.2",
+        "evidence_ids": [
+          "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+          "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNBKS9XDTA31VJ7RY2",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-g3hv-75wg-m249 in minimatch@9.0.9",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/minimatch@9.0.9",
+    "scope": "dev",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1",
+        "pkg:npm/libxmljs2@0.37.0",
+        "pkg:npm/node-gyp@11.5.0",
+        "pkg:npm/make-fetch-happen@14.0.3",
+        "pkg:npm/cacache@19.0.1",
+        "pkg:npm/glob@10.5.0",
+        "pkg:npm/minimatch@9.0.9"
+      ]
+    ],
+    "vuln_id": "GHSA-g3hv-75wg-m249",
+    "aliases": [
+      "CVE-2026-118764"
+    ],
+    "cvss": 6.9,
+    "severity": "Medium",
+    "fixed_versions": [
+      "11.0.1"
+    ],
+    "affected_range": ">=7.0.0,<11.0.1",
+    "provenance": null,
+    "initial_risk": "low",
+    "evidence_ids": [
+      "ev_01M8444EGNVGV5BSMW0GFVH89E",
+      "ev_01M8444J8QY8GE829CGFAWADJN"
+    ],
+    "status": "assessed",
+    "explanation": "minimatch@9.0.9 is a deeply transitive dev-only dependency (via @cyclonedx/cyclonedx-npm -> libxmljs2 -> node-gyp -> make-fetch-happen -> cacache -> glob) affected by a denial-of-service issue. The scanner rates it CVSS 6.9, which would normally be medium, but the dev-only, build-tooling-only path lowers it one level; a fix exists in 11.0.1.",
+    "claims": [
+      {
+        "text": "minimatch@9.0.9 is a transitive dev-scope dependency reached through the cyclonedx-npm build tooling chain.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNVGV5BSMW0GFVH89E",
+          "ev_01M8444J8QY8GE829CGFAWADJN"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory CVSS score is 6.9.",
+        "field": "cvss",
+        "value": "6.9",
+        "evidence_ids": [
+          "ev_01M8444EGNVGV5BSMW0GFVH89E",
+          "ev_01M8444J8QY8GE829CGFAWADJN"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 11.0.1.",
+        "field": "fixed_versions",
+        "value": "11.0.1",
+        "evidence_ids": [
+          "ev_01M8444EGNVGV5BSMW0GFVH89E",
+          "ev_01M8444J8QY8GE829CGFAWADJN"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNA9DGPY43H20HJY82",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-w5hq-g745-h8pq in uuid@8.3.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/uuid@8.3.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sequelize@6.37.8",
+        "pkg:npm/uuid@8.3.2"
+      ]
+    ],
+    "vuln_id": "GHSA-w5hq-g745-h8pq",
+    "aliases": [
+      "CVE-2026-41907",
+      "CVE-2026-41988"
+    ],
+    "cvss": 7.5,
+    "severity": "Medium",
+    "fixed_versions": [
+      "11.1.1"
+    ],
+    "affected_range": "<11.1.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNEWB6WGTTQR5TABWB",
+      "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ],
+    "status": "assessed",
+    "explanation": "uuid@8.3.2 has a missing buffer bounds check in v3/v5/v6 when a buffer is provided (GHSA-w5hq-g745-h8pq). It is a transitive production dependency via sequelize; the scanner labels it Medium while the CVSS is 7.5, and the issue only triggers when a buffer argument is passed, so I set medium. The fix is 11.1.1.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5.",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGNEWB6WGTTQR5TABWB",
+          "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner severity is Medium.",
+        "field": "severity",
+        "value": "Medium",
+        "evidence_ids": [
+          "ev_01M8444EGNEWB6WGTTQR5TABWB"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is uuid@8.3.2, within the affected range <11.1.1.",
+        "field": "version",
+        "value": "8.3.2",
+        "evidence_ids": [
+          "ev_01M8444EGNEWB6WGTTQR5TABWB",
+          "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 11.1.1.",
+        "field": "fixed_versions",
+        "value": "11.1.1",
+        "evidence_ids": [
+          "ev_01M8444EGNEWB6WGTTQR5TABWB",
+          "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive and in production scope, reached via sequelize.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNEWB6WGTTQR5TABWB"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNMFFVVKMGAYXCVTBM",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-83g3-92jg-28cx in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-83g3-92jg-28cx",
+    "aliases": [
+      "CVE-2026-26960"
+    ],
+    "cvss": 7.1,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.8"
+    ],
+    "affected_range": "<7.5.8",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNYP66GTFXX29JY1SJ",
+      "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is vulnerable to arbitrary file read/write via hardlink target escape through a symlink chain during extraction. It is a transitive production dependency (root -> sqlite3@5.1.7 -> tar@6.2.1) with CVSS 7.1, so it is rated high; a fix exists in 7.5.8.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 7.1.",
+        "field": "cvss",
+        "value": "7.1",
+        "evidence_ids": [
+          "ev_01M8444EGNYP66GTFXX29JY1SJ",
+          "ev_01M8444J8QWEGHFZMVRESMM2EY"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <7.5.8 and the fixed version is 7.5.8.",
+        "field": "fixed_versions",
+        "value": "7.5.8",
+        "evidence_ids": [
+          "ev_01M8444EGNYP66GTFXX29JY1SJ",
+          "ev_01M8444J8QWEGHFZMVRESMM2EY"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNYP66GTFXX29JY1SJ"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN4JZPQEN88DZ3F4QF",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-9ppj-qmqm-q256 in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-9ppj-qmqm-q256",
+    "aliases": [
+      "CVE-2026-31802"
+    ],
+    "cvss": 8.2,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.11"
+    ],
+    "affected_range": "<=7.5.10",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+      "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is flagged for symlink path traversal via drive-relative linkpath (GHSA-9ppj-qmqm-q256, CVSS 8.2). It is a transitive production dependency reached via sqlite3@5.1.7 in package-lock.json. A fix exists in 7.5.11.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.2 for this advisory.",
+        "field": "cvss",
+        "value": "8.2",
+        "evidence_ids": [
+          "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+          "ev_01M8444J8QDCSC6HN1NQA16JEM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=7.5.10 and the fixed version is 7.5.11.",
+        "field": "fixed_versions",
+        "value": "7.5.11",
+        "evidence_ids": [
+          "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+          "ev_01M8444J8QDCSC6HN1NQA16JEM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in the production dependency path.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNT7KB4ZKHRYEX2EBA"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN2X447SF6SETQVPD3",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-x3q4-9hxx-gx8m in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-x3q4-9hxx-gx8m",
+    "aliases": [
+      "CVE-2026-113654"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.18.0"
+    ],
+    "affected_range": "<2.18.0",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNECHD03CXA6PTE2VN",
+      "ev_01M8444J8Q2P65K82P7800VGME"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html@1.4.2, a direct production dependency, is affected by a nonTextTags discard-region issue (GHSA-x3q4-9hxx-gx8m, CVSS 5.3). The scanner reports a fix in 2.18.0. CVSS 5.3 gives an initial medium risk.",
+    "claims": [
+      {
+        "text": "The vulnerable package is sanitize-html@1.4.2, a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNECHD03CXA6PTE2VN",
+          "ev_01M8444J8Q2P65K82P7800VGME"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGNECHD03CXA6PTE2VN",
+          "ev_01M8444J8Q2P65K82P7800VGME"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 2.18.0.",
+        "field": "fixed_versions",
+        "value": "2.18.0",
+        "evidence_ids": [
+          "ev_01M8444EGNECHD03CXA6PTE2VN",
+          "ev_01M8444J8Q2P65K82P7800VGME"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN0RFF2B04HQGPXJSE",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-r6q2-hw4h-h46w in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-r6q2-hw4h-h46w",
+    "aliases": [
+      "CVE-2026-23950"
+    ],
+    "cvss": 8.8,
+    "severity": "High",
+    "fixed_versions": [
+      "7.5.4"
+    ],
+    "affected_range": "<=7.5.3",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+      "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1, a transitive production dependency via sqlite3, is affected by a race condition in path reservations on macOS APFS with CVSS 8.8. The scanner reports a fix in 7.5.4; exploitation appears limited to macOS environments, which is unknown for this project.",
+    "claims": [
+      {
+        "text": "The affected range is <=7.5.3 and the installed version is 6.2.1.",
+        "field": "affected_range",
+        "value": "<=7.5.3",
+        "evidence_ids": [
+          "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+          "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The advisory CVSS score is 8.8 (High).",
+        "field": "cvss",
+        "value": "8.8",
+        "evidence_ids": [
+          "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+          "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version 7.5.4 is available.",
+        "field": "fixed_versions",
+        "value": "7.5.4",
+        "evidence_ids": [
+          "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+          "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive via sqlite3 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNPFZKTQZ6KP3FVYYK"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN613TANBGEYA4GHDF",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-5v7r-6r5c-r473 in file-type@16.5.4",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/file-type@16.5.4",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/file-type@16.5.4"
+      ]
+    ],
+    "vuln_id": "GHSA-5v7r-6r5c-r473",
+    "aliases": [
+      "CVE-2026-31808"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "21.3.1"
+    ],
+    "affected_range": ">=13.0.0,<21.3.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+      "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ],
+    "status": "assessed",
+    "explanation": "file-type@16.5.4 is a direct production dependency affected by an infinite loop in the ASF parser on malformed input (GHSA-5v7r-6r5c-r473, CVSS 5.3). The scanner reports a fix in 21.3.1. CVSS 5.3 gives an initial medium risk.",
+    "claims": [
+      {
+        "text": "The vulnerable package is file-type@16.5.4, a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+          "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+          "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 21.3.1.",
+        "field": "fixed_versions",
+        "value": "21.3.1",
+        "evidence_ids": [
+          "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+          "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNXFEEWST0VNYKEBPZ",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-v75r-vx73-82pj in @cyclonedx/cyclonedx-npm@4.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1",
+    "scope": "dev",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-v75r-vx73-82pj",
+    "aliases": [
+      "CVE-2026-55849"
+    ],
+    "cvss": 8.5,
+    "severity": "High",
+    "fixed_versions": [
+      "5.0.0"
+    ],
+    "affected_range": ">=2.1.0,<5.0.0",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNHSNV064R2B9FC8NR",
+      "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ],
+    "status": "assessed",
+    "explanation": "@cyclonedx/cyclonedx-npm@4.2.1 has a shell injection via an unsanitized --workspace argument. It is a direct dependency but dev-scoped, and with CVSS 8.5 it stays high; a fix exists in 5.0.0.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 8.5.",
+        "field": "cvss",
+        "value": "8.5",
+        "evidence_ids": [
+          "ev_01M8444EGNHSNV064R2B9FC8NR",
+          "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is >=2.1.0,<5.0.0 and the fixed version is 5.0.0.",
+        "field": "fixed_versions",
+        "value": "5.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNHSNV064R2B9FC8NR",
+          "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The package is a direct dependency in the dev scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNHSNV064R2B9FC8NR"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN76B36ZH68AX72PRP",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-gvwx-54wh-qm9j in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-gvwx-54wh-qm9j",
+    "aliases": [
+      "CVE-2026-59875"
+    ],
+    "cvss": 5.3,
+    "severity": "Medium",
+    "fixed_versions": [
+      "7.5.17"
+    ],
+    "affected_range": "<=7.5.16",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN03XRHP20JFE4T3E7",
+      "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 is a transitive production dependency (root -> sqlite3@5.1.7 -> tar) affected by an uncaught exception DoS via NUL byte in PAX records (GHSA-gvwx-54wh-qm9j, CVSS 5.3). The scanner reports a fix in 7.5.17. CVSS 5.3 gives an initial medium risk.",
+    "claims": [
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN03XRHP20JFE4T3E7",
+          "ev_01M8444J8Q5RVXT3PGPGKF657P"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "CVSS score is 5.3.",
+        "field": "cvss",
+        "value": "5.3",
+        "evidence_ids": [
+          "ev_01M8444EGN03XRHP20JFE4T3E7",
+          "ev_01M8444J8Q5RVXT3PGPGKF657P"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 7.5.17.",
+        "field": "fixed_versions",
+        "value": "7.5.17",
+        "evidence_ids": [
+          "ev_01M8444EGN03XRHP20JFE4T3E7",
+          "ev_01M8444J8Q5RVXT3PGPGKF657P"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN23SHZNTDFTSAX6JD",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-jxwj-j7wr-gfrw in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-jxwj-j7wr-gfrw",
+    "aliases": [
+      "CVE-2026-63670"
+    ],
+    "cvss": 6.1,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.17.6"
+    ],
+    "affected_range": "<=2.17.5",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNS263ZEJSPHAS91QS",
+      "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html 1.4.2 is affected by a mutation-XSS / allowedTags bypass. It is a direct production dependency, so crafted input could reach users; the scanner CVSS of 6.1 maps to medium. A fix is available in 2.17.6.",
+    "claims": [
+      {
+        "text": "The advisory affects versions up to and including 2.17.5.",
+        "field": "affected_range",
+        "value": "<=2.17.5",
+        "evidence_ids": [
+          "ev_01M8444EGNS263ZEJSPHAS91QS",
+          "ev_01M8444J8Q7A743XGHRZMPE5E8"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 6.1.",
+        "field": "cvss",
+        "value": "6.1",
+        "evidence_ids": [
+          "ev_01M8444EGNS263ZEJSPHAS91QS",
+          "ev_01M8444J8Q7A743XGHRZMPE5E8"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 2.17.6.",
+        "field": "fixed_versions",
+        "value": "2.17.6",
+        "evidence_ids": [
+          "ev_01M8444EGNS263ZEJSPHAS91QS",
+          "ev_01M8444J8Q7A743XGHRZMPE5E8"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNS263ZEJSPHAS91QS",
+          "ev_01M8444J8Q7A743XGHRZMPE5E8"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNVMMBTT13WB1DNKBS",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-869p-cjfg-cm3x in jws@0.2.6",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jws@0.2.6",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0",
+        "pkg:npm/jws@0.2.6"
+      ]
+    ],
+    "vuln_id": "GHSA-869p-cjfg-cm3x",
+    "aliases": [
+      "CVE-2025-65945"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+      "3.2.3"
+    ],
+    "affected_range": "<3.2.3",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNSDZX5GS6A4RKABM7",
+      "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ],
+    "status": "assessed",
+    "explanation": "jws@0.2.6 improperly verifies HMAC signatures (GHSA-869p-cjfg-cm3x, CVSS 7.5), which is a signature-verification weakness in an authentication path. It is a transitive production dependency via jsonwebtoken; the CVSS of 7.5 gives high. The fix is 3.2.3.",
+    "claims": [
+      {
+        "text": "The advisory is rated CVSS 7.5 (High).",
+        "field": "cvss",
+        "value": "7.5",
+        "evidence_ids": [
+          "ev_01M8444EGNSDZX5GS6A4RKABM7",
+          "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The installed version is jws@0.2.6, within the affected range <3.2.3.",
+        "field": "version",
+        "value": "0.2.6",
+        "evidence_ids": [
+          "ev_01M8444EGNSDZX5GS6A4RKABM7",
+          "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "A fixed version is available: 3.2.3.",
+        "field": "fixed_versions",
+        "value": "3.2.3",
+        "evidence_ids": [
+          "ev_01M8444EGNSDZX5GS6A4RKABM7",
+          "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The dependency is transitive and in production scope, reached via jsonwebtoken.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNSDZX5GS6A4RKABM7"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNW2Y2WMY2JMJRHE7E",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-q69g-4hcv-6jg4 in @cyclonedx/cyclonedx-npm@4.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1",
+    "scope": "dev",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-q69g-4hcv-6jg4",
+    "aliases": [
+      "CVE-2026-71538"
+    ],
+    "cvss": 8.5,
+    "severity": "High",
+    "fixed_versions": [
+      "6.0.0"
+    ],
+    "affected_range": "<6.0.0",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+      "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ],
+    "status": "assessed",
+    "explanation": "@cyclonedx/cyclonedx-npm@4.2.1 has a Windows shell injection via an unsanitized --workspace argument. It is a direct dev-scoped dependency with CVSS 8.5, so it is rated high; a fix exists in 6.0.0.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 8.5.",
+        "field": "cvss",
+        "value": "8.5",
+        "evidence_ids": [
+          "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+          "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <6.0.0 and the fixed version is 6.0.0.",
+        "field": "fixed_versions",
+        "value": "6.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+          "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The package is a direct dependency in the dev scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNFDEJ0Y5TC39V0VDV"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNB7GDQA1T7JEH68P2",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-qhxp-v273-g94h in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-qhxp-v273-g94h",
+    "aliases": [
+      "CVE-2019-25225"
+    ],
+    "cvss": 6.1,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.0.0-beta"
+    ],
+    "affected_range": "<2.0.0-beta",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+      "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html 1.4.2 is affected by XSS through incomprehensive sanitization. It is a direct production dependency, so unsanitized output could reach users; the scanner CVSS of 6.1 maps to medium. A fix is available in 2.0.0-beta.",
+    "claims": [
+      {
+        "text": "The advisory affects versions below 2.0.0-beta.",
+        "field": "affected_range",
+        "value": "<2.0.0-beta",
+        "evidence_ids": [
+          "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+          "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 6.1.",
+        "field": "cvss",
+        "value": "6.1",
+        "evidence_ids": [
+          "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+          "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 2.0.0-beta.",
+        "field": "fixed_versions",
+        "value": "2.0.0-beta",
+        "evidence_ids": [
+          "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+          "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The vulnerable package is a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+          "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNBJPW2NPBT3K3R90H",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-cv27-6wvh-8x7j in sanitize-html@1.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/sanitize-html@1.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sanitize-html@1.4.2"
+      ]
+    ],
+    "vuln_id": "GHSA-cv27-6wvh-8x7j",
+    "aliases": [
+      "CVE-2026-113661"
+    ],
+    "cvss": 5.4,
+    "severity": "Medium",
+    "fixed_versions": [
+      "2.18.0"
+    ],
+    "affected_range": "<2.18.0",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+      "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ],
+    "status": "assessed",
+    "explanation": "sanitize-html 1.4.2 is affected by an incomplete fix where meta http-equiv=refresh content can still carry javascript: or data: URLs. It is a direct production dependency, so crafted input could reach users; the scanner CVSS of 5.4 maps to medium. A fix is available in 2.18.0.",
+    "claims": [
+      {
+        "text": "The advisory affects versions below 2.18.0.",
+        "field": "affected_range",
+        "value": "<2.18.0",
+        "evidence_ids": [
+          "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+          "ev_01M8444J8QPMS1D28DCAQ1G53T"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 5.4.",
+        "field": "cvss",
+        "value": "5.4",
+        "evidence_ids": [
+          "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+          "ev_01M8444J8QPMS1D28DCAQ1G53T"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 2.18.0.",
+        "field": "fixed_versions",
+        "value": "2.18.0",
+        "evidence_ids": [
+          "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+          "ev_01M8444J8QPMS1D28DCAQ1G53T"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a direct production dependency.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+          "ev_01M8444J8QPMS1D28DCAQ1G53T"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNN8SS5CAQS3K33K0V",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-vmf3-w455-68vh in tar@6.2.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/tar@6.2.1",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/tar@6.2.1"
+      ]
+    ],
+    "vuln_id": "GHSA-vmf3-w455-68vh",
+    "aliases": [
+      "CVE-2026-53655"
+    ],
+    "cvss": 6.9,
+    "severity": "Medium",
+    "fixed_versions": [
+      "7.5.16"
+    ],
+    "affected_range": "<=7.5.15",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNPX19FBYGH9MCD511",
+      "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ],
+    "status": "assessed",
+    "explanation": "tar@6.2.1 mishandles PAX size overrides on GNU long-name/long-link headers, allowing tar parser interpretation differentials (file smuggling). It is a transitive production dependency (root -> sqlite3@5.1.7 -> tar@6.2.1) with CVSS 6.9, so it is rated medium; a fix exists in 7.5.16.",
+    "claims": [
+      {
+        "text": "The advisory has CVSS score 6.9.",
+        "field": "cvss",
+        "value": "6.9",
+        "evidence_ids": [
+          "ev_01M8444EGNPX19FBYGH9MCD511",
+          "ev_01M8444J8QZKHNPS4EE1FS07YD"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <=7.5.15 and the fixed version is 7.5.16.",
+        "field": "fixed_versions",
+        "value": "7.5.16",
+        "evidence_ids": [
+          "ev_01M8444EGNPX19FBYGH9MCD511",
+          "ev_01M8444J8QZKHNPS4EE1FS07YD"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "tar@6.2.1 is reached transitively through sqlite3@5.1.7 in the production scope.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNPX19FBYGH9MCD511"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNNAPNFKX3RVBPZ3JC",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-848j-6mx2-7j84 in elliptic@6.6.1",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/elliptic@6.6.1",
+    "scope": "prod",
+    "project": "frontend",
+    "file_path": "frontend/package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "frontend",
+        "pkg:npm/ethers@5.8.0",
+        "pkg:npm/%40ethersproject/signing-key@5.8.0",
+        "pkg:npm/elliptic@6.6.1"
+      ]
+    ],
+    "vuln_id": "GHSA-848j-6mx2-7j84",
+    "aliases": [
+      "CVE-2025-14505"
+    ],
+    "cvss": 5.6,
+    "severity": "Low",
+    "fixed_versions": [],
+    "affected_range": "<=6.6.1",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGNRV58YDF8YWDWQR56",
+      "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ],
+    "status": "assessed",
+    "explanation": "elliptic 6.6.1 uses a cryptographic primitive with a risky implementation. It is a transitive production dependency reached through ethers and @ethersproject/signing-key in the frontend project; the scanner CVSS of 5.6 maps to medium. No fixed version is listed, so no upgrade path is known from the evidence.",
+    "claims": [
+      {
+        "text": "The advisory affects versions up to and including 6.6.1.",
+        "field": "affected_range",
+        "value": "<=6.6.1",
+        "evidence_ids": [
+          "ev_01M8444EGNRV58YDF8YWDWQR56",
+          "ev_01M8444J8H98RQAK66BBX0GAY1"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The scanner reports a CVSS score of 5.6.",
+        "field": "cvss",
+        "value": "5.6",
+        "evidence_ids": [
+          "ev_01M8444EGNRV58YDF8YWDWQR56",
+          "ev_01M8444J8H98RQAK66BBX0GAY1"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fix state is not-fixed with no fixed versions listed.",
+        "field": "fix_state",
+        "value": "not-fixed",
+        "evidence_ids": [
+          "ev_01M8444EGNRV58YDF8YWDWQR56"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The vulnerable package is a transitive production dependency reached through ethers.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNRV58YDF8YWDWQR56",
+          "ev_01M8444J8H98RQAK66BBX0GAY1"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNGRNVTCBQ1DCE9P1S",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-vpq2-c234-7xj6 in @tootallnate/once@1.1.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/%40tootallnate/once@1.1.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/sqlite3@5.1.7",
+        "pkg:npm/node-gyp@8.4.1",
+        "pkg:npm/make-fetch-happen@9.1.0",
+        "pkg:npm/http-proxy-agent@4.0.1",
+        "pkg:npm/%40tootallnate/once@1.1.2"
+      ]
+    ],
+    "vuln_id": "GHSA-vpq2-c234-7xj6",
+    "aliases": [
+      "CVE-2026-3449"
+    ],
+    "cvss": 3.3,
+    "severity": "Low",
+    "fixed_versions": [
+      "2.0.1"
+    ],
+    "affected_range": "<2.0.1",
+    "provenance": null,
+    "initial_risk": "low",
+    "evidence_ids": [
+      "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+      "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ],
+    "status": "assessed",
+    "explanation": "@tootallnate/once@1.1.2 is a deeply transitive dependency reached via sqlite3 -> node-gyp -> make-fetch-happen -> http-proxy-agent, affected by an incorrect control flow scoping issue. The scanner rates it CVSS 3.3 (Low), which maps to low; fixes are listed as 2.0.1 (and 3.0.1 in the OSV record).",
+    "claims": [
+      {
+        "text": "@tootallnate/once@1.1.2 is reached transitively through sqlite3, node-gyp, make-fetch-happen and http-proxy-agent.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+          "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory CVSS score is 3.3.",
+        "field": "cvss",
+        "value": "3.3",
+        "evidence_ids": [
+          "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+          "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 2.0.1.",
+        "field": "fixed_versions",
+        "value": "2.0.1",
+        "evidence_ids": [
+          "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+          "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN7RTEZNE2STYYZVTE",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-5mrr-rgp6-x4gr in marsdb@0.6.11",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/marsdb@0.6.11",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/marsdb@0.6.11"
+      ]
+    ],
+    "vuln_id": "GHSA-5mrr-rgp6-x4gr",
+    "aliases": [],
+    "cvss": null,
+    "severity": "Critical",
+    "fixed_versions": [],
+    "affected_range": ">=0.0.0",
+    "provenance": null,
+    "initial_risk": "critical",
+    "evidence_ids": [
+      "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+      "ev_01M8444J8QP7G25QS994Q49PS1"
+    ],
+    "status": "assessed",
+    "explanation": "marsdb@0.6.11 is a direct production dependency affected by a command injection advisory covering all versions, and the scanner reports no fix available. With no CVSS score provided the severity is unknown, but a direct, unfixed command injection in production warrants the highest initial rating.",
+    "claims": [
+      {
+        "text": "The affected range covers all versions (>=0.0.0) and the installed version is 0.6.11.",
+        "field": "affected_range",
+        "value": ">=0.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+          "ev_01M8444J8QP7G25QS994Q49PS1"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fix state is not-fixed with no fixed versions listed.",
+        "field": "fix_state",
+        "value": "not-fixed",
+        "evidence_ids": [
+          "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+          "ev_01M8444J8QP7G25QS994Q49PS1"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "No CVSS score is provided in the evidence.",
+        "field": "cvss",
+        "value": "null",
+        "evidence_ids": [
+          "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+          "ev_01M8444J8QP7G25QS994Q49PS1"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The package is a direct production dependency of the root project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGNJQMJ5B8RMSK0QTVQ",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-gjcw-v447-2w7q in jws@0.2.6",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/jws@0.2.6",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0",
+        "pkg:npm/jws@0.2.6"
+      ]
+    ],
+    "vuln_id": "GHSA-gjcw-v447-2w7q",
+    "aliases": [
+      "CVE-2016-1000223"
+    ],
+    "cvss": 8.7,
+    "severity": "High",
+    "fixed_versions": [
+      "3.0.0"
+    ],
+    "affected_range": "<3.0.0",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+      "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ],
+    "status": "assessed",
+    "explanation": "jws@0.2.6 is flagged for forgeable public/private tokens (GHSA-gjcw-v447-2w7q, CVSS 8.7). It is a transitive production dependency reached via jsonwebtoken@0.4.0 in package-lock.json, so it ships in the production tree. A fix exists in 3.0.0, but upgrading requires moving jsonwebtoken to a version that pulls a newer jws.",
+    "claims": [
+      {
+        "text": "The scanner reports CVSS 8.7 for this advisory.",
+        "field": "cvss",
+        "value": "8.7",
+        "evidence_ids": [
+          "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+          "ev_01M8444J8Q55RFTV97SSFNEX15"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The affected range is <3.0.0 and the fixed version is 3.0.0.",
+        "field": "fixed_versions",
+        "value": "3.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+          "ev_01M8444J8Q55RFTV97SSFNEX15"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "jws@0.2.6 is reached transitively through jsonwebtoken@0.4.0 in the production dependency path.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGNFQXYEFM6JK6G2ZVN"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444EGN9G7CTZ33R3AKG922",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-rvg8-pwq2-xj7q in base64url@0.0.6",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/base64url@0.0.6",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/jsonwebtoken@0.4.0",
+        "pkg:npm/jws@0.2.6",
+        "pkg:npm/base64url@0.0.6"
+      ]
+    ],
+    "vuln_id": "GHSA-rvg8-pwq2-xj7q",
+    "aliases": [],
+    "cvss": null,
+    "severity": "Medium",
+    "fixed_versions": [
+      "3.0.0"
+    ],
+    "affected_range": "<3.0.0",
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+      "ev_01M8444J8QE9R23R9QT6HBV390"
+    ],
+    "status": "assessed",
+    "explanation": "base64url@0.0.6 is a transitive production dependency reached via jsonwebtoken -> jws, affected by an out-of-bounds read. No CVSS score is provided in the evidence, so the scanner's Medium severity is the basis for a medium rating; a fix exists in 3.0.0.",
+    "claims": [
+      {
+        "text": "base64url@0.0.6 is reached transitively through jsonwebtoken and jws in the production tree.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+          "ev_01M8444J8QE9R23R9QT6HBV390"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "No CVSS score is available in the evidence.",
+        "field": "cvss",
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+          "ev_01M8444J8QE9R23R9QT6HBV390"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The fixed version is 3.0.0.",
+        "field": "fixed_versions",
+        "value": "3.0.0",
+        "evidence_ids": [
+          "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+          "ev_01M8444J8QE9R23R9QT6HBV390"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444J8Q9T160BYNPJ3T9855",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-xfqm-j7pc-xrfc in messageformat@2.3.0",
+    "detector": "osv-scanner@2.7.1",
+    "component_purl": "pkg:npm/messageformat@2.3.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": null,
+    "line": null,
+    "dependency_paths": [
+      [
+        "root",
+        "pkg:npm/i18n@0.11.1",
+        "pkg:npm/messageformat@2.3.0"
+      ]
+    ],
+    "vuln_id": "GHSA-xfqm-j7pc-xrfc",
+    "aliases": [
+      "CVE-2025-57349"
+    ],
+    "cvss": 1.7,
+    "severity": null,
+    "fixed_versions": [
+      "3.0.0-beta.0"
+    ],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "low",
+    "evidence_ids": [
+      "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ],
+    "status": "assessed",
+    "explanation": "messageformat@2.3.0 is a transitive production dependency reached via i18n, affected by a prototype pollution issue. The scanner rates it CVSS 1.7, which maps to low; a fix is listed as 3.0.0-beta.0, a pre-release version.",
+    "claims": [
+      {
+        "text": "messageformat@2.3.0 is reached transitively through i18n in the production tree.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The advisory CVSS score is 1.7.",
+        "field": "cvss",
+        "value": "1.7",
+        "evidence_ids": [
+          "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The fixed version is 3.0.0-beta.0.",
+        "field": "fixed_versions",
+        "value": "3.0.0-beta.0",
+        "evidence_ids": [
+          "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JA74SAPHBXHZPA44JEX",
+    "run_id": "run_20261123_172422",
+    "category": "lockfile",
+    "title": "Lockfile generation disabled (.npmrc package-lock=false); no lockfile for frontend, root",
+    "detector": "detector:lockfile",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".npmrc",
+    "line": 1,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ],
+    "status": "assessed",
+    "explanation": "The .npmrc sets package-lock=false, disabling lockfile generation, and no lockfile exists for the frontend and root projects. Without a lockfile, dependency resolution is not reproducible and vulnerable or tampered versions can be pulled in silently; per guidance this is medium.",
+    "claims": [
+      {
+        "text": "Lockfile generation is disabled via package-lock=false in .npmrc.",
+        "field": "package_lock_disabled",
+        "value": "true",
+        "evidence_ids": [
+          "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The projects without a lockfile are frontend and root.",
+        "field": "projects_without_lockfile",
+        "value": "[\"frontend\", \"root\"]",
+        "evidence_ids": [
+          "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JB3TCC7QXEF2DZSKRB9",
+    "run_id": "run_20261123_172422",
+    "category": "typosquat",
+    "title": "Possible typosquat 'ngy-cookie' (looks like 'ngx-cookie') in dependencies",
+    "detector": "detector:typosquat",
+    "component_purl": "pkg:npm/ngy-cookie@6.0.1000",
+    "scope": "prod",
+    "project": "frontend",
+    "file_path": "frontend/package.json",
+    "line": 59,
+    "dependency_paths": [
+      [
+        "frontend",
+        "pkg:npm/ngy-cookie@6.0.1000"
+      ]
+    ],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+      "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ],
+    "status": "assessed",
+    "explanation": "The dependency 'ngy-cookie' in frontend/package.json is a direct production dependency whose name is edit distance 1 from the popular package 'ngx-cookie', a classic typosquat pattern. Because it is a production manifest entry, per guidance a typosquat there is at least high; no fixed version is available in the evidence.",
+    "claims": [
+      {
+        "text": "The package 'ngy-cookie' is declared in the dependencies section of frontend/package.json.",
+        "field": "name",
+        "value": "ngy-cookie",
+        "evidence_ids": [
+          "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The detector flags it as edit distance 1 from the popular package 'ngx-cookie'.",
+        "field": "reason",
+        "value": "edit distance 1 from popular 'ngx-cookie'",
+        "evidence_ids": [
+          "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "It is a direct production dependency of the frontend project.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JBTWK9BKFZYXTT6FYR7",
+    "run_id": "run_20261123_172422",
+    "category": "typosquat",
+    "title": "Possible typosquat 'epilogue-js' (looks like 'epilogue') in legacy backup manifest",
+    "detector": "detector:typosquat",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": "ftp/package.json.bak",
+    "line": 46,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "low",
+    "evidence_ids": [
+      "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ],
+    "status": "assessed",
+    "explanation": "The package 'epilogue-js' appears only in a legacy backup manifest (ftp/package.json.bak), flagged for a popular name plus '-js' suffix with edit distance 3 from 'epilogue'. Since it is not in an active manifest and no dependency path or resolved component exists, the practical risk is low.",
+    "claims": [
+      {
+        "text": "The entry is in a legacy backup manifest file ftp/package.json.bak.",
+        "field": "legacy_manifest",
+        "value": "true",
+        "evidence_ids": [
+          "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The detector reason is a popular name plus '-js' suffix, edit distance 3 from 'epilogue'.",
+        "field": "reason",
+        "value": "popular name + '-js' suffix",
+        "evidence_ids": [
+          "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "No resolved component or dependency path is recorded for this finding.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC6HDZCEG2X7KH14XMG",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action coverallsapp/github-action@v2 not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/ci.yml",
+    "line": 198,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6TKKKY3E57N02PY60"
+    ],
+    "status": "assessed",
+    "explanation": "The GitHub Action coverallsapp/github-action is referenced by tag v2 rather than a commit SHA in .github/workflows/ci.yml. A mutable tag can be moved to malicious code, so per guidance unpinned CI actions are medium; the repo has 87 pinned actions, so this is an outlier.",
+    "claims": [
+      {
+        "text": "The action coverallsapp/github-action is referenced with ref v2 and not pinned to a SHA.",
+        "field": "ref",
+        "value": "v2",
+        "evidence_ids": [
+          "ev_01M8444JC6TKKKY3E57N02PY60"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 198 of .github/workflows/ci.yml.",
+        "field": "lines",
+        "value": "[198]",
+        "evidence_ids": [
+          "ev_01M8444JC6TKKKY3E57N02PY60"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC66H3JS91E9P7FRP84",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action github/codeql-action/init@v3 not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/codeql-analysis.yml",
+    "line": 23,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ],
+    "status": "assessed",
+    "explanation": "The GitHub Action github/codeql-action/init is referenced by tag v3 rather than a commit SHA in .github/workflows/codeql-analysis.yml. A mutable tag can be repointed to malicious code, so per guidance unpinned CI actions are medium.",
+    "claims": [
+      {
+        "text": "The action github/codeql-action/init is referenced with ref v3 and not pinned to a SHA.",
+        "field": "ref",
+        "value": "v3",
+        "evidence_ids": [
+          "ev_01M8444JC6S2HNMG1GBZX13F6R"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 23 of .github/workflows/codeql-analysis.yml.",
+        "field": "lines",
+        "value": "[23]",
+        "evidence_ids": [
+          "ev_01M8444JC6S2HNMG1GBZX13F6R"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC6T6K1NKS7NXAPBV6H",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action github/codeql-action/autobuild@v3 not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/codeql-analysis.yml",
+    "line": 34,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ],
+    "status": "assessed",
+    "explanation": "The GitHub Action github/codeql-action/autobuild is referenced by tag v3 rather than a commit SHA in .github/workflows/codeql-analysis.yml. A mutable tag can be repointed to malicious code, so per guidance unpinned CI actions are medium.",
+    "claims": [
+      {
+        "text": "The action github/codeql-action/autobuild is referenced with ref v3 and not pinned to a SHA.",
+        "field": "ref",
+        "value": "v3",
+        "evidence_ids": [
+          "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 34 of .github/workflows/codeql-analysis.yml.",
+        "field": "lines",
+        "value": "[34]",
+        "evidence_ids": [
+          "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC6JT4BZB92M3W39GSD",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action github/codeql-action/analyze@v3 not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/codeql-analysis.yml",
+    "line": 36,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ],
+    "status": "assessed",
+    "explanation": "The GitHub Action github/codeql-action/analyze is referenced by tag v3 rather than a commit SHA in .github/workflows/codeql-analysis.yml. A mutable tag can be repointed to malicious code, so per guidance unpinned CI actions are medium.",
+    "claims": [
+      {
+        "text": "The action github/codeql-action/analyze is referenced with ref v3 and not pinned to a SHA.",
+        "field": "ref",
+        "value": "v3",
+        "evidence_ids": [
+          "ev_01M8444JC6JT4WC4E70SSCYPG0"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 36 of .github/workflows/codeql-analysis.yml.",
+        "field": "lines",
+        "value": "[36]",
+        "evidence_ids": [
+          "ev_01M8444JC6JT4WC4E70SSCYPG0"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC628DNYPYABBZG6TPE",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action actions/checkout@v6 not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/image_actions.yml",
+    "line": 30,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ],
+    "status": "assessed",
+    "explanation": "The GitHub Action actions/checkout is referenced by tag v6 rather than a commit SHA in .github/workflows/image_actions.yml. A mutable tag can be repointed to malicious code, so per guidance unpinned CI actions are medium.",
+    "claims": [
+      {
+        "text": "The action actions/checkout is referenced with ref v6 and not pinned to a SHA.",
+        "field": "ref",
+        "value": "v6",
+        "evidence_ids": [
+          "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 30 of .github/workflows/image_actions.yml.",
+        "field": "lines",
+        "value": "[30]",
+        "evidence_ids": [
+          "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC6WJPSEV731AGY5DC1",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action calibreapp/image-actions@main not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/image_actions.yml",
+    "line": 33,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ],
+    "status": "assessed",
+    "explanation": "The workflow .github/workflows/image_actions.yml references calibreapp/image-actions@main at line 33 without pinning to a commit SHA, so the action code can change under the project's feet. This is a CI supply-chain hardening issue rather than a known vulnerability; no CVSS or fix version is available, so it is rated medium per the unpinned-CI guidance.",
+    "claims": [
+      {
+        "text": "The action calibreapp/image-actions is referenced by the mutable ref main rather than a commit SHA.",
+        "field": "ref",
+        "value": "main",
+        "evidence_ids": [
+          "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference sits at line 33 of .github/workflows/image_actions.yml.",
+        "field": "lines",
+        "value": "[33]",
+        "evidence_ids": [
+          "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "No CVSS score or fixed version is provided for this finding.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JC6RGAC2XRGVAZH77GW",
+    "run_id": "run_20261123_172422",
+    "category": "unpinned_ci",
+    "title": "GitHub Action peter-evans/create-pull-request@v8 not pinned to a commit SHA",
+    "detector": "detector:ci_pin",
+    "component_purl": null,
+    "scope": "prod",
+    "project": "root",
+    "file_path": ".github/workflows/image_actions.yml",
+    "line": 42,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ],
+    "status": "assessed",
+    "explanation": "The workflow .github/workflows/image_actions.yml references peter-evans/create-pull-request@v8 at line 42 by tag rather than a commit SHA, so the tag could be moved to different code. This is a CI pinning weakness with no known vulnerability, CVSS or fix version in the evidence, so it is rated medium.",
+    "claims": [
+      {
+        "text": "The action peter-evans/create-pull-request is referenced by tag v8, not a commit SHA.",
+        "field": "ref",
+        "value": "v8",
+        "evidence_ids": [
+          "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference sits at line 42 of .github/workflows/image_actions.yml.",
+        "field": "lines",
+        "value": "[42]",
+        "evidence_ids": [
+          "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "No CVSS score or fixed version is provided for this finding.",
+        "field": null,
+        "value": null,
+        "evidence_ids": [
+          "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+        ],
+        "label": "inferred"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JCXDBRBVN39BQP3C2B0",
+    "run_id": "run_20261123_172422",
+    "category": "untrusted_image",
+    "title": "Base image node:24 referenced by tag only (no digest)",
+    "detector": "detector:image_pin",
+    "component_purl": "node:24",
+    "scope": "prod",
+    "project": "image",
+    "file_path": "Dockerfile",
+    "line": 1,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JCXXKX6790C92F1PK4W"
+    ],
+    "status": "assessed",
+    "explanation": "The Dockerfile's installer stage uses the base image node:24 by tag only, with no digest recorded, so the exact image content is not pinned. This is a reproducibility and supply-chain integrity concern rather than a known vulnerability; no CVSS or fix version is available, so it is rated medium.",
+    "claims": [
+      {
+        "text": "The base image node:24 is referenced by tag with no digest.",
+        "field": "digest",
+        "value": "null",
+        "evidence_ids": [
+          "ev_01M8444JCXXKX6790C92F1PK4W"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The reference is at line 1 of the Dockerfile in the installer stage.",
+        "field": "stage",
+        "value": "installer",
+        "evidence_ids": [
+          "ev_01M8444JCXXKX6790C92F1PK4W"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JCXZTC0025WVZ8SR21Y",
+    "run_id": "run_20261123_172422",
+    "category": "untrusted_image",
+    "title": "Base image gcr.io/distroless/nodejs24-debian13 referenced by tag only (no digest)",
+    "detector": "detector:image_pin",
+    "component_purl": "gcr.io/distroless/nodejs24-debian13",
+    "scope": "prod",
+    "project": "image",
+    "file_path": "Dockerfile",
+    "line": 22,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JCX89YAMD06PT54WH9N"
+    ],
+    "status": "assessed",
+    "explanation": "The final Dockerfile stage uses gcr.io/distroless/nodejs24-debian13 with an implicit latest tag and no digest, so the runtime image is not pinned to immutable content. This is a supply-chain integrity concern with no known vulnerability, CVSS or fix version in the evidence, so it is rated medium.",
+    "claims": [
+      {
+        "text": "The base image gcr.io/distroless/nodejs24-debian13 is referenced with an implicit latest tag and no digest.",
+        "field": "tag",
+        "value": "latest (implicit)",
+        "evidence_ids": [
+          "ev_01M8444JCX89YAMD06PT54WH9N"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 22 of the Dockerfile.",
+        "field": "lines",
+        "value": "22",
+        "evidence_ids": [
+          "ev_01M8444JCX89YAMD06PT54WH9N"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JCX1QR5TKCVKVJB0R0M",
+    "run_id": "run_20261123_172422",
+    "category": "untrusted_image",
+    "title": "Base image node:20.19.2-bookworm-slim referenced by tag only (no digest)",
+    "detector": "detector:image_pin",
+    "component_purl": "node:20.19.2-bookworm-slim",
+    "scope": "prod",
+    "project": "image",
+    "file_path": "infrastructure/Dockerfile",
+    "line": 1,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ],
+    "status": "assessed",
+    "explanation": "The base stage of infrastructure/Dockerfile uses node:20.19.2-bookworm-slim by tag only, with no digest, so the image content is not pinned to an immutable reference. The version is at least specific, but this remains a supply-chain integrity concern with no known vulnerability or fix version, so it is rated medium.",
+    "claims": [
+      {
+        "text": "The base image node:20.19.2-bookworm-slim is referenced by tag with no digest.",
+        "field": "digest",
+        "value": "null",
+        "evidence_ids": [
+          "ev_01M8444JCX2G387A4J9XEP7FSV"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The reference is at line 1 of infrastructure/Dockerfile in the base stage.",
+        "field": "stage",
+        "value": "base",
+        "evidence_ids": [
+          "ev_01M8444JCX2G387A4J9XEP7FSV"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JCX8JC1N0PR5T0WX1ME",
+    "run_id": "run_20261123_172422",
+    "category": "untrusted_image",
+    "title": "Base image node:20.19.2-bookworm referenced by tag only (no digest)",
+    "detector": "detector:image_pin",
+    "component_purl": "node:20.19.2-bookworm",
+    "scope": "prod",
+    "project": "image",
+    "file_path": "infrastructure/Dockerfile",
+    "line": 6,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "medium",
+    "evidence_ids": [
+      "ev_01M8444JCXTQECYVBK6457MCEC"
+    ],
+    "status": "assessed",
+    "explanation": "The builder stage of infrastructure/Dockerfile uses node:20.19.2-bookworm by tag only, with no digest, so the build image is not pinned to immutable content. This is a supply-chain integrity concern with no known vulnerability, CVSS or fix version in the evidence, so it is rated medium.",
+    "claims": [
+      {
+        "text": "The base image node:20.19.2-bookworm is referenced by tag with no digest.",
+        "field": "digest",
+        "value": "null",
+        "evidence_ids": [
+          "ev_01M8444JCXTQECYVBK6457MCEC"
+        ],
+        "label": "inferred"
+      },
+      {
+        "text": "The reference is at line 6 of infrastructure/Dockerfile in the builder stage.",
+        "field": "stage",
+        "value": "builder",
+        "evidence_ids": [
+          "ev_01M8444JCXTQECYVBK6457MCEC"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  },
+  {
+    "finding_id": "fd_01M8444JCX2B5NYSHZAAY0PVP9",
+    "run_id": "run_20261123_172422",
+    "category": "untrusted_image",
+    "title": "Base image alpine referenced by tag only (no digest)",
+    "detector": "detector:image_pin",
+    "component_purl": "alpine",
+    "scope": "prod",
+    "project": "image",
+    "file_path": "test/smoke/Dockerfile",
+    "line": 1,
+    "dependency_paths": [],
+    "vuln_id": null,
+    "aliases": [],
+    "cvss": null,
+    "severity": null,
+    "fixed_versions": [],
+    "affected_range": null,
+    "provenance": null,
+    "initial_risk": "low",
+    "evidence_ids": [
+      "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ],
+    "status": "assessed",
+    "explanation": "The Dockerfile under test/smoke uses alpine with an implicit latest tag and no digest, so the image is not pinned. Because this sits in a test/smoke directory rather than the production image, the impact is limited, so it is rated low despite the unpinned-image guidance of medium.",
+    "claims": [
+      {
+        "text": "The base image alpine is referenced with an implicit latest tag and no digest.",
+        "field": "tag",
+        "value": "latest (implicit)",
+        "evidence_ids": [
+          "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+        ],
+        "label": "verified"
+      },
+      {
+        "text": "The reference is at line 1 of test/smoke/Dockerfile.",
+        "field": "lines",
+        "value": "1",
+        "evidence_ids": [
+          "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+        ],
+        "label": "verified"
+      }
+    ],
+    "initial_risk_source": "llm"
+  }
+]

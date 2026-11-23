@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNCA9TV9PS17KFWDDE",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-58qx-3vcg-4xpx",
+    "aliases": [
+      "CVE-2026-45736"
+    ],
+    "severity": "Medium",
+    "cvss": 4.4,
+    "fixed_versions": [
+      "8.20.1"
+    ],
+    "fix_state": "fixed",
+    "affected_range": ">=8.0.0,<8.20.1",
+    "purl": "pkg:npm/ws@8.18.0",
+    "name": "ws",
+    "version": "8.18.0",
+    "data_source": "https://github.com/advisories/GHSA-58qx-3vcg-4xpx"
+  },
+  "excerpt": "ws: Uninitialized memory disclosure",
+  "file_path": "frontend/package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

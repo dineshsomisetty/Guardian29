@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNHSNV064R2B9FC8NR",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-v75r-vx73-82pj",
+    "aliases": [
+      "CVE-2026-55849"
+    ],
+    "severity": "High",
+    "cvss": 8.5,
+    "fixed_versions": [
+      "5.0.0"
+    ],
+    "fix_state": "fixed",
+    "affected_range": ">=2.1.0,<5.0.0",
+    "purl": "pkg:npm/%40cyclonedx/cyclonedx-npm@4.2.1",
+    "name": "@cyclonedx/cyclonedx-npm",
+    "version": "4.2.1",
+    "data_source": "https://github.com/advisories/GHSA-v75r-vx73-82pj"
+  },
+  "excerpt": "@cyclonedx/cyclonedx-npm: Shell Injection via Unsanitized --workspace Argument",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

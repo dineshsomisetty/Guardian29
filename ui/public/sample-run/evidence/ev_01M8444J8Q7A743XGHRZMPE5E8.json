@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8Q7A743XGHRZMPE5E8",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-jxwj-j7wr-gfrw",
+    "aliases": [
+      "CVE-2026-63670"
+    ],
+    "cvss": 6.1,
+    "fixed_versions": [
+      "2.17.6"
+    ],
+    "purl": "pkg:npm/sanitize-html@1.4.2",
+    "name": "sanitize-html",
+    "version": "1.4.2"
+  },
+  "excerpt": "ApostropheCMS: Mutation-XSS / allowedTags bypass via literal `</textarea/>` solidus close",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}
