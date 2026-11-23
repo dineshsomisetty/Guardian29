@@ -152,6 +152,7 @@ def _purl_name(purl: str) -> str:
 
 def test_changes(run, golden):
     c, exp = run["changes"], golden["changes"]
+    c = c.get("legacy", c)  # a --compare-ref run keeps the legacy .bak diff under "legacy"
     assert c["base"] == exp["base"] and c["head"] == exp["head"]
     removed = {_purl_name(p) for p in c.get("removed", [])}
     missing = [n for n in exp["removed_names"] if n not in removed]
