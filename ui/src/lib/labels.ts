@@ -149,6 +149,7 @@ const TIER: Record<string, string> = {
   cvss: "Taken from the CVSS score",
   epss: "Exploit probability (EPSS)",
   kev: "Listed as actively exploited",
+  called: "The vulnerable function is called by application code",
   imported: "Imported by application code",
   not_imported: "Not imported anywhere",
   prod: "Production dependency",

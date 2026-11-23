@@ -139,7 +139,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 
 | Item | Status | Proof / gap |
 |---|---|---|
-| 1 Reachability analysis | 🟡 | import-level (is the vulnerable package imported in production code), adjusts factor R. Function-level "vulnerable code actually called" is not done |
+| 1 Reachability analysis | ✅ | two levels. Import: is the vulnerable package imported in production code (R 0.6). Function: reviewed rules in `data/reachability/vulnerable_functions.yaml` name the vulnerable function per advisory, and production call sites are found through each file's local names (R 1.0, "called"); "not called" is never claimed. Real (Juice Shop): `jwt.verify` at `lib/insecurity.ts:189`, `routes/verify.ts:125`, `routes/passkey.ts:53`; `jws.verify` at `lib/insecurity.ts:55`; `expressJwt(...)` at `lib/insecurity.ts:52`; `sanitizeHtml(...)`; `notevil` eval at `routes/b2bOrder.ts:23`. `tests/unit/test_reachability_called.py`. Rules cover the demo packages, not every advisory |
 | 2 Automated remediation (PR) | ✅ | local branch + `PR.md` with fix, rationale, validation results, rollback; never pushed (`tests/integration/test_local_pr.py`) |
 | 3 Provenance verification | 🟡 | npm registry signatures/attestations + repository/maintainer signals → provenance gaps and score modifier. Cosign / in-toto / SLSA verification not done |
 | 4 Advanced package risk | ✅ | dependency confusion, maintainer change, unusual release activity (`tests/unit/test_package_risk.py`) |
