@@ -304,8 +304,10 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
                           (f" && {py} manage.py check" if (work / "manage.py").exists() else "")))
             if (work / "tests").is_dir() or list(work.glob("test_*.py")):
                 steps.append(("test", f"{py} -m pytest -q -p no:cacheprovider"))
-                if is_django(work):
-                    steps.append(("integration", f"{py} manage.py test --noinput"))
+            # Django keeps tests in each app's tests.py (or tests/ package): its own runner covers them
+            if is_django(work) and ((work / "tests").is_dir() or list(work.glob("*/tests.py"))
+                                    or list(work.glob("*/tests/__init__.py"))):
+                steps.append(("integration", f"{py} manage.py test --noinput"))
         build_ran = False
         for phase_name, script in steps:
             cname = _name(attempt_id, phase_name)

@@ -159,3 +159,24 @@ def test_osv_scan_is_cached_and_offline_safe(tmp_path, settings, monkeypatch):
     with pytest.raises(RuntimeError, match="offline"):
         scanners.osv_scan(ctx(True))  # changed lockfile, no cache, offline: skipped, binary not started
     assert len(calls) == 1
+
+
+def test_sbom_only_ecosystems_get_package_nodes_and_empty_graphs_get_a_root(tmp_path):
+    """Maven (and other ecosystems without a lockfile graph here) come from the SBOM; GitHub Actions purls are
+    CI pseudo-nodes, not packages. A target with no packages still gets a root so graph.json is written."""
+    import json
+    from types import SimpleNamespace
+
+    from guardian.core.graph_build import build_graph
+    from guardian.graph.workflow import build_graph_json
+
+    sbom = tmp_path / "sbom.cdx.json"
+    sbom.write_text(json.dumps({"components": [
+        {"name": "xstream", "version": "1.4.5", "purl": "pkg:maven/com.thoughtworks.xstream/xstream@1.4.5"},
+        {"name": "checkout", "version": "v4", "purl": "pkg:github/actions/checkout@v4"}]}), encoding="utf-8")
+    ctx = SimpleNamespace(work_dir=tmp_path, repo=tmp_path, sbom_path=sbom, run_id="r", artifacts={}, graph=None)
+    g = build_graph(ctx).artifacts["graph"]
+    assert g.packages() == ["pkg:maven/com.thoughtworks.xstream/xstream@1.4.5"]
+    empty = SimpleNamespace(graph=None, artifacts={"graph_json": {"nodes": [], "edges": [], "roots": []}})
+    data = build_graph_json(empty, [])
+    assert data["roots"] == ["root"] and any(n["id"] == "root" for n in data["nodes"])

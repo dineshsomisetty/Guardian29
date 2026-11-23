@@ -389,6 +389,19 @@ def test_django_integration_phase(tmp_path, monkeypatch):
                                                                                          "total": 5}
 
 
+def test_django_app_level_tests_py_runs_the_django_test_runner(tmp_path, monkeypatch):
+    """PyGoat layout: no top-level tests/, tests live in each app's tests.py."""
+    w = tmp_path / "run" / "attempts" / ("at_" + "D" * 26) / "work"
+    (w / "introduction").mkdir(parents=True)
+    (w / "introduction" / "tests.py").write_text("from django.test import TestCase\n")
+    (w / "requirements.txt").write_text("django==4.2\n")
+    (w / "manage.py").write_text("import django\n")
+    fake = use(monkeypatch, ApiDocker())
+    sandbox.sandbox_validate(ctx_for(w, tmp_path))
+    scripts = [a[-1] for a in fake.calls if a[1] == "run"]
+    assert any("manage.py test" in s for s in scripts) and not any("pytest" in s for s in scripts)
+
+
 # ---------------------------------------------------------------- sandbox: built-artifact rescan (G6.7)
 
 

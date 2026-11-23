@@ -178,7 +178,10 @@ def build_graph_json(ctx: ToolContext, findings: list[Finding]) -> dict:
 
     nodes = {n["id"]: n for n in data.get("nodes", [])}
     edges = data.setdefault("edges", [])
-    roots = data.setdefault("roots", ["root"])
+    roots = data.get("roots") or ["root"]  # a target with no resolved packages still gets a root to hang findings on
+    data["roots"] = roots
+    for r in roots:
+        nodes.setdefault(r, {"id": r, "kind": "project", "label": r, "project": r})
     by_node: dict[str, list[Finding]] = {}
     for f in findings:
         nid = f.component_purl if f.component_purl in nodes else None

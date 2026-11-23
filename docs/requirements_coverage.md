@@ -26,7 +26,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | "that **continuously** analyzes the software supply chain" | ✅ | `guardian watch --run <id> [--interval 1h]` re-checks the stored inventory for newly disclosed advisories and re-scores, without re-discovery | `guardian/watch.py`; `tests/unit/test_watch_batch.py::test_cli_watch_once` |
 | "to identify dependency risks, vulnerabilities, and suspicious changes" | ✅ | CVEs (Grype + OSV), typosquats, install scripts, integrity / unexpected / major-version changes, unpinned CI, tag-only images, package risk, policy | `guardian/tools/detectors/`; `test_changes_install.py::test_compare_ref_yields_all_four_finding_kinds` |
 | "before they impact applications" | ✅ | nothing is changed until a human approves; fixes are proven in a sandbox copy first | human gate (§5 below) |
-| "connects evidence from the supply chain with application context" | ✅ | reachability (is the package imported in production code), exposure (exposed port + server path), production vs dev scope | `guardian/tools/reachability.py`, `risk_tools.py`; `test_risk_remediation.py::test_risk_score_equals_compute_and_factors_have_sources` |
+| "connects evidence from the supply chain with application context" | ✅ | reachability (is the package imported in production code), exposure (exposed port + server path), production vs dev scope | `guardian/tools/reachability.py`, `guardian/tools/risk_tools.py`; `test_risk_remediation.py::test_risk_score_equals_compute_and_factors_have_sources` |
 | "prioritizes meaningful risks" | ✅ | explainable 0–100 score + band + confidence | §7 score, `guardian/core/scoring.py` |
 | "recommends safe actions" | ✅ | evidence-backed plans with diff, expected risk reduction, compatibility, rollback | `guardian/agents/remediation.py` |
 | 1 Discover: "direct and transitive dependencies, container components, package versions, and their relationships" | ✅ | dependency graph with direct/transitive, version, scope, origin, integrity; Dockerfile base images and CI workflows as graph nodes | `graph.json`; `test_detectors.py::test_graph_paths_origin_integrity_scope` |
@@ -35,11 +35,11 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | 2 Detect: "typosquatted packages" | ✅ | `ngy-cookie` (looks like `ngx-cookie`) found in Juice Shop | `test_golden.py::test_expected_finding` |
 | 2 Detect: "unexpected dependencies" | ✅ | `--compare-ref` / `.bak` diff: new dependency findings | `test_changes_install.py::test_diff_manifests_added_removed_changed_and_major_jump` |
 | 2 Detect: "unsafe install scripts" | ✅ | 14 packages with install scripts in Juice Shop (lockfile `hasInstallScript` + registry) | `test_changes_install.py::test_install_scripts_reads_registry_once_and_caches` |
-| 2 Detect: "untrusted images" | ✅ | tag-only `FROM` images (e.g. `node:24`) | `detectors/image_pin.py`; golden `image:node:24` |
+| 2 Detect: "untrusted images" | ✅ | tag-only `FROM` images (e.g. `node:24`) | `guardian/tools/detectors/image_pin.py`; golden `image:node:24` |
 | 2 Detect: "integrity changes" | ✅ | same version, different lockfile digest | `test_diff_locks_flags_same_algorithm_different_digest` |
 | 3 Analyze: "Correlate severity with exploitability, reachability, exposure, provenance, and application context" | ✅ | S (CVSS), E (EPSS percentile, CISA KEV), R (import reachability), P (prod/dev), X (exposure), + provenance modifier | `guardian/core/scoring.py::compute`; `test_kev_override_and_not_applicable_weights` |
 | 3 Analyze: "determine which findings actually require attention" | ✅ | bands Critical/High/Medium/Low; only the top findings enter the remediation loop | `risk_analyst.select` |
-| 4 Remediate: "upgrade, replace, pin, remove, mitigate, block, or request further review, with supporting evidence" | ✅ | all seven actions exist; target values come only from evidence (G4.5) | `remediation.py`, `patching.py`; `test_d2_image_block_mitigate.py`, `test_g45_blocks_target_absent_from_evidence` |
+| 4 Remediate: "upgrade, replace, pin, remove, mitigate, block, or request further review, with supporting evidence" | ✅ | all seven actions exist; target values come only from evidence (G4.5) | `guardian/agents/remediation.py`, `guardian/tools/patching.py`; `tests/unit/test_d2_image_block_mitigate.py`, `test_g45_blocks_target_absent_from_evidence` |
 | 5 Validate: "Build and test proposed changes" | ✅ | Docker sandbox: install, then build + unit + integration tests with `--network none` | `guardian/tools/sandbox.py`; real failed build in `run_e2e_juice`; `test_sandbox_validator.py::test_failed_tests_then_replan_then_high` |
 | 5 Validate: "rescan the resulting application" | ✅ | Syft + Grype on the patched copy; optional built-image rescan | `sandbox.rescan_patched`; `test_image_build_rescan_limits_ignore_and_cleanup` |
 | 5 Validate: "verify that the risk has been reduced" | ✅ | target finding gone + risk before → after | `ValidationResult.risk_before/after` |
@@ -75,10 +75,10 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | Rule | Status | Guardrail |
 |---|---|---|
 | No scanning or attacking real production systems | ✅ | only local folders under `targets/`; API refuses other roots (`test_runs_are_confined_to_target_roots_and_capped`) |
-| No access outside the authorized sandbox | ✅ | outbound host allowlist (G3.5, `test_g3_network.py`); build/test with `--network none` |
+| No access outside the authorized sandbox | ✅ | outbound host allowlist (G3.5, `tests/guardrails/test_g3_network.py`); build/test with `--network none` |
 | No publishing packages | ✅ | no publish tool exists (G3.4); harness greps for `npm publish` |
 | No real credentials or secrets | ✅ | secrets never read (G1.1), redacted (G1.2), keys only in `.env` |
-| No automatic merge / deploy / release without human approval | ✅ | human gate bound to `plan_hash`; nothing is pushed; local branch + `PR.md` only (`test_local_pr.py`) |
+| No automatic merge / deploy / release without human approval | ✅ | human gate bound to `plan_hash`; nothing is pushed; local branch + `PR.md` only (`tests/integration/test_local_pr.py`) |
 | No impact on others or shared infrastructure | ✅ | every external call cached and throttled; sandbox CPU/memory/time limits |
 
 ## Slide 4. Day 1: the Guardian's eyes
@@ -107,7 +107,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | Consider whether the dependency is used in production | ✅ | factor P (prod 1.0, dev 0.3) |
 | Distinguish urgent risks from lower-priority findings | ✅ | bands + KEV override |
 | Explainable risk score and confidence level | ✅ | per-factor value, weight, contribution and evidence; confidence lowered per unknown factor |
-| Analyze at least one non-CVE supply-chain risk | ✅ | investigator on `ngy-cookie` (`test_investigator.py`) |
+| Analyze at least one non-CVE supply-chain risk | ✅ | investigator on `ngy-cookie` (`tests/integration/test_investigator.py`) |
 | Compare package versions, manifests or lockfiles | ✅ | `--compare-ref`, `.bak` diff, `changes.json` |
 | Identify suspicious scripts, provenance gaps or integrity changes | ✅ | install-script, provenance-gap, integrity-change detectors |
 | Clearly separate verified evidence from AI-generated inference | ✅ | labels set by code (G4.3); UI shows "Verified fact" vs "AI inference" (`test_every_claim_labelled_verified_or_inferred`) |
@@ -137,9 +137,9 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | Item | Status | Proof / gap |
 |---|---|---|
 | 1 Reachability analysis | 🟡 | import-level (is the vulnerable package imported in production code), adjusts factor R. Function-level "vulnerable code actually called" is not done |
-| 2 Automated remediation (PR) | ✅ | local branch + `PR.md` with fix, rationale, validation results, rollback; never pushed (`test_local_pr.py`) |
+| 2 Automated remediation (PR) | ✅ | local branch + `PR.md` with fix, rationale, validation results, rollback; never pushed (`tests/integration/test_local_pr.py`) |
 | 3 Provenance verification | 🟡 | npm registry signatures/attestations + repository/maintainer signals → provenance gaps and score modifier. Cosign / in-toto / SLSA verification not done |
-| 4 Advanced package risk | ✅ | dependency confusion, maintainer change, unusual release activity (`test_package_risk.py`) |
+| 4 Advanced package risk | ✅ | dependency confusion, maintainer change, unusual release activity (`tests/unit/test_package_risk.py`) |
 | 5 Policy-as-code | ✅ | `guardian.yaml` + `policies/guardian.rego`; native evaluator always, Conftest/OPA when installed; re-checked after each fix |
 | 6 Continuous monitoring | ✅ | `guardian watch` |
 | Working prototype | ✅ | CLI + API + UI, three targets |

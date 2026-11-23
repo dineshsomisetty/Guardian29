@@ -144,12 +144,20 @@ def build_graph(ctx: ToolContext) -> ToolOutput:
             graph.add_project(proj.name, json.loads(proj.lockfile.read_text(encoding="utf-8")))
             used.append(proj.lockfile.relative_to(work).as_posix())
     edge_source = "package-lock.json packages map (node resolution)"
-    if ctx.sbom_path is not None and Path(ctx.sbom_path).exists() and pypi.find_projects(work):
+    if ctx.sbom_path is not None and Path(ctx.sbom_path).exists():
         comps = json.loads(Path(ctx.sbom_path).read_text(encoding="utf-8")).get("components", [])
-        added = graph.add_flat_components("root" if "root" not in graph.roots else "pip", comps, "pypi")
-        if added:
-            used.append("sbom.cdx.json (pypi components)")
-            edge_source += "; pip: SBOM components with root edges"
+        # ecosystems without a lockfile graph here (pip, maven, gem, golang, ...): one node per SBOM component
+        # with a root edge. GitHub Actions purls are CI steps, shown as ci: pseudo-nodes, not packages.
+        ecos = sorted({(c.get("purl") or "")[4:].split("/", 1)[0] for c in comps
+                       if (c.get("purl") or "").startswith("pkg:")} - {"npm", "github", "githubactions", "docker", "oci"})
+        for eco in ecos:
+            if eco == "pypi" and not pypi.find_projects(work):
+                continue
+            label = {"pypi": "pip"}.get(eco, eco)
+            added = graph.add_flat_components("root" if "root" not in graph.roots else label, comps, eco)
+            if added:
+                used.append(f"sbom.cdx.json ({eco} components)")
+                edge_source += f"; {label}: SBOM components with root edges"
     stats = graph.stats()
     ev = Evidence(run_id=ctx.run_id, kind="graph", source_tool="graph_build:npm-lockfile",
                   facts={**stats, "edge_source": edge_source,
