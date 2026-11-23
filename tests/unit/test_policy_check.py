@@ -74,3 +74,24 @@ def test_policy_check_tool_emits_policy_result_evidence_and_findings(tmp_path, s
     assert (run_dir / "policy_input.json").exists()
     # the validator may re-run it on a patched copy
     assert call_tool("validator", "policy_check", None, ctx, store, audit) is not None
+
+
+def test_validator_flags_only_new_or_increased_policy_violations(tmp_path):
+    """A fix that removes some violations of a rule is not a regression; a new rule, or more of one, is."""
+    from guardian.agents.validator import _policy_regressions
+    from guardian.core.models import Evidence, Finding, FindingCategory
+    from guardian.core.store import JsonStore
+
+    store = JsonStore(tmp_path)
+
+    def pev(rule, count):
+        return Evidence(run_id="r", kind="policy_result", source_tool="policy_check",
+                        facts={"rule": rule, "count": count, "passed": False})
+
+    for rule, n in (("unpinned_action", 7), ("tag_only_image", 2)):
+        ev = pev(rule, n)
+        store.add_evidence(ev)
+        store.add_finding(Finding(run_id="r", category=FindingCategory.POLICY_VIOLATION, title=f"Policy {rule}",
+                                  detector="detector:policy_check", evidence_ids=[ev.evidence_id]))
+    after = [pev("unpinned_action", 6), pev("tag_only_image", 3), pev("denylisted_package", 1)]
+    assert _policy_regressions(store, after) == ["policy:denylisted_package", "policy:tag_only_image"]

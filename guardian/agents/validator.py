@@ -120,6 +120,19 @@ def _risk_scores(run_dir, f: Finding, plan, resolved: bool) -> tuple[float, floa
         return before, 0.0
 
 
+def _policy_counts(evidence) -> dict[str, int]:
+    return {e.facts["rule"]: int(e.facts.get("count", 0)) for e in evidence
+            if e is not None and e.kind == "policy_result" and e.facts.get("rule")}
+
+
+def _policy_regressions(store, after_evidence) -> list[str]:
+    """Rules violated more often after the patch than in the original run ("policy:<rule>")."""
+    before_ev = [store.get_evidence(i) for g in store.list_findings() if g.detector == "detector:policy_check"
+                 for i in g.evidence_ids]
+    before, after = _policy_counts(before_ev), _policy_counts(after_evidence)
+    return [f"policy:{r}" for r, n in sorted(after.items()) if n > before.get(r, 0)]
+
+
 def validator_node(state: GraphState) -> dict:
     rc = get_ctx(state["run_id"])
     ctx, store, audit = rc.tool_ctx, rc.store, rc.audit
@@ -158,6 +171,13 @@ def validator_node(state: GraphState) -> dict:
         now = {finding_key(g) for g in after}
         resolved = finding_key(f) not in now
         new = sorted(now - before)
+        # policy-as-code on the patched copy: a fix must not add a policy violation (new rule, or more of one)
+        if "policy_check" in EXTRA_ALLOW[AGENT]:
+            actx.artifacts["policy_lock_root"] = attempt_dir
+            pol = call_tool(AGENT, "policy_check", None, actx, store, audit)
+            if pol is not None:
+                det_ev += [e.evidence_id for e in pol.evidence]
+                new = sorted({*new, *_policy_regressions(store, pol.evidence)})
         if sandbox.mode() == "off":
             sb = sandbox.SandboxResult(reason="GUARDIAN_SANDBOX=off")
         else:

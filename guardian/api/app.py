@@ -249,6 +249,25 @@ def create_app(runs_dir: Path | None = None, *, tokens: TokenStore | None = None
     def list_validation(run_id: RunId) -> list:
         return _list_json(run_dir(run_id) / "validation")
 
+    @app.get("/runs/{run_id}/trace")
+    def get_trace(run_id: RunId) -> list:
+        """The whole agent trace (AgentEvent per item); live updates come from /events (SSE)."""
+        f = run_dir(run_id) / "trace.jsonl"
+        if not f.is_file():
+            return []
+        out = []
+        for line in f.read_text(encoding="utf-8").splitlines():
+            try:
+                out.append(json.loads(line))
+            except ValueError:
+                break  # a half-written last line
+        return out
+
+    @app.get("/runs/{run_id}/watch")
+    def list_watch(run_id: RunId) -> list:
+        """Continuous-monitoring checks (guardian watch), oldest first."""
+        return _list_json(run_dir(run_id) / "watch")
+
     @app.get("/runs/{run_id}/approvals")
     def list_approvals(run_id: RunId) -> list:
         f = run_dir(run_id) / "approvals.jsonl"

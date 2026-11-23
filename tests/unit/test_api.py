@@ -253,3 +253,10 @@ def test_token_store_and_bind_rules():
         api_app.check_bind("0.0.0.0", TokenStore(None))  # no unauthenticated API beyond loopback
     api_app.check_bind("127.0.0.1", TokenStore(None))
     api_app.check_bind("0.0.0.0", TokenStore(TOKENS))
+
+
+def test_trace_and_watch_routes(client, runs):
+    assert client.get(f"/runs/{RUN}/trace").json() == [{"n": 0}, {"n": 1}, {"n": 2}]
+    assert client.get(f"/runs/{RUN}/watch").json() == []
+    write(runs / RUN / "watch" / "20260101T000000.json", {"new_findings": []})
+    assert client.get(f"/runs/{RUN}/watch").json() == [{"new_findings": []}]

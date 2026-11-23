@@ -282,6 +282,7 @@ def _finalize(run_id: str, rc: RunContext, settings: Settings, started: datetime
         # a resumed run makes no LLM calls: keep the provenance of the process that did (mode, model)
         summary["llm"] = ctx.artifacts["run_llm"]
     summary["remediation"] = remediation_outcomes(run_dir, store)
+    summary["has_report"] = (run_dir / "report.json").is_file() and (run_dir / "report.html").is_file()
     pending = get_pending(run_dir)
     summary["pending_plan"] = {"plan_id": pending.plan_id, "plan_hash": pending.plan_hash,
                                "finding_id": pending.finding_id} if pending and status == "awaiting_human" else None
