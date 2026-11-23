@@ -16,6 +16,47 @@ DETECTOR = "detector:lockfile"
 
 def detect(ctx) -> ToolOutput:
     base = Path(ctx.repo)
+    if not (base / "package.json").is_file() and (base / "requirements.txt").is_file():
+        return detect_pip(ctx)
+    return detect_npm(ctx)
+
+
+def detect_pip(ctx) -> ToolOutput:
+    """pip (D2-09): requirements.txt is the lockfile. Flags loose specs, missing --hash (no integrity check on
+    install), and runtime dependencies that are not pinned at all (from the graph's PyPI metadata)."""
+    from guardian.adapters.pypi import parse_requirements
+
+    reqs = parse_requirements(Path(ctx.repo) / "requirements.txt")
+    loose = [r for r in reqs if not r.pinned_version]
+    no_hash = [r for r in reqs if not r.has_hash]
+    G = getattr(ctx.graph, "G", None)
+    unpinned = list(G.graph.get("unpinned_requirements", [])) if G is not None else []
+    if not (loose or no_hash or unpinned):
+        return ToolOutput(summary="requirements.txt fully pinned with hashes")
+    evidence = [Evidence(run_id=ctx.run_id, kind="file_excerpt", source_tool=DETECTOR, file_path="requirements.txt",
+                         line=r.line, excerpt=r.excerpt, facts={"name": r.name, "spec": r.spec, "pinned": False})
+                for r in loose[:20]]
+    evidence.append(Evidence(
+        run_id=ctx.run_id, kind="detector_result", source_tool=DETECTOR, file_path="requirements.txt",
+        facts={"requirements": len(reqs), "loose_specs": [r.name for r in loose],
+               "without_hash": len(no_hash), "runtime_deps_not_pinned": unpinned}))
+    parts = []
+    if loose:
+        parts.append(f"{len(loose)} unpinned")
+    if unpinned:
+        parts.append(f"{len(unpinned)} runtime dependencies not pinned")
+    if no_hash:
+        parts.append(f"{len(no_hash)}/{len(reqs)} without --hash")
+    line = loose[0].line if loose else None
+    fd = Finding(run_id=ctx.run_id, category=FindingCategory.LOCKFILE, detector=DETECTOR, scope=Scope.UNKNOWN,
+                 title=f"requirements.txt is not a complete, integrity-checked lock ({'; '.join(parts)})",
+                 project="root", file_path="requirements.txt", line=line,
+                 evidence_ids=[e.evidence_id for e in evidence])
+    return ToolOutput(findings=[fd], evidence=evidence, summary="; ".join(parts))
+
+
+def detect_npm(ctx) -> ToolOutput:
+    base = Path(ctx.repo)
     evidence: list[Evidence] = []
     missing: list[str] = []
     disabled_at = None

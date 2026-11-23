@@ -349,12 +349,69 @@ class DependencyGraph:
                 "image_packages": sum(1 for d in all_pk if d.get("in_image"))}
 
 
+def build_pypi_graph(work: Path, sbom_path: Path, requirements: str = "requirements.txt",
+                     fetch=None) -> nx.DiGraph:
+    """D2-09: pip project. Nodes = pinned requirements found by Syft in `requirements` (other requirement files,
+    e.g. PyGoat's separate labs, are out of scope); edges = PyPI `requires_dist` between pinned packages;
+    direct = not required by any other pinned package (requirements files are flat). Integrity is None unless
+    the file uses --hash (reported by the lockfile detector)."""
+    from guardian.adapters.pypi import normalize, parse_requirements, release_metadata, runtime_dependencies
+
+    fetch = fetch or release_metadata
+    work = Path(work)
+    sbom = _load_json(sbom_path)
+    reqs = {r.name: r for r in parse_requirements(work / requirements)} if (work / requirements).is_file() else {}
+    G = nx.DiGraph(roots=["root"], edge_source={"root": "pypi requires_dist"}, sbom=Path(sbom_path).name,
+                   ecosystem="pypi", unpinned_requirements=[])
+    G.add_node("root", id="root", kind="project", label="root", risk=None, finding_ids=[])
+    by_name: dict[str, str] = {}
+    for c in sbom.get("components", []):
+        purl = c.get("purl", "")
+        if c.get("type") != "library" or not purl.startswith("pkg:pypi/"):
+            continue
+        locs = [p["value"] for p in c.get("properties", []) if p["name"].startswith("syft:location:")
+                and p["name"].endswith(":path")]
+        if not any(loc.lstrip("/") == requirements for loc in locs):
+            continue
+        nid, name = _purl(purl), normalize(c["name"])
+        if nid in G:
+            continue
+        r = reqs.get(name)
+        G.add_node(nid, id=nid, kind="package", label=name, version=c.get("version"), ecosystem="pypi",
+                   direct=True, scope="prod", project="root", projects=["root"],
+                   origin=f"https://pypi.org/project/{name}/{c.get('version')}/", integrity=None,
+                   deprecated=False, has_install_script=False, risk=None, finding_ids=[],
+                   declared_line=r.line if r else None)
+        by_name[name] = nid
+    missing: set[str] = set()
+    for name, nid in list(by_name.items()):
+        info = fetch(name, G.nodes[nid]["version"]) or {}
+        if info.get("yanked"):
+            G.nodes[nid]["deprecated"] = True
+        for dep in runtime_dependencies(info):
+            if dep in by_name and by_name[dep] != nid:
+                G.add_edge(nid, by_name[dep])
+                G.nodes[by_name[dep]]["direct"] = False
+            elif dep not in by_name:
+                missing.add(dep)
+    for nid in by_name.values():
+        if G.nodes[nid]["direct"]:
+            G.add_edge("root", nid)
+    G.graph["unpinned_requirements"] = sorted(missing)  # needed at runtime but not pinned in the file
+    return G
+
+
 def build_graph(ctx):
-    """Tool entry point (registry binding `graph_build`) -> ToolOutput(graph=DependencyGraph, Evidence kind='graph')."""
+    """Tool entry point (registry binding `graph_build`) -> ToolOutput(graph=DependencyGraph, Evidence kind='graph').
+    npm when package.json exists, else pip (requirements.txt)."""
     from guardian.core.models import Evidence
     from guardian.tools.registry import ToolOutput
 
-    G = build_dependency_graph(Path(ctx.work_dir or ctx.repo), Path(ctx.sbom_path))
+    work = Path(ctx.work_dir or ctx.repo)
+    if not (work / "package.json").is_file() and (work / "requirements.txt").is_file():
+        G = build_pypi_graph(work, Path(ctx.sbom_path))
+    else:
+        G = build_dependency_graph(work, Path(ctx.sbom_path))
     dg = DependencyGraph(G)
     st = dg.stats()
     ev = Evidence(run_id=ctx.run_id, kind="graph", source_tool="graph_build", facts=st,

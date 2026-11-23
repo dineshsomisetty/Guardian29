@@ -218,7 +218,8 @@ def osv_scan(ctx):
     from guardian.tools.registry import ToolOutput
 
     work = Path(ctx.work_dir or ctx.repo)
-    locks = [p for p in (work / "package-lock.json", work / "frontend" / "package-lock.json") if p.is_file()]
+    locks = [p for p in (work / "package-lock.json", work / "frontend" / "package-lock.json",
+                         work / "requirements.txt") if p.is_file()]
     if not locks:
         return ToolOutput(summary="no lockfiles to cross-check")
     raw = Path(ctx.run_dir) / "osv.json"
