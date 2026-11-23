@@ -167,7 +167,8 @@ function ScoreDrop({ v }: { v: ValidationResult }) {
     return () => cancelAnimationFrame(id);
   }, [v.risk_after]);
   const shown = useCountTween(now);
-  const dropped = v.risk_before - v.risk_after;
+  // the sentence uses the same rounded numbers the reader sees, so "68 to 8" always says "down 60"
+  const dropped = Math.round(v.risk_before) - Math.round(v.risk_after);
   return (
     <Section title="Risk score before and after">
       <div className="drop-nums">
