@@ -10,6 +10,10 @@ Ops (PatchOp.op):
   replace_dependency      file_path=<package.json>  args={name, new_name, version}
   pin_action_sha          file_path=<workflow.yml>  args={action, ref, sha?}   (tag -> SHA via `git ls-remote`)
   generate_lockfile       file_path=<package.json>  args={}   (drops `package-lock=false`, resolves --ignore-scripts)
+  pin_image_digest        file_path=<Dockerfile>    args={image, digest?}      (tag -> digest via registry v2 API)
+  update_base_image       file_path=<Dockerfile>    args={image, to_tag, digest?}  (bump tag, then pin digest)
+  block_package           file_path=<package.json>  args={name, reason, new_name?, version?}
+                          (denylist entry in the work copy's guardian.yaml + remove/replace the dependency)
 """
 from __future__ import annotations
 
@@ -207,12 +211,132 @@ def generate_lockfile(work: Path, file_path: str, args: dict, resolver=None) -> 
     return PatchResult("generate_lockfile", _rel(work, manifest), "".join(diffs), files, facts)
 
 
+# ---------------------------------------------------------------- container images (D2-07b)
+DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
+IMAGE_RE = re.compile(r"^[a-z0-9][a-z0-9._/-]*(:[A-Za-z0-9._-]+)?$")
+TAG_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$")
+_ACCEPT = ", ".join(["application/vnd.oci.image.index.v1+json",
+                     "application/vnd.docker.distribution.manifest.list.v2+json",
+                     "application/vnd.docker.distribution.manifest.v2+json",
+                     "application/vnd.oci.image.manifest.v1+json"])
+ALLOWED_REGISTRIES = {"registry-1.docker.io", "gcr.io"}  # §14 allowlist
+
+
+def split_image(image: str) -> tuple[str, str, str]:
+    """`node:24` -> (registry-1.docker.io, library/node, 24); `gcr.io/distroless/x` -> (gcr.io, distroless/x, latest)."""
+    _check(IMAGE_RE, image, "image")
+    name, _, tag = image.partition(":")
+    tag = tag or "latest"
+    first = name.split("/", 1)[0]
+    if "." in first:
+        registry, repo = first, name.split("/", 1)[1]
+    else:
+        registry, repo = "registry-1.docker.io", name if "/" in name else f"library/{name}"
+    return registry, repo, tag
+
+
+def lookup_image_digest(image: str, timeout: float = 20.0) -> str:
+    """Manifest(-list) digest for `image` via the registry v2 API (HEAD, anonymous token when asked).
+    Read-only; allowlisted registries only. The multi-arch index digest is what `FROM x@sha256:` should pin."""
+    import httpx
+
+    registry, repo, tag = split_image(image)
+    if registry not in ALLOWED_REGISTRIES:
+        raise PatchError(f"registry {registry} not on the network allowlist")
+    url = f"https://{registry}/v2/{repo}/manifests/{tag}"
+    with httpx.Client(timeout=timeout, follow_redirects=True) as c:
+        r = c.head(url, headers={"Accept": _ACCEPT})
+        if r.status_code == 401 and "bearer" in r.headers.get("www-authenticate", "").lower():
+            raw = r.headers["www-authenticate"].split(" ", 1)[1]
+            params = {k.strip(): v.strip('"') for k, v in (kv.split("=", 1) for kv in raw.split(","))}
+            tok = c.get(params["realm"], params={k: v for k, v in params.items() if k in ("service", "scope")}).json()
+            r = c.head(url, headers={"Accept": _ACCEPT,
+                                     "Authorization": f"Bearer {tok.get('token') or tok.get('access_token')}"})
+        if r.status_code != 200:
+            raise PatchError(f"{image}: registry returned HTTP {r.status_code}")
+    digest = r.headers.get("docker-content-digest", "")
+    if not DIGEST_RE.match(digest):
+        raise PatchError(f"{image}: no valid digest in registry response")
+    return digest
+
+
+def _rewrite_from(work: Path, file_path: str, image: str, new_ref: str, op: str, facts: dict) -> PatchResult:
+    """Rewrite `FROM <image>[@digest] [AS stage]` lines (keeps --platform and the stage name)."""
+    p = safe_path(work, file_path)
+    before = p.read_text(encoding="utf-8")
+    name, _, tag = image.partition(":")
+    tag_pat = re.escape(tag) if tag else r"[A-Za-z0-9._-]+"
+    pat = re.compile(r"^(\s*FROM\s+(?:--platform=\S+\s+)?)" + re.escape(name) + r"(?::" + tag_pat + r")?"
+                     r"(@sha256:[0-9a-f]{64})?(\s+AS\s+\S+)?[ \t]*$", re.M | re.I)
+    after, n = pat.subn(lambda m: f"{m.group(1)}{new_ref}{m.group(3) or ''}", before)
+    if n == 0:
+        raise PatchError(f"`FROM {image}` not found in {file_path}")
+    p.write_text(after, encoding="utf-8")
+    rel = _rel(work, p)
+    return PatchResult(op, rel, _udiff(rel, before, after), [rel], {**facts, "occurrences": n})
+
+
+def pin_image_digest(work: Path, file_path: str, args: dict, resolver=lookup_image_digest) -> PatchResult:
+    image = _check(IMAGE_RE, args.get("image"), "image")
+    digest = args.get("digest") or resolver(image)
+    _check(DIGEST_RE, digest, "digest")
+    name, _, tag = image.partition(":")
+    return _rewrite_from(work, file_path, image, f"{name}:{tag or 'latest'}@{digest}", "pin_image_digest",
+                         {"image": image, "digest": digest})
+
+
+def update_base_image(work: Path, file_path: str, args: dict, resolver=lookup_image_digest) -> PatchResult:
+    image = _check(IMAGE_RE, args.get("image"), "image")
+    to_tag = _check(TAG_RE, args.get("to_tag"), "target tag")
+    new_image = f"{image.partition(':')[0]}:{to_tag}"
+    digest = args.get("digest") or resolver(new_image)  # the lookup also proves the target tag exists
+    _check(DIGEST_RE, digest, "digest")
+    return _rewrite_from(work, file_path, image, f"{new_image}@{digest}", "update_base_image",
+                         {"image": image, "to": new_image, "digest": digest})
+
+
+# ---------------------------------------------------------------- block (D2-07b)
+POLICY_FILE = "guardian.yaml"
+
+
+def block_package(work: Path, file_path: str, args: dict) -> PatchResult:
+    """Denylist `name` in the WORK COPY's guardian.yaml, then remove it (or replace it when new_name + version
+    are given). Guardian's own guardian.yaml is never touched (G6.6); Dev4's policy_check reads either file."""
+    name = _check(NAME_RE, args.get("name"), "package name")
+    reason = str(args.get("reason") or "blocked by Guardian").replace("\n", " ").replace('"', "'")[:200]
+    pol = safe_path(work, POLICY_FILE)
+    before = pol.read_text(encoding="utf-8") if pol.is_file() else ""
+    entry = f'  - name: {name}\n    reason: "{reason}"\n'
+    if re.search(r"^\s*-\s*name:\s*" + re.escape(name) + r"\s*$", before, re.M):
+        after = before  # already denylisted
+    elif re.search(r"^denylist:\s*\[\]\s*$", before, re.M):
+        after = re.sub(r"^denylist:\s*\[\]\s*$", "denylist:\n" + entry.rstrip("\n"), before, count=1, flags=re.M)
+    elif re.search(r"^denylist:\s*$", before, re.M):
+        after = re.sub(r"^denylist:[ \t]*\r?\n", lambda m: m.group(0) + entry, before, count=1, flags=re.M)
+    else:
+        after = (before.rstrip("\n") + "\n\n" if before.strip() else "version: 1\n") + "denylist:\n" + entry
+    pol.write_text(after, encoding="utf-8")
+    rel_pol = _rel(work, pol)
+    if args.get("new_name"):
+        dep = replace_dependency(work, file_path, {"name": name, "new_name": args["new_name"],
+                                                   "version": args.get("version")})
+    else:
+        dep = remove_dependency(work, file_path, {"name": name})
+    extra = {k: v for k, v in dep.facts.items() if k != "name"}
+    return PatchResult("block_package", dep.file_path, _udiff(rel_pol, before, after) + dep.diff,
+                       [rel_pol, *dep.files], {"name": name, "reason": reason, "policy_file": rel_pol,
+                                               "dependency_action": dep.op, **extra})
+
+
 OPS = {
     "set_dependency_version": set_dependency_version,
     "remove_dependency": remove_dependency,
     "replace_dependency": replace_dependency,
     "pin_action_sha": pin_action_sha,
     "generate_lockfile": generate_lockfile,
+    "pin_image_digest": pin_image_digest,
+    "update_base_image": update_base_image,
+    "block_package": block_package,
 }
 
 
