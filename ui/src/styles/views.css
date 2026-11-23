@@ -207,3 +207,7 @@
   .decide-grid { gap: var(--s3); }
   .page-in, .val-in { padding-left: var(--s4); padding-right: var(--s4); }
 }
+
+/* disclosed limitations under "What was checked" */
+.check-notes { margin: 10px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.check-notes li + li { margin-top: 4px; }

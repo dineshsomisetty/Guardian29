@@ -190,7 +190,33 @@ const tests = (t: Record<string, number>) => {
   return e.length ? e.map(([k, n]) => `${n} ${k}`).join(", ") : "not run";
 };
 
+interface SandboxTestFacts {
+  failing_tests?: Record<string, string[]>;
+  baseline?: { unit_tests?: Record<string, number>; integration_tests?: Record<string, number> } | null;
+  notes?: string[];
+}
+
+/** Test rows judged against the unpatched project: failures that happen without the fix are not the fix's. */
+function testRow(counts: Record<string, number>, phase: "test" | "integration", f: SandboxTestFacts | null) {
+  if (!Object.keys(counts).length) return { text: "Not run", ok: null as boolean | null };
+  const base = phase === "test" ? f?.baseline?.unit_tests : f?.baseline?.integration_tests;
+  const label = phase === "test" ? "unit" : "integration";
+  if (f?.notes?.some((n) => n.startsWith(phase === "test" ? "test suite" : "integration suite")))
+    return { text: `Not runnable in the sandbox (fails the same way without the fix)`, ok: null };
+  const failed = counts.failed ?? 0;
+  if (!failed) return { text: tests(counts), ok: true };
+  const newOnes = f?.failing_tests?.new_vs_baseline ?? null;
+  if (base && newOnes && newOnes.length === 0)
+    return { text: `${tests(counts)}: all ${failed} already fail without the fix, none caused by it`, ok: true };
+  return { text: `${tests(counts)}${newOnes?.length ? ` (${newOnes.length} new ${label} failure${newOnes.length === 1 ? "" : "s"})` : ""}`, ok: false };
+}
+
 function Checks({ v }: { v: ValidationResult }) {
+  const ev = useEvidenceMany(v.log_evidence_ids);
+  const facts = (ev.items.find((e) => e.kind === "test_result" && e.source_tool === "sandbox:docker")?.facts ??
+    null) as SandboxTestFacts | null;
+  const unit = testRow(v.unit_tests, "test", facts);
+  const integ = testRow(v.integration_tests, "integration", facts);
   const row = (k: string, val: string, ok?: boolean | null) => (
     <div>
       <dt>{k}</dt>
@@ -204,12 +230,19 @@ function Checks({ v }: { v: ValidationResult }) {
     <Section title="What was checked">
       <dl className="facts">
         {row("Build", v.build_ok == null ? "Not run" : v.build_ok ? "Passed" : "Failed", v.build_ok)}
-        {row("Unit tests", tests(v.unit_tests), Object.keys(v.unit_tests).length ? !(v.unit_tests.failed > 0) : null)}
-        {row("Integration tests", tests(v.integration_tests), Object.keys(v.integration_tests).length ? !(v.integration_tests.failed > 0) : null)}
+        {row("Unit tests", unit.text, unit.ok)}
+        {row("Integration tests", integ.text, integ.ok)}
         {row("Vulnerability gone after re-scan", v.target_finding_resolved ? "Yes" : "No", v.target_finding_resolved)}
         {row("New findings introduced", v.new_findings.length ? String(v.new_findings.length) : "None", v.new_findings.length === 0)}
         {row("Guardian's confidence", v.final_confidence)}
       </dl>
+      {facts?.notes?.length ? (
+        <ul className="muted check-notes">
+          {facts.notes.map((n) => (
+            <li key={n}>{n}</li>
+          ))}
+        </ul>
+      ) : null}
     </Section>
   );
 }

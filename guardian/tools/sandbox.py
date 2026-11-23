@@ -116,6 +116,7 @@ class SandboxResult:
     tests_ran: bool = False
     failed_names: dict[str, list[str]] = field(default_factory=dict)  # phase -> failing tests
     baseline: dict | None = None  # the unpatched copy's test result, when compared
+    notes: list[str] = field(default_factory=list)  # disclosed limitations of this validation
     image: str | None = None
     artifact_image: str | None = None  # G6.7: tag of the built + rescanned image (removed afterwards)
     image_vulns: set[tuple[str, str]] = field(default_factory=set)  # (vuln id, package) found in that image
@@ -403,6 +404,7 @@ def _evidence(ctx: ToolContext, res: SandboxResult, attempt_id: str) -> list[Evi
                                "network": NETWORK.get(p.name, "none")} for p in phs],
                    **({"unit_tests": res.unit_tests, "integration_tests": res.integration_tests or "not run",
                        "failing_tests": res.failed_names,
+                       "notes": res.notes,
                        "baseline": ({k: res.baseline.get(k) for k in ("unit_tests", "integration_tests", "failed_names")}
                                     if res.baseline else None)}
                       if kind == "test_result" else {})},
@@ -461,6 +463,13 @@ def compare_with_baseline(ctx: ToolContext, res: SandboxResult, runner: Runner) 
         if extra:
             new[phase] = extra
     res.failed_names = {**res.failed_names, "new_vs_baseline": sorted({n for v in new.values() for n in v})}
+    for phase, key in (("test", "unit_tests"), ("integration", "integration_tests")):
+        b = base.get(key) or {}
+        if b.get("total") and not b.get("passed"):
+            # nothing passes even on the unpatched project: the suite cannot run in this sandbox (e.g. Juice
+            # Shop's API tests need its built Angular frontend), so it says nothing about the fix either way
+            res.notes.append(f"{phase} suite not runnable in the sandbox: 0 of {b['total']} pass on the unpatched "
+                             f"project too, so it is not used to judge the fix")
     if not new:
         res.verdict = None  # every failure was already there before the patch: disclosed, not blamed on the fix
 

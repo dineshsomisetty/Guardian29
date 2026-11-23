@@ -261,3 +261,12 @@ def test_deps_image_recipe_uses_target_node_and_rebuilds_only_native_addons(tmp_
     assert df.startswith("FROM node:20-slim") and "npm ci --ignore-scripts" in df
     assert "binding.gyp" in df and "npm rebuild $native" in df and "SCARF_ANALYTICS=false" in df
     assert seen["tag"].endswith(f"-{sandbox.DEPS_RECIPE}")
+
+
+def test_a_suite_that_never_passes_unpatched_is_disclosed_as_not_runnable(tmp_path, monkeypatch):
+    out, _ = _baseline_rig(tmp_path, monkeypatch, [f"t{i}" for i in range(10)], [f"t{i}" for i in range(10)])
+    res = out.artifacts["sandbox_result"]
+    assert res.verdict is None  # identical to the baseline: not blamed on the fix
+    assert res.notes and "not runnable in the sandbox" in res.notes[0]
+    facts = next(e for e in out.evidence if e.kind == "test_result").facts
+    assert facts["notes"] == res.notes
