@@ -73,6 +73,8 @@ BINDINGS: dict[str, list[tuple[str, str]]] = {
         ("detector:image_pin", "guardian.tools.detectors.image_pin:detect"),  # Dev4 D4-12
         ("detector:install_scripts", "guardian.tools.detectors.install_scripts:detect"),  # Dev2 D2-06
         ("changes", "guardian.tools.detectors.unexpected_change:detect"),  # Dev4 D4-11 + Dev2 D2-06
+        ("detector:package_risk", "guardian.tools.detectors.package_risk:detect"),  # D4-10
+        ("policy_check", "guardian.tools.policy:run_policy_check"),  # D4-07
     ],
 }
 
@@ -100,6 +102,8 @@ def _tool_specs() -> dict[str, ToolSpec]:
     specs = [
         _spec("resolve_action_sha", "guardian.tools.patching:resolve_action_sha", {"remediation"},
               "guardian.tools.patching:ActionRefArgs"),
+        _spec("resolve_image_digest", "guardian.tools.patching:resolve_image_digest", {"remediation"},
+              "guardian.tools.patching:ImageArgs"),
         _spec("plan_preview", "guardian.tools.patching:plan_preview", {"remediation"},
               "guardian.tools.patching:PlanArgs"),
         _spec("registry_metadata", "guardian.tools.investigate:registry_metadata", {"investigator"},
@@ -125,6 +129,8 @@ def _tool_specs() -> dict[str, ToolSpec]:
               "guardian.tools.patching:PlanArgs", writes=True),
         _spec("sandbox_validate", "guardian.tools.sandbox:sandbox_validate", {"validator"}),
         _spec("rescan_patched", "guardian.tools.sandbox:rescan_patched", {"validator"}),
+        _spec("local_fix_branch", "guardian.tools.local_pr:local_fix_branch", {"validator"},
+              "guardian.tools.local_pr:BranchArgs", writes=True),
     ]
     for s in specs:
         assert not any(w in s.name for w in FORBIDDEN_WORDS), s.name  # G3.4
@@ -134,7 +140,7 @@ def _tool_specs() -> dict[str, ToolSpec]:
 # Detectors the validator re-runs on the patched copy (C4: non-CVE fixes are verified by their detector).
 EXTRA_ALLOW: dict[str, set[str]] = {
     "validator": {"detector:lockfile", "detector:typosquat", "detector:ci_pin", "detector:image_pin",
-                  "detector:install_scripts",
+                  "detector:install_scripts", "policy_check",
                   # re-resolve the patched copy's lockfiles (--ignore-scripts) so the rescan sees the upgrade
                   "resolve_lockfiles"},
 }

@@ -76,7 +76,7 @@ details summary{cursor:pointer;color:var(--mute)}
 
 <h2>Remaining or accepted risk</h2>
 {% if r.remaining_risk %}<table><tr><th>Finding</th><th>Status</th><th>Score</th></tr>
-{% for x in r.remaining_risk %}<tr><td>{{ by_id[x.finding_id].finding.title if x.finding_id in by_id else x.finding_id }}</td><td>{{ x.status }}</td><td>{{ x.score }}</td></tr>{% endfor %}</table>
+{% for x in r.remaining_risk %}<tr><td>{{ by_id[x.finding_id].finding.title if x.finding_id in by_id else x.finding_id }}</td><td>{{ x.status }}{% if x.note %} ({{ x.note }}){% endif %}</td><td>{{ x.score }}</td></tr>{% endfor %}</table>
 {% else %}<p class="mute">Every finding was verified fixed.</p>{% endif %}
 
 <h2>Guardrail events</h2>

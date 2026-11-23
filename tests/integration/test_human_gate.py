@@ -142,14 +142,16 @@ def test_not_resolved_replans_then_escalates(target, settings, fake_llm_factory,
     # sabotage the fix: the patch op silently changes nothing, so the detector still reports the typosquat
     monkeypatch.setitem(patching._TEXT_OPS, "replace_dependency", lambda text, a: text)
     monkeypatch.setitem(patching._TEXT_OPS, "remove_dependency", lambda text, a: text)
+    monkeypatch.setattr(patching, "_remove", lambda text, a: text)  # block_package removes through _remove
     run_dir = workflow.run(target, run_id="run_fail", settings=s, llm=llm, echo=False)
     _decide(s, "run_fail", "approve")
     assert list_validations(run_dir)[0].verdict == "not_resolved"
     _decide(s, "run_fail", "approve")  # second, different candidate also fails
+    _decide(s, "run_fail", "approve")  # third (block) also fails: attempt limit
     summary = _summary(run_dir)
     assert summary["status"] == "done"
     assert summary["remediation"][0]["status"] == "escalated"
-    assert len(list_plans(run_dir)) == 2 and {p.action for p in list_plans(run_dir)} == {"replace", "remove"}
+    assert len(list_plans(run_dir)) == 3 and {p.action for p in list_plans(run_dir)} == {"replace", "remove", "block"}
 
 
 def test_validator_unreachable_without_approval(target, settings):

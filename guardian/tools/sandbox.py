@@ -6,6 +6,14 @@ CPU/mem/pids/time limits (G6.2), only the work copy mounted (G6.4), `--rm` + exp
 All docker calls are argv lists through `tools.binaries.run` (never a shell).
 
 Env: GUARDIAN_SANDBOX=auto|docker|off (default auto), GUARDIAN_SANDBOX_TIMEOUT seconds per phase (default 900).
+
+Test phases (all `--network none`): unit tests (`npm run test:server` / `test`, pytest), then integration tests when
+the project has them: `npm run test:api` (the app's own harness) or `python manage.py test` for Django.
+
+Optional built-artifact rescan (G6.7, `GUARDIAN_IMAGE_BUILD=1`, default off because it is slow): when the patched copy
+has a Dockerfile it is `docker build`-built with CPU/memory/time limits, a generated .dockerignore (.env*, keys,
+encryptionkeys/) and no build secrets, then `syft <image>` -> `grype`. The build runs the target's Dockerfile WITH
+network access (e.g. `npm install`), which is the known limitation of this step. The image is removed afterwards.
 """
 
 from __future__ import annotations
@@ -99,6 +107,10 @@ class SandboxResult:
     phases: list[Phase] = field(default_factory=list)
     tests_ran: bool = False
     image: str | None = None
+    artifact_image: str | None = None  # G6.7: tag of the built + rescanned image (removed afterwards)
+    image_vulns: set[tuple[str, str]] = field(default_factory=set)  # (vuln id, package) found in that image
+    extra_evidence: list[Evidence] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)  # e.g. "image build failed"
 
 
 # ---------------------------------------------------------------- helpers
@@ -142,6 +154,9 @@ def parse_counts(text: str) -> dict[str, int]:
         mp, mf = re.search(r"(\d+) passing", text), re.search(r"(\d+) failing", text)
         if mp or mf:
             passed, failed = int(mp.group(1)) if mp else 0, int(mf.group(1)) if mf else 0
+        elif dj := re.search(r"Ran (\d+) tests?", text):  # Django / unittest
+            bad = sum(int(n) for n in re.findall(r"(?:failures|errors)=(\d+)", text))
+            passed, failed = max(0, int(dj.group(1)) - bad), bad
         else:
             pp, pf = re.search(r"(\d+) passed", text), re.search(r"(\d+) failed", text)
             if pp or pf:
@@ -208,6 +223,18 @@ def base_image(work: Path, kind: str) -> str:
     return PY_IMAGE
 
 
+def is_django(work: Path) -> bool:
+    """A Django project: manage.py that mentions django, or django in requirements.txt."""
+    try:
+        if (work / "manage.py").is_file() and "django" in (work / "manage.py").read_text(
+                encoding="utf-8", errors="replace").lower():
+            return True
+        return bool(re.search(r"^\s*django\b", (work / "requirements.txt").read_text(
+            encoding="utf-8", errors="replace"), re.I | re.M)) and (work / "manage.py").is_file()
+    except OSError:
+        return False
+
+
 def _read_json(path: Path) -> dict:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -269,12 +296,16 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
                 "test" if "test" in sc and "no test specified" not in sc["test"] else None)
             if test:
                 steps.append(("test", pre + f"npm run {test}"))
+            if "test:api" in sc:  # D2-08: the app's own integration harness, still --network none
+                steps.append(("integration", pre + "npm run test:api"))
         else:
             py = "/venv/bin/python"
             steps.append(("build", f"{py} -m compileall -q /work" +
                           (f" && {py} manage.py check" if (work / "manage.py").exists() else "")))
             if (work / "tests").is_dir() or list(work.glob("test_*.py")):
                 steps.append(("test", f"{py} -m pytest -q -p no:cacheprovider"))
+                if is_django(work):
+                    steps.append(("integration", f"{py} manage.py test --noinput"))
         build_ran = False
         for phase_name, script in steps:
             cname = _name(attempt_id, phase_name)
@@ -291,11 +322,14 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
                     return res
             else:
                 counts = parse_counts(ph.output)
-                if kind == "pip" and "No module named pytest" in ph.output:
+                if phase_name == "test" and kind == "pip" and "No module named pytest" in ph.output:
                     continue  # no test runner in the project's requirements: tests not run
-                res.tests_ran = True
-                res.unit_tests = counts or {"passed": int(ph.exit_code == 0), "failed": int(ph.exit_code != 0),
-                                            "total": 1}
+                parsed = counts or {"passed": int(ph.exit_code == 0), "failed": int(ph.exit_code != 0), "total": 1}
+                if phase_name == "integration":
+                    res.integration_tests = parsed
+                else:
+                    res.tests_ran = True
+                    res.unit_tests = parsed
                 if ph.exit_code != 0:
                     res.verdict = "failed_tests"
                     return res
@@ -315,9 +349,12 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
 # ---------------------------------------------------------------- tool: sandbox_validate
 
 
+NETWORK = {"install": "registry-only", "image_build": "bridge (G6.7: runs the target's Dockerfile)"}
+
+
 def _evidence(ctx: ToolContext, res: SandboxResult, attempt_id: str) -> list[Evidence]:
     out = []
-    for kind, names in (("build_log", ("install", "build")), ("test_result", ("test",))):
+    for kind, names in (("build_log", ("install", "build", "image_build")), ("test_result", ("test", "integration"))):
         phs = [p for p in res.phases if p.name in names]
         if not phs:
             continue
@@ -327,9 +364,9 @@ def _evidence(ctx: ToolContext, res: SandboxResult, attempt_id: str) -> list[Evi
             facts={"attempt_id": attempt_id, "ecosystem": res.kind, "image": res.image,
                    "phases": [{"name": p.name, "exit_code": p.exit_code, "timed_out": p.timed_out,
                                "seconds": round(p.seconds, 1),
-                               "network": "none" if p.name != "install" else "registry-only"} for p in phs],
-                   **({"unit_tests": res.unit_tests, "integration_tests": "not run"} if kind == "test_result"
-                      else {})},
+                               "network": NETWORK.get(p.name, "none")} for p in phs],
+                   **({"unit_tests": res.unit_tests, "integration_tests": res.integration_tests or "not run"}
+                      if kind == "test_result" else {})},
             excerpt=tail(text)))
     return out
 
@@ -349,9 +386,89 @@ def sandbox_validate(ctx: ToolContext) -> ToolOutput:
                 " [GUARDIAN_SANDBOX=docker was requested]" if m == "docker" else "")
         else:
             res = run_sandbox(work, attempt_id, runner, phase_timeout())
-    return ToolOutput(evidence=_evidence(ctx, res, attempt_id) if res.ran else [],
+            if res.verdict is None and image_build_enabled() and (work / "Dockerfile").is_file():
+                build_artifact(work, ctx.run_dir, ctx.run_id, attempt_id, runner, phase_timeout(), res)
+    return ToolOutput(evidence=[*_evidence(ctx, res, attempt_id), *res.extra_evidence] if res.ran or res.phases else [],
                       artifacts={"sandbox_result": res},
                       summary=("sandbox " + (res.verdict or "ok")) if res.ran else f"sandbox skipped: {res.reason}")
+
+
+# ---------------------------------------------------------------- built-artifact rescan (G6.7)
+
+BUILD_IGNORE = [".env*", "**/.env*", "*.pem", "**/*.pem", "*.key", "**/*.key", "encryptionkeys/", "**/encryptionkeys/",
+                ".git", "node_modules", ".npmrc"]
+
+
+def image_build_enabled() -> bool:
+    return os.environ.get("GUARDIAN_IMAGE_BUILD", "0").strip() == "1"
+
+
+def known_limitations(res: SandboxResult, work: Path) -> list[str]:
+    """What the validation did NOT cover, recorded in the ValidationResult's summary evidence."""
+    if res.artifact_image:
+        return ["the image build executed the target's Dockerfile with network access (G6.7); the rescan covers "
+                "that image, which may differ from what CI would build"]
+    out = []
+    if not image_build_enabled():
+        out.append("built image not rescanned: GUARDIAN_IMAGE_BUILD is off (docker build runs the target's "
+                   "Dockerfile with network, G6.7); the rescan covers the patched source tree only")
+    elif not (work / "Dockerfile").is_file():
+        out.append("built image not rescanned: no Dockerfile in the patched copy")
+    return [*out, *res.notes]
+
+
+def _bin(name: str) -> str:
+    return name if _runner is not None else binaries.find(name)
+
+
+def build_artifact(work: Path, run_dir: Path, run_id: str, attempt_id: str, runner: Runner, timeout: int,
+                   res: SandboxResult) -> None:
+    """docker build the patched copy (network on, CPU/memory/time limited, keys/.env excluded via a generated
+    .dockerignore, no build secrets), syft the image, grype the SBOM, remove the image. Never raises: a failed
+    build is recorded in `res.notes` and does not change the verdict."""
+    tag = f"guardian-built:{attempt_id[-10:].lower()}"
+    ignore = work / ".dockerignore"
+    original = ignore.read_bytes() if ignore.exists() else None
+    sbom = run_dir / "sbom.image.cdx.json"
+    sbom.unlink(missing_ok=True)
+    try:
+        ignore.write_text("\n".join(BUILD_IGNORE) + "\n" + (original.decode("utf-8", "replace") if original else ""),
+                          encoding="utf-8")
+        ph = _phase(runner, res, "image_build",
+                    [_docker(), "build", "--memory", "4g", "--cpu-quota", "200000", "-t", tag, str(work)],
+                    timeout, None)
+        if ph.exit_code != 0:
+            res.notes.append("built image not rescanned: docker build " + ("timed out" if ph.timed_out else
+                             f"failed (exit {ph.exit_code}); see the build_log evidence"))
+            return
+        sy = _phase(runner, res, "image_syft", [_bin("syft"), tag, "-o", f"cyclonedx-json={sbom}", "-q"], timeout, None)
+        if sy.exit_code != 0 or not sbom.exists():
+            res.notes.append(f"built image not rescanned: syft failed (exit {sy.exit_code})")
+            return
+        gr = _phase(runner, res, "image_grype", [_bin("grype"), f"sbom:{sbom}", "-o", "json", "-q"], timeout, None)
+        if gr.exit_code != 0:
+            res.notes.append(f"built image SBOM written but grype failed (exit {gr.exit_code})")
+            return
+        data = json.loads(gr.output[gr.output.index("{"):])
+        (run_dir / "grype.image.json").write_text(json.dumps(data), encoding="utf-8")
+        res.image_vulns = _grype_keys(data)
+        res.artifact_image = tag
+        comps = len(json.loads(sbom.read_text(encoding="utf-8")).get("components", []))
+        res.extra_evidence.append(Evidence(
+            run_id=run_id, kind="scanner_output", source_tool="syft+grype (built image)",
+            facts={"attempt_id": attempt_id, "image": tag, "components": comps, "matches": len(res.image_vulns),
+                   "base_image_vulns_not_diffed": True}, artifact_path="grype.image.json"))
+    except (OSError, ValueError, binaries.BinaryMissing, subprocess.SubprocessError) as exc:
+        res.notes.append(f"built image not rescanned: {type(exc).__name__}: {str(exc)[:120]}")
+    finally:
+        try:
+            runner([_docker(), "rmi", "-f", tag], 60)  # G6.5: the image does not outlive the attempt
+        except Exception:  # noqa: BLE001
+            pass
+        if original is None:
+            ignore.unlink(missing_ok=True)
+        else:
+            ignore.write_bytes(original)
 
 
 # ---------------------------------------------------------------- rescan + SBOM diff

@@ -5,6 +5,8 @@
   decide      approve / reject / accept_risk the pending plan and resume the run
   serve-runs  static file server for the UI (§4.2)
   api         FastAPI + SSE (§4.4)
+  watch       re-check a finished run against fresh OSV/EPSS/KEV (continuous monitoring, D1-11)
+  run --repos A B ...  batch: several targets sequentially with a shared intel cache (D1-12)
 """
 
 from __future__ import annotations
@@ -18,15 +20,105 @@ from guardian.core.config import load_settings
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
+    if bool(args.repo) == bool(args.repos):
+        print("give exactly one of --repo <dir> or --repos <dir> [<dir> ...]", file=sys.stderr)
+        return 2
+    settings = load_settings(llm_mode=args.llm_mode, max_llm_findings=args.max_llm_findings, max_plans=args.max_plans)
+    if args.repos:
+        if args.run_id:
+            print("--run-id applies to a single --repo run", file=sys.stderr)
+            return 2
+        return _cmd_batch(args, settings)
     from guardian.graph.workflow import run
 
     repo = Path(args.repo)
     if not repo.is_dir():
         print(f"repo not found: {repo}", file=sys.stderr)
         return 2
-    settings = load_settings(llm_mode=args.llm_mode, max_llm_findings=args.max_llm_findings, max_plans=args.max_plans)
     run_dir = run(repo, run_id=args.run_id, settings=settings, compare_ref=args.compare_ref)
     return _report(run_dir)
+
+
+def _batch_row(target: str, run_dir: Path | None, error: str | None) -> dict:
+    row = {"target": target, "run_id": run_dir.name if run_dir else None, "components": None,
+           "findings": {"total": 0, "by_risk": {}}, "top_risk": None, "status": "failed" if error else "unknown"}
+    if error:
+        row["error"] = error[:300]
+    if run_dir is None:
+        return row
+    try:
+        summary = json.loads((run_dir / "run_summary.json").read_text(encoding="utf-8"))
+        row["status"] = summary.get("status", row["status"])
+        row["components"] = (summary.get("sbom") or {}).get("components")
+        row["findings"] = {"total": summary["findings"]["total"], "by_risk": summary["findings"]["by_risk"]}
+        risks = json.loads((run_dir / "risk.json").read_text(encoding="utf-8")) if (run_dir / "risk.json").exists() else []
+        if risks:
+            titles = {f["finding_id"]: f["title"] for f in json.loads((run_dir / "findings.json").read_text(encoding="utf-8"))}
+            top = risks[0]
+            row["top_risk"] = {"finding_id": top["finding_id"], "score": top["score"], "band": top["band"],
+                               "title": titles.get(top["finding_id"], "")}
+    except (OSError, ValueError, KeyError):
+        pass
+    return row
+
+
+def _print_batch(rows: list[dict]) -> None:
+    head = f"{'target':<18}{'components':>10}  {'C/H/M/L':<14}{'top risk':<46}status"
+    print(chr(10) + head + chr(10) + "-" * len(head))
+    for r in rows:
+        br = r["findings"]["by_risk"]
+        sev = "/".join(str(br.get(k, 0)) for k in ("critical", "high", "medium", "low"))
+        t = r["top_risk"]
+        top = f"{t['score']:.0f} {t['band']}: {t['title']}"[:44] if t else "-"
+        print(f"{r['target'][:17]:<18}{r['components'] if r['components'] is not None else '-':>10}  "
+              f"{sev:<14}{top:<46}{r['status']}")
+
+
+def _cmd_batch(args: argparse.Namespace, settings) -> int:
+    """D1-12: run each target sequentially. The intel cache (data/cache/intel/threat, or GUARDIAN_INTEL_CACHE) is
+    shared by every run, so registry/EPSS/KEV/OSV responses are fetched once."""
+    import os
+    from datetime import datetime
+
+    from guardian.graph.workflow import run
+    from guardian.tools.threat_intel import DEFAULT_CACHE
+
+    os.environ.setdefault("GUARDIAN_INTEL_CACHE", str(DEFAULT_CACHE))
+    rows = []
+    for raw in args.repos:
+        repo = Path(raw)
+        if not repo.is_dir():
+            print(f"repo not found: {repo}", file=sys.stderr)
+            rows.append(_batch_row(repo.name, None, "repo not found"))
+            continue
+        run_dir, error = None, None
+        try:
+            run_dir = run(repo, settings=settings, compare_ref=args.compare_ref)
+        except Exception as exc:  # noqa: BLE001  one failing target must not stop the batch
+            error = f"{type(exc).__name__}: {exc}"
+            print(f"{repo.name} failed: {error}", file=sys.stderr)
+            run_dir = None
+        rows.append(_batch_row(repo.name, run_dir, error))
+    _print_batch(rows)
+    out = settings.runs_dir / f"batch_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    out.write_text(json.dumps({"created_at": datetime.now().astimezone().isoformat(),
+                               "intel_cache": os.environ["GUARDIAN_INTEL_CACHE"], "runs": rows}, indent=2),
+                   encoding="utf-8")
+    print(f"{chr(10)}Batch summary: {out}")
+    return 1 if any(r["status"] == "failed" for r in rows) else 0
+
+
+def _cmd_watch(args: argparse.Namespace) -> int:
+    from guardian.watch import WatchError, parse_interval, watch_loop
+
+    run_dir = _run_dir(args)
+    try:
+        interval = parse_interval(args.interval)
+        return watch_loop(run_dir.name, interval, once=args.once, max_age_s=parse_interval(args.max_age),
+                          max_components=args.max_components)
+    except (ValueError, WatchError) as exc:
+        print(f"watch: {exc}", file=sys.stderr)
+        return 2
 
 
 def _report(run_dir: Path) -> int:
@@ -121,13 +213,22 @@ def main(argv: list[str] | None = None) -> int:
     sub = p.add_subparsers(dest="cmd", required=True)
 
     r = sub.add_parser("run", help="run the agent pipeline on a target repo")
-    r.add_argument("--repo", required=True)
+    r.add_argument("--repo")
+    r.add_argument("--repos", nargs="+", metavar="DIR", help="batch: run each target sequentially (D1-12)")
     r.add_argument("--run-id")
     r.add_argument("--compare-ref", help="git ref of the target to diff manifests/lockfiles against (D2-06)")
     r.add_argument("--llm-mode", choices=["live", "record", "replay"])
     r.add_argument("--max-llm-findings", type=int)
     r.add_argument("--max-plans", type=int, help="findings taken into the remediation loop (0 = none)")
     r.set_defaults(func=_cmd_run)
+
+    w = sub.add_parser("watch", help="re-check a finished run against fresh advisories and rescore (D1-11)")
+    w.add_argument("--run", default="latest")
+    w.add_argument("--interval", default="1h", help="time between checks, e.g. 30s, 15m, 1h (default 1h)")
+    w.add_argument("--once", action="store_true", help="check once and exit")
+    w.add_argument("--max-age", default="15m", help="intel cache max-age in watch mode (default 15m)")
+    w.add_argument("--max-components", type=int, default=400, help="components looked up in OSV per check")
+    w.set_defaults(func=_cmd_watch)
 
     pl = sub.add_parser("plans", help="show the plan waiting for a human decision")
     pl.add_argument("--run", default="latest")

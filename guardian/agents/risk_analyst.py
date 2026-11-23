@@ -43,7 +43,8 @@ from guardian.tools.registry import call_tool
 from guardian.tools.threat_intel import parse_purl
 
 AGENT = "risk_analyst"
-PLANNABLE = [FindingCategory.TYPOSQUAT, FindingCategory.LOCKFILE, FindingCategory.UNPINNED_CI]
+PLANNABLE = [FindingCategory.TYPOSQUAT, FindingCategory.LOCKFILE, FindingCategory.UNPINNED_CI,
+             FindingCategory.UNTRUSTED_IMAGE]
 _RANK = {Priority.CRITICAL: 0, Priority.HIGH: 1, Priority.MEDIUM: 2, Priority.LOW: 3, None: 4}
 LLM_TOP = 8  # findings whose summary the LLM writes; the rest get the template
 PROVENANCE_TOP = 25
@@ -212,9 +213,11 @@ def _llm_summaries(rc: RunContext, ranked: list[tuple[Finding, RiskAssessment]])
     blocks, hits = [], []
     for f, a in ranked:
         fa = aliases.of(f.finding_id, "F")
-        cited = {e for fv in (a.factors.S, a.factors.E, a.factors.R, a.factors.P, a.factors.X)
-                 for e in fv.evidence_ids} | set(f.evidence_ids[:2])
-        evs = [rc.store.get_evidence(e) for e in sorted(cited)]
+        # structural order (factor order, then the finding's own evidence), never by id: ids are ULIDs whose
+        # random part differs between runs, so sorting by id would change the prompt and miss the replay cache
+        cited = dict.fromkeys([*(e for fv in (a.factors.S, a.factors.E, a.factors.R, a.factors.P, a.factors.X)
+                                 for e in fv.evidence_ids), *f.evidence_ids[:2]])
+        evs = [rc.store.get_evidence(e) for e in cited]
         view = {"finding": {**_finding_view(f), "finding_id": fa},
                 "computed": {"score": a.score, "band": a.band.value, "confidence": a.confidence.value,
                              "override": a.override_applied,
@@ -325,12 +328,17 @@ def risk_analyst_node(state: GraphState) -> dict:
             assessments = {f.finding_id: assess(f) for f in findings}
 
     by_id = {f.finding_id: f for f in findings}
-    ranked = sorted(assessments.values(), key=lambda a: (-a.score, a.finding_id))
+
+    def rank_key(a):  # ties broken by content, not by finding_id (a ULID: random between runs, see above)
+        f = by_id[a.finding_id]
+        return -a.score, f.title, f.component_purl or "", f.file_path or "", f.line or 0, a.finding_id
+
+    ranked = sorted(assessments.values(), key=rank_key)
     summaries = _llm_summaries(rc, [(by_id[a.finding_id], a) for a in ranked[:LLM_TOP]])
     for fid, (text, claims) in summaries.items():
         assessments[fid].summary = text
         assessments[fid].claims = claims
-    ranked = sorted(assessments.values(), key=lambda a: (-a.score, a.finding_id))
+    ranked = sorted(assessments.values(), key=rank_key)
     save_risks(ctx.run_dir, ranked)
 
     scores = {a.finding_id: a.score for a in ranked}

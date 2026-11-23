@@ -33,12 +33,14 @@ class ReportAction(BaseModel):
     plan: RemediationPlan
     approval: Approval | None = None
     validations: list[ValidationResult] = []
+    pr_markdown: str | None = None  # ADDITIVE (D2-10): run-relative path of PR.md for a verified attempt
 
 
 class RemainingRisk(BaseModel):
     finding_id: str
     status: str  # accepted|escalated|assessed|...
     score: float = 0
+    note: str | None = None  # ADDITIVE: e.g. an accepted mitigation (nothing was fixed)
 
 
 class Audit(BaseModel):

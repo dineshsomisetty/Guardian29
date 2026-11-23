@@ -9,11 +9,18 @@ Ops (§5.1 PatchOp.op):
   pin_action_sha          workflow.yml  {action, ref, sha}
   generate_lockfile       .npmrc        {projects: [...]}   drop `package-lock=false`, add the lockfiles resolved
                                                              in discovery with --ignore-scripts
+  pin_image_digest        Dockerfile / docker-compose.yml  {image, tag, digest}  `FROM image:tag` ->
+                                                             `FROM image:tag@sha256:...` (compose: `image:` lines)
+  update_base_image       Dockerfile / compose  {image, tag, new_tag, digest}  bump the tag, pin the new digest
+  block_package           package.json / requirements*.txt  {name}  remove the dependency and append the name to
+                                                             `.guardian/denylist.txt` (two files, one diff)
 Edits are line-based so the rest of the file (formatting, comments) stays byte-identical, and every edited
 package.json is re-parsed. Paths are confined to the copy (G6.6).
 
 Tools (called through the registry):
   resolve_action_sha  (remediation) tag/branch -> commit SHA via `git ls-remote` (read-only, github.com)
+  resolve_image_digest (remediation) image:tag -> sha256 digest via `docker buildx imagetools inspect` (argv,
+                      read-only; registry-1.docker.io / gcr.io / ghcr.io only; cached; offline = cache only)
   plan_preview        (remediation) dry run: the unified diff a human approves; writes nothing
   apply_plan          (validator, write tool: needs a matching Approval, G3.3) fresh copy of the target under
                       runs/<id>/attempts/<attempt_id>/work + ops applied
@@ -23,8 +30,11 @@ from __future__ import annotations
 
 import difflib
 import json
+import os
 import re
 import shutil
+import subprocess
+from collections.abc import Callable
 from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
@@ -42,6 +52,11 @@ _ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(/[A-Za-z0-9_./-]+)?$")
 _REF = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,99}$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 _SHA_CACHE = REPO_ROOT / "data" / "cache" / "intel" / "action_shas.json"
+_DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
+_IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:-]{0,199}$")  # no @, no leading dash (argv injection)
+_TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
+DENYLIST = ".guardian/denylist.txt"
+IMAGE_REGISTRY_HOSTS = frozenset({"registry-1.docker.io", "gcr.io", "ghcr.io"})  # G3.5 for image digest lookups
 
 
 class PatchError(ValueError):
@@ -67,6 +82,25 @@ class ActionRefArgs(BaseModel):
     def _ref(cls, v: str) -> str:
         if not _REF.fullmatch(v) or ".." in v:
             raise ValueError("ref has unexpected characters")
+        return v
+
+
+class ImageArgs(BaseModel):
+    image: str
+    tag: str
+
+    @field_validator("image")
+    @classmethod
+    def _image(cls, v: str) -> str:
+        if not _IMAGE.fullmatch(v) or ".." in v or "//" in v:
+            raise ValueError("image has unexpected characters")
+        return v
+
+    @field_validator("tag")
+    @classmethod
+    def _tag(cls, v: str) -> str:
+        if not _TAG.fullmatch(v):
+            raise ValueError("tag has unexpected characters")
         return v
 
 
@@ -180,6 +214,70 @@ def _drop_lock_disable(text: str, a: dict) -> str:
     return "".join(out)
 
 
+def _check_image(a: dict) -> tuple[str, str, str]:
+    image, tag, digest = str(a["image"]), str(a["tag"]), str(a["digest"])
+    if not _IMAGE.fullmatch(image):
+        raise PatchError(f"unexpected image name {image!r}")
+    if not _TAG.fullmatch(tag):
+        raise PatchError(f"unexpected image tag {tag!r}")
+    if not _DIGEST.fullmatch(digest):
+        raise PatchError("digest must be sha256:<64 hex>")
+    return image, tag, digest
+
+
+def _is_dockerfile(rel: str) -> bool:
+    name = rel.rsplit("/", 1)[-1].lower()
+    return name.startswith("dockerfile") or name.endswith(".dockerfile")
+
+
+def _rewrite_image(text: str, rel: str, image: str, tag: str, new_ref: str) -> str:
+    """Replace every un-pinned reference to `image:tag` by `new_ref` in a Dockerfile (FROM lines) or a compose
+    file (`image:` lines). A tag-less `image` counts as `:latest` for tag == "latest". Digest-pinned lines stay."""
+    ref = re.escape(image) + "(?::" + re.escape(tag) + ")" + ("?" if tag == "latest" else "")
+    if _is_dockerfile(rel):
+        pat = re.compile(r"^(\s*FROM\s+(?:--platform=\S+\s+)?)" + ref + r"(?=\s|$)", re.I | re.M)
+    else:
+        pat = re.compile(r"^(\s*(?:-\s+)?image\s*:\s*['\"]?)" + ref + r"(?=['\"]?\s*(?:#.*)?$)", re.M)
+    new, n = pat.subn(lambda m: m.group(1) + new_ref, text)
+    if n == 0:
+        raise PatchError(f"un-pinned reference to {image}:{tag} not found in {rel}")
+    return new
+
+
+def _pin_image(text: str, a: dict, rel: str) -> str:
+    image, tag, digest = _check_image(a)
+    return _rewrite_image(text, rel, image, tag, f"{image}:{tag}@{digest}")
+
+
+def _update_base(text: str, a: dict, rel: str) -> str:
+    image, tag, digest = _check_image(a)
+    new_tag = str(a["new_tag"])
+    if not _TAG.fullmatch(new_tag) or new_tag == tag:
+        raise PatchError(f"new_tag {new_tag!r} must be a different, valid tag")
+    return _rewrite_image(text, rel, image, tag, f"{image}:{new_tag}@{digest}")
+
+
+def _remove_requirement(text: str, a: dict) -> str:
+    name = a["name"]
+    _check_name(name)
+    lines = text.splitlines(keepends=True)
+    pat = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)")
+    hits = [i for i, ln in enumerate(lines)
+            if (m := pat.match(ln)) and not ln.lstrip().startswith(("#", "-")) and _pep503(m.group(1)) == _pep503(name)]
+    if len(hits) != 1:
+        raise PatchError(f"{name}: expected exactly one requirement line, found {len(hits)}")
+    del lines[hits[0]]
+    return "".join(lines)
+
+
+def _denylist_add(text: str, name: str) -> str:
+    _check_name(name)
+    if name.lower() in {ln.strip().lower() for ln in text.splitlines()}:
+        return text
+    head = "" if text else "# Guardian denylist: package names that must not be installed (one per line)\n"
+    return text + ("" if not text or text.endswith("\n") else "\n") + head + name + "\n"
+
+
 _TEXT_OPS = {
     "set_dependency_version": _set_version,
     "set_requirement_version": _set_requirement,
@@ -188,6 +286,7 @@ _TEXT_OPS = {
     "pin_action_sha": _pin_action,
     "generate_lockfile": _drop_lock_disable,
 }
+_FILE_OPS = {"pin_image_digest": _pin_image, "update_base_image": _update_base}  # these also need the file name
 
 
 def _diff(rel: str, before: str, after: str) -> str:
@@ -199,13 +298,22 @@ def apply_ops(root: Path, ops: list[PatchOp], lock_source: Path | None, write: b
     """Apply ops under `root`. Returns one {op, file, diff} per op. With write=False nothing is written."""
     pending: dict[str, str] = {}  # rel -> current text (several ops may touch one file)
     results = []
+    def current(rel: str) -> str:
+        path = confined(root, rel)
+        return pending.get(rel, path.read_bytes().decode("utf-8") if path.exists() else "")
+
     for op in ops:
+        if op.op == "block_package":
+            results.append(_block_package(root, op, pending, current))
+            continue
         fn = _TEXT_OPS.get(op.op)
-        if fn is None:
-            raise PatchError(f"op {op.op} is not implemented yet (Day 2: D2-07b)")
         path = confined(root, op.file_path)
         rel = path.relative_to(root.resolve()).as_posix()
-        before = pending.get(rel, path.read_bytes().decode("utf-8") if path.exists() else "")
+        if fn is None and op.op in _FILE_OPS:
+            fn = lambda t, a, _f=_FILE_OPS[op.op], _r=rel: _f(t, a, _r)  # noqa: E731
+        if fn is None:
+            raise PatchError(f"op {op.op} is not implemented")
+        before = current(rel)
         after = fn(before, op.args)
         if path.name == "package.json":
             json.loads(after)  # edited manifest must still parse
@@ -216,8 +324,30 @@ def apply_ops(root: Path, ops: list[PatchOp], lock_source: Path | None, write: b
         results.append(entry)
     if write:
         for rel, text in pending.items():
-            confined(root, rel).write_bytes(text.encode("utf-8"))  # bytes: no newline translation
+            dst = confined(root, rel)
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            dst.write_bytes(text.encode("utf-8"))  # bytes: no newline translation
     return results
+
+
+def _block_package(root: Path, op: PatchOp, pending: dict[str, str], current: Callable[[str], str]) -> dict:
+    """Remove the dependency from its manifest and add its name to the denylist inside the copy (two files)."""
+    path = confined(root, op.file_path)
+    rel = path.relative_to(root.resolve()).as_posix()
+    name = op.args["name"]
+    before = current(rel)
+    if path.name == "package.json":
+        after = _remove(before, {"name": name})
+        json.loads(after)
+    elif path.suffix == ".txt":
+        after = _remove_requirement(before, {"name": name})
+    else:
+        raise PatchError(f"block_package supports package.json and requirements*.txt, not {rel}")
+    deny_before = current(DENYLIST)
+    deny_after = _denylist_add(deny_before, name)
+    pending[rel], pending[DENYLIST] = after, deny_after
+    return {"op": op.op, "file": rel, "files": [rel, DENYLIST],
+            "diff": _diff(rel, before, after) + _diff(DENYLIST, deny_before, deny_after)}
 
 
 def _lockfiles(root: Path, projects: list[str], lock_source: Path | None, write: bool) -> list[dict]:
@@ -242,7 +372,7 @@ def _patch_evidence(ctx: ToolContext, plan_id: str, results: list[dict], preview
             diff += f"\n+++ b/{lf['file']}  (new file, {lf['lines']} lines, {lf['source']})"
     return Evidence(run_id=ctx.run_id, kind="patch_diff", source_tool="patching",
                     facts={"plan_id": plan_id, "preview": preview,
-                           "files": sorted({r["file"] for r in results}), "ops": [r["op"] for r in results],
+                           "files": sorted({f for r in results for f in r.get("files", [r["file"]])}), "ops": [r["op"] for r in results],
                            "lockfiles_added": [lf["file"] for r in results for lf in r.get("lockfiles", [])]},
                     excerpt=diff[:20000])
 
@@ -310,3 +440,97 @@ def resolve_action_sha(ctx: ToolContext, args: ActionRefArgs) -> ToolOutput:
                   facts={"action": args.action, "ref": args.ref, "sha": sha, "ref_type": kind, "source": source})
     return ToolOutput(evidence=[ev], artifacts={"action_sha": sha},
                       summary=f"{key} -> {sha[:12]} ({kind}, {source})")
+
+
+# ---------------------------------------------------------------- image digests (D2-07b)
+
+InspectRunner = Callable[[list[str], int], "subprocess.CompletedProcess"]
+_inspect_runner: InspectRunner | None = None  # tests inject a fake: no Docker, no network
+
+
+def set_inspect_runner(fn: InspectRunner | None) -> None:
+    global _inspect_runner
+    _inspect_runner = fn
+
+
+def _digest_cache_path() -> Path:
+    base = os.environ.get("GUARDIAN_INTEL_CACHE")
+    return (Path(base) if base else REPO_ROOT / "data" / "cache" / "intel") / "image_digests.json"
+
+
+def registry_host(image: str) -> str:
+    """The registry host an image reference points at (`node` -> Docker Hub's registry-1.docker.io)."""
+    first = image.split("/", 1)[0]
+    if "/" in image and ("." in first or ":" in first or first == "localhost"):
+        return first.split(":", 1)[0].lower()
+    return "registry-1.docker.io"
+
+
+def _run_inspect(argv: list[str], timeout: int) -> subprocess.CompletedProcess:
+    if _inspect_runner is not None:
+        return _inspect_runner(argv, timeout)
+    from guardian.tools import binaries
+
+    argv = [binaries.find("docker"), *argv[1:]] if argv and argv[0] == "docker" else argv
+    return binaries.run(argv, timeout=timeout, ok_codes=tuple(range(256)))
+
+
+def _digest_from_manifest(text: str) -> str | None:
+    """`.Manifest` of buildx (`{"digest": ...}`) or `docker manifest inspect --verbose` (`Descriptor.digest`)."""
+    try:
+        data = json.loads(text)
+    except ValueError:
+        return None
+    for node in (data if isinstance(data, list) else [data]):
+        if not isinstance(node, dict):
+            continue
+        for cand in (node.get("digest"), (node.get("Descriptor") or {}).get("digest")):
+            if isinstance(cand, str) and _DIGEST.fullmatch(cand):
+                return cand
+    return None
+
+
+def inspect_digest(ref: str) -> tuple[str, str]:
+    """(digest, source command) for `image:tag`. argv only, never a shell."""
+    attempts = [
+        (["docker", "buildx", "imagetools", "inspect", "--format", "{{json .Manifest}}", ref],
+         "docker buildx imagetools inspect"),
+        (["docker", "manifest", "inspect", "--verbose", ref], "docker manifest inspect"),
+    ]
+    last = ""
+    for argv, label in attempts:
+        try:
+            p = _run_inspect(argv, 90)
+        except (subprocess.TimeoutExpired, OSError, RuntimeError) as exc:
+            last = f"{label}: {type(exc).__name__}"
+            continue
+        digest = _digest_from_manifest(p.stdout or "") if p.returncode == 0 else None
+        if digest:
+            return digest, label
+        last = f"{label}: exit {p.returncode} {(p.stderr or '').strip()[-160:]}"
+    raise PatchError(f"could not resolve a digest for {ref} ({last})")
+
+
+def resolve_image_digest(ctx: ToolContext, args: ImageArgs) -> ToolOutput:
+    """image:tag -> manifest digest, as Evidence (G4.5: a plan may only pin a digest that this tool returned)."""
+    host = registry_host(args.image)
+    ref = f"{args.image}:{args.tag}"
+    path = _digest_cache_path()
+    try:
+        cache = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cache = {}
+    entry = cache.get(ref)
+    if entry and _DIGEST.fullmatch(entry.get("digest", "")):
+        digest, source = entry["digest"], "cache"
+    elif ctx.settings.offline or os.environ.get("GUARDIAN_OFFLINE") == "1":
+        raise PatchError(f"{ref} not in the digest cache and GUARDIAN_OFFLINE=1")
+    else:
+        check_url(f"https://{host}/v2/", ctx=ctx, extra_hosts=IMAGE_REGISTRY_HOSTS, agent="remediation")  # G3.5
+        digest, source = inspect_digest(ref)
+        cache[ref] = {"digest": digest, "host": host}
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(cache, indent=1, sort_keys=True), encoding="utf-8")
+    ev = Evidence(run_id=ctx.run_id, kind="registry_metadata", source_tool="docker buildx imagetools",
+                  facts={"image": args.image, "tag": args.tag, "digest": digest, "registry": host, "source": source})
+    return ToolOutput(evidence=[ev], artifacts={"image_digest": digest}, summary=f"{ref} -> {digest[:19]} ({source})")

@@ -146,7 +146,7 @@ def test_invalid_package_name_is_rejected(tmp_path):
 def test_unimplemented_op_raises(tmp_path):
     (tmp_path / "package.json").write_text(PACKAGE_JSON)
     with pytest.raises(PatchError, match="not implemented"):
-        apply_ops(tmp_path, [op("block_package", name="x")], None, write=True)
+        apply_ops(tmp_path, [op("frobnicate_package", name="x")], None, write=True)
 
 
 def test_ops_on_same_file_compose_and_manifest_still_parses(tmp_path):

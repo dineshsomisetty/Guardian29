@@ -12,7 +12,13 @@ retry); a transitive one is fixed by upgrading its direct parent. `target_versio
 safe_version_lookup evidence the plan cites (G4.5, enforced in `build_plan`). When no untried candidate is left
 the finding is escalated. `expected_risk_reduction` comes from `scoring.simulate_after`, never from an LLM.
 
-Heuristic findings (typosquat) only get replace / remove / escalate (G5.3).
+Heuristic findings (typosquat, malicious indicator) only get replace / remove / block / escalate (G5.3).
+Base images tagged without a digest (UNTRUSTED_IMAGE, D2-07b) get `pin` (digest from `resolve_image_digest`
+evidence) and, only when the finding's evidence lists a newer tag (`newer_tags`), `update_base_image`; the digest,
+the new tag and a blocked package name are checked against evidence in `build_plan` (G4.5).
+A CVE with no upgrade candidate whose package is never imported (risk factor R = not_imported) gets a no-op
+`mitigate` plan: it changes nothing, does not claim a fix, and once approved the finding is recorded as ACCEPTED
+(validator verdict "mitigated"); the report lists it as remaining, accepted risk.
 The plan, its dry-run diff and its hash are fixed *before* the human gate (C6), so the approval binds to the
 exact change that will be applied.
 """
@@ -58,6 +64,7 @@ class Candidate:
     detector: str
     evidence_ids: list[str] = field(default_factory=list)
     sha_lookup: tuple[str, str] | None = None  # (action, ref) resolved just before the plan is fixed
+    image: dict | None = None  # {file, image, tag, new_tag?}: digest resolved just before the plan is fixed
     compat: CompatHint | None = None
 
 
@@ -208,15 +215,64 @@ def pip_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     return out
 
 
+def _pname(f: Finding) -> str | None:
+    try:
+        return parse_purl(f.component_purl)[0] if f.component_purl else None
+    except ValueError:  # e.g. an image reference, not a purl
+        return None
+
+
+def mitigation_candidate(rc: RunContext, f: Finding) -> Candidate | None:
+    """No upgrade exists and the package is never imported in production paths: a no-op, explicitly-not-a-fix
+    plan a human can accept. Needs the reachability evidence the risk analyst cited for factor R."""
+    risk = load_risks(rc.tool_ctx.run_dir).get(f.finding_id)
+    if risk is None or risk.factors.R.tier != "not_imported" or not risk.factors.R.evidence_ids:
+        return None
+    name = parse_purl(f.component_purl)[0] if f.component_purl else "the package"
+    return Candidate("mitigate", [], None,
+                     [(f"{name} is not imported in production paths (reachability tier not_imported)", "tier",
+                       "not_imported"),
+                      ("no fixed version could be taken from safe_version_lookup evidence, so nothing is upgraded",
+                       None, None),
+                      ("the vulnerable package stays installed: this accepts the risk, it does not fix it", None,
+                       None)],
+                     "scanner re-scan", evidence_ids=list(risk.factors.R.evidence_ids))
+
+
+def _image_candidates(f: Finding, facts: dict) -> list[Candidate]:
+    image, raw_tag = facts.get("image"), str(facts.get("tag") or "latest")
+    if not image or not f.file_path:
+        return []
+    tag = "latest" if raw_tag.startswith("latest") else raw_tag
+    why = [(f"{image}:{tag} is referenced by tag only in {f.file_path}", "tag", raw_tag),
+           ("a tag can be re-pointed by whoever controls the registry repository, a digest cannot", None, None)]
+    out = [Candidate("pin", [], None, why, "detector:image_pin",
+                     image={"file": f.file_path, "image": image, "tag": tag})]
+    newer = facts.get("newer_tags") or ([facts["newer_tag"]] if facts.get("newer_tag") else [])
+    for nt in [str(t) for t in newer][:2]:  # only tags a tool put into the evidence (G4.5)
+        out.append(Candidate("update_base_image", [], nt,
+                             [*why, (f"{image}:{nt} is a newer tag listed in the finding's evidence", "newer_tags", nt)],
+                             "detector:image_pin", image={"file": f.file_path, "image": image, "tag": tag,
+                                                          "new_tag": nt}))
+    return out
+
+
 def candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     facts, _ = _facts(rc, f)
     out: list[Candidate] = []
     if f.category is FindingCategory.CVE:
-        return cve_candidates(rc, f)
-    if f.category is FindingCategory.TYPOSQUAT and facts.get("name") and f.file_path:
-        name, popular = facts["name"], facts.get("similar_to")
+        out = cve_candidates(rc, f)
+        if not out and (m := mitigation_candidate(rc, f)):
+            out.append(m)
+        return out
+    if f.category is FindingCategory.UNTRUSTED_IMAGE:
+        return _image_candidates(f, facts)
+    pname = facts.get("name") or (_pname(f))
+    if f.category in (FindingCategory.TYPOSQUAT, FindingCategory.MALICIOUS_INDICATOR) and pname and f.file_path:
+        name, popular = pname, facts.get("similar_to")
         why = (f"'{name}' differs from the popular package '{popular}' by {facts.get('distance')} edit(s)",
-               "similar_to", popular)
+               "similar_to", popular) if f.category is FindingCategory.TYPOSQUAT else (
+            f"'{name}' was flagged by {f.detector}: {f.title[:100]}", None, None)
         if popular and not facts.get("legacy_manifest"):
             out.append(Candidate("replace", [PatchOp(op="replace_dependency", file_path=f.file_path,
                                                      args={"name": name, "new_name": popular})],
@@ -229,6 +285,10 @@ def candidates(rc: RunContext, f: Finding) -> list[Candidate]:
         out.append(Candidate("remove", [PatchOp(op="remove_dependency", file_path=f.file_path, args={"name": name})],
                              None, [why, ("removing it drops the suspicious package from the manifest; code that "
                                           "imports it would break", None, None)], "detector:typosquat"))
+        out.append(Candidate("block", [PatchOp(op="block_package", file_path=f.file_path, args={"name": name})],
+                             None, [why, ("the name is removed from the manifest and added to "
+                                          ".guardian/denylist.txt so it is not reinstalled", None, None)],
+                             "detector:typosquat"))
     elif f.category is FindingCategory.LOCKFILE:
         projects = sorted({"root", *facts.get("projects_without_lockfile", [])} if facts.get("projects_without_lockfile")
                           else {"root"})
@@ -257,6 +317,29 @@ def _claims(rc: RunContext, f: Finding, cand: Candidate, extra: list[str]) -> li
     return out
 
 
+def ungrounded_target(rc: RunContext, f: Finding, ops: list[PatchOp], evidence_ids: list[str]) -> str | None:
+    """G4.5 for image and block ops: why a digest, tag or package name is not backed by tool evidence, else None."""
+    cited = [e for e in (rc.store.get_evidence(i) for i in dict.fromkeys([*f.evidence_ids, *evidence_ids])) if e]
+    own = [e for e in (rc.store.get_evidence(i) for i in f.evidence_ids) if e]
+    for o in ops:
+        a = o.args
+        if o.op in ("pin_image_digest", "update_base_image"):
+            want_tag = a.get("new_tag") or a.get("tag")
+            if not any(e.kind == "registry_metadata" and e.source_tool != "git ls-remote"
+                       and e.facts.get("digest") == a.get("digest") and e.facts.get("image") == a.get("image")
+                       and e.facts.get("tag") == want_tag for e in cited):
+                return f"digest {a.get('digest')} for {a.get('image')}:{want_tag} is not in resolve_image_digest evidence"
+            if o.op == "update_base_image":
+                newer = {str(t) for e in own for t in [*(e.facts.get("newer_tags") or []), e.facts.get("newer_tag")] if t}
+                if a.get("new_tag") not in newer:
+                    return f"new tag {a.get('new_tag')} is not listed in the finding's evidence"
+        elif o.op == "block_package":
+            names = {e.facts.get("name") for e in own} | {_pname(f)}
+            if a.get("name") not in names:
+                return f"package {a.get('name')} to block is not the one in the finding's evidence"
+    return None
+
+
 def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> RemediationPlan | None:
     ctx, store, audit = rc.tool_ctx, rc.store, rc.audit
     extra: list[str] = list(cand.evidence_ids)
@@ -279,12 +362,35 @@ def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> Rem
         extra.append(out.evidence[0].evidence_id)
         ops = [PatchOp(op="pin_action_sha", file_path=f.file_path, args={"action": action, "ref": ref, "sha": sha})]
         cand.claims.append((f"{action}@{ref} currently resolves to commit {sha}", "sha", sha))
-    plan_id = new_id("pl")
-    preview = call_tool(AGENT, "plan_preview", None, ctx, store, audit,
-                        args={"plan_id": plan_id, "ops": [o.model_dump(mode="json") for o in ops]})
-    if preview is None:
+    if cand.image:
+        img = cand.image
+        new_tag = img.get("new_tag")
+        out = call_tool(AGENT, "resolve_image_digest", None, ctx, store, audit,
+                        args={"image": img["image"], "tag": new_tag or img["tag"]})
+        if out is None:
+            return None
+        digest = out.artifacts["image_digest"]
+        extra.append(out.evidence[0].evidence_id)
+        a = {"image": img["image"], "tag": img["tag"], "digest": digest}
+        if new_tag:
+            ops = [PatchOp(op="update_base_image", file_path=img["file"], args={**a, "new_tag": new_tag})]
+            target = f"{new_tag}@{digest}"
+        else:
+            ops = [PatchOp(op="pin_image_digest", file_path=img["file"], args=a)]
+            target = digest
+        cand.claims.append((f"{img['image']}:{new_tag or img['tag']} currently resolves to {digest}", "digest", digest))
+    why = ungrounded_target(rc, f, ops, extra)
+    if why:
+        audit.emit("guardrail", "guardrail", f"G4.5 blocked {cand.action}: {why}",
+                   finding_id=f.finding_id, data={"rule": "G4.5"})
         return None
-    extra.append(preview.evidence[0].evidence_id)
+    plan_id = new_id("pl")
+    if ops:
+        preview = call_tool(AGENT, "plan_preview", None, ctx, store, audit,
+                            args={"plan_id": plan_id, "ops": [o.model_dump(mode="json") for o in ops]})
+        if preview is None:
+            return None
+        extra.append(preview.evidence[0].evidence_id)
     files = sorted({o.file_path for o in ops})
     before = load_risks(rc.tool_ctx.run_dir).get(f.finding_id)
     after_score, after_band = simulate_after(before, cand.action)
@@ -297,7 +403,8 @@ def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> Rem
         target_version=target, rationale=_claims(rc, f, cand, extra),
         expected_risk_reduction=reduction, compatibility_impact=cand.compat,
         rollback=(f"Nothing is applied to the target: the patch lands in a fresh copy under runs/<run>/attempts/. "
-                  f"Discard that folder to roll back; after adoption, revert the diff of {', '.join(files)}."),
+                  f"Discard that folder to roll back; after adoption, revert the diff of {', '.join(files)}."
+                  if files else "Nothing is changed by this plan. Re-open the finding to withdraw the acceptance."),
         evidence_ids=[*f.evidence_ids, *extra],
     )
     plan.plan_hash = plan_hash(plan)
@@ -319,11 +426,15 @@ def remediation_node(state: GraphState) -> dict:
                evidence_ids=f.evidence_ids,
                data={"last_validation": state.get("last_validation")} if state.get("last_validation") else {})
 
-    tried = {ops_key(p.ops) for p in list_plans(rc.tool_ctx.run_dir) if p.finding_id == f.finding_id}
+    mine = [p for p in list_plans(rc.tool_ctx.run_dir) if p.finding_id == f.finding_id]
+    tried = {ops_key(p.ops) for p in mine}
+    tried_noop = {p.action for p in mine if not p.ops}  # a rejected mitigation is not offered again
     plan = None
     if attempt <= MAX_ATTEMPTS:
         for cand in candidates(rc, f):
             if cand.ops and ops_key(cand.ops) in tried:
+                continue
+            if not cand.ops and cand.action in tried_noop:
                 continue
             plan = build_plan(rc, f, cand, attempt)
             if plan is not None and ops_key(plan.ops) in tried:  # resolved to an op we already tried

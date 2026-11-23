@@ -217,7 +217,7 @@ def test_heuristic_findings_only_get_replace_remove_block_escalate(tmp_path, set
     actions = {c.action for c in candidates(rc, f)}
     assert actions <= HEURISTIC_ACTIONS
     if category is FindingCategory.TYPOSQUAT:
-        assert actions == {"replace", "remove"}
+        assert actions == {"replace", "remove", "block"}
 
 
 def test_filter_is_what_restricts_heuristics(tmp_path, settings):

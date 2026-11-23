@@ -59,11 +59,21 @@ def build_report(run_dir: Path, summary: dict | None = None, inventory: dict | N
         entries.append({"finding": f, "risk": risks.get(f.finding_id), "evidence": evs, "paths": f.dependency_paths})
     ranking = [fid for fid, _ in sorted(((r.finding_id, r.score) for r in risks.values()), key=lambda x: (-x[1], x[0]))]
 
-    actions = [{"plan": p, "approval": approvals.get(p.plan_id),
-                "validations": [v for v in validations if v.plan_id == p.plan_id]} for p in plans]
+    def pr_path(vs: list) -> str | None:
+        for v in vs:
+            if v.verdict == "verified" and (run_dir / "attempts" / v.attempt_id / "PR.md").is_file():
+                return f"attempts/{v.attempt_id}/PR.md"
+        return None
 
+    actions = [{"plan": p, "approval": approvals.get(p.plan_id),
+                "validations": (vs := [v for v in validations if v.plan_id == p.plan_id]),
+                "pr_markdown": pr_path(vs)} for p in plans]
+
+    mitigated = {v.finding_id: p for p in plans for v in validations if v.plan_id == p.plan_id and v.verdict == "mitigated"}
     remaining = [{"finding_id": f.finding_id, "status": f.status.value,
-                  "score": risks[f.finding_id].score if f.finding_id in risks else 0}
+                  "score": risks[f.finding_id].score if f.finding_id in risks else 0,
+                  "note": (f"accepted mitigation, NOT fixed: {mitigated[f.finding_id].expected_risk_reduction}"
+                           if f.finding_id in mitigated and f.status is FindingStatus.ACCEPTED else None)}
                  for f in findings if f.status is not FindingStatus.VERIFIED]
 
     last: dict[str, Confidence] = {}

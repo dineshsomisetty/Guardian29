@@ -7,8 +7,12 @@ Verdict (D2-08 adds the Docker sandbox: build, tests, SBOM rescan + diff; see to
   failed_build  the patch could not be applied, or the sandbox install/build failed
   failed_tests  the sandbox test run failed
   timeout       a sandbox phase exceeded GUARDIAN_SANDBOX_TIMEOUT
+  mitigated     a `mitigate` plan (no ops): NOTHING was applied or tested and the vulnerability is NOT fixed; the
+                finding becomes ACCEPTED with the approval and the report lists it as accepted risk
 Without Docker (or GUARDIAN_SANDBOX=off) build/tests are recorded as not run (`build_ok: null`,
 `checks_skipped`) and a `verified` carries MEDIUM confidence; HIGH needs build+tests passed and a clean rescan.
+After a `verified` attempt the patched files are committed on a local branch in the attempt copy and PR.md is
+written (D2-10, tools/local_pr.py; nothing is pushed or merged, G5.5).
 A failed attempt goes back to remediation for a *different* plan; after 3 attempts the finding is escalated.
 """
 
@@ -43,7 +47,8 @@ def _skipped(sb, rescanned: str | None) -> list[str]:
     out = [] if sb.ran and sb.build_ok is not None else ["build"]
     if not sb.tests_ran:
         out.append("unit_tests")
-    out.append("integration_tests")
+    if not sb.integration_tests:
+        out.append("integration_tests")
     if rescanned is None:
         out += ["image_rescan", "sbom_diff"]
     return out
@@ -67,6 +72,30 @@ def _unexpected_added(plan, added: list[str]) -> list[str]:
         return []
     wanted = {str(v) for o in plan.ops for v in o.args.values() if isinstance(v, str)}
     return [a for a in added if _purl_name(a) not in wanted]
+
+
+def _mitigated(rc, plan, approval: Approval, f: Finding, attempt_id: str) -> dict:
+    """A mitigate plan has no ops: record the accepted mitigation, never claim a fix."""
+    ctx, store, audit = rc.tool_ctx, rc.store, rc.audit
+    before, after = _risk_scores(ctx.run_dir, f, plan, True)
+    ev = Evidence(run_id=ctx.run_id, kind="test_result", source_tool="validator",
+                  facts={"attempt_id": attempt_id, "plan_id": plan.plan_id, "verdict": "mitigated",
+                         "target_finding_resolved": False, "new_findings": [],
+                         "checks_skipped": ["build", "unit_tests", "integration_tests", "image_rescan", "sbom_diff"],
+                         "known_limitations": ["no-op plan: nothing was applied, built or tested; the vulnerable "
+                                               "package is still installed. This is an accepted risk, not a fix"],
+                         "approved_by": approval.decided_by})
+    store.add_evidence(ev)
+    save_validation(ctx.run_dir, ValidationResult(
+        attempt_id=attempt_id, plan_id=plan.plan_id, finding_id=f.finding_id, build_ok=None,
+        target_finding_resolved=False, risk_before=before, risk_after=after, verdict="mitigated",
+        final_confidence=Confidence.LOW, log_evidence_ids=[ev.evidence_id]))
+    f.status = FindingStatus.ACCEPTED
+    store.update_finding(f)
+    audit.emit(AGENT, "agent_end", f"MITIGATED (accepted risk, NOT fixed): {f.title[:70]} -> {f.status.value}",
+               finding_id=f.finding_id, evidence_ids=[ev.evidence_id], data={"attempt_id": attempt_id,
+                                                                            "verdict": "mitigated"})
+    return {"route": "next", "current": None, "attempt": 0, "plan_id": None, "last_validation": None}
 
 
 def _risk_scores(run_dir, f: Finding, plan, resolved: bool) -> tuple[float, float]:
@@ -100,6 +129,8 @@ def validator_node(state: GraphState) -> dict:
     attempt_id = new_id("at")
     audit.emit(AGENT, "agent_start", f"Validating plan {plan.plan_id} (attempt {plan.attempt}) for: {f.title[:80]}",
                finding_id=f.finding_id, evidence_ids=plan.evidence_ids)
+    if plan.action == "mitigate":
+        return _mitigated(rc, plan, approval, f, attempt_id)
 
     applied = call_tool(AGENT, "apply_plan", None, ctx, store, audit,
                         args={"plan_id": plan.plan_id, "attempt_id": attempt_id,
@@ -117,7 +148,7 @@ def validator_node(state: GraphState) -> dict:
         attempt_dir = applied.artifacts["attempt_dir"]
         actx = ToolContext(run_id=ctx.run_id, run_dir=ctx.run_dir, repo=attempt_dir, settings=ctx.settings,
                            work_dir=attempt_dir, budget=ctx.budget,
-                           artifacts={"attempt_id": attempt_id, "target_name": ctx.repo.name})
+                           artifacts={"attempt_id": attempt_id, "target_name": ctx.repo.name, "target_repo": ctx.repo})
         for d in detectors:
             out = call_tool(AGENT, d, None, actx, store, audit)
             if out is not None:
@@ -152,10 +183,18 @@ def validator_node(state: GraphState) -> dict:
         if not sb.ran:
             audit.emit(AGENT, "decision", f"Sandbox build/tests not run: {sb.reason}",
                        finding_id=f.finding_id, data={"sandbox_mode": sandbox.mode(), "reason": sb.reason})
+        if sb.artifact_image:  # G6.7: the built image is the artifact that was rescanned
+            rescanned = f"image:{sb.artifact_image}"
+            still = f.vuln_id and any(v in (f.vuln_id, *f.aliases) and n == _purl_name(f.component_purl or "")
+                                      for v, n in sb.image_vulns)
+        else:
+            still = False
         if sb.verdict in ("failed_build", "failed_tests", "timeout"):
             verdict = sb.verdict
         elif new:
             verdict = "regressed"
+        elif still:
+            verdict, resolved = "not_resolved", False
         else:
             verdict = "verified" if resolved else "not_resolved"
     else:
@@ -169,6 +208,8 @@ def validator_node(state: GraphState) -> dict:
                           facts={"attempt_id": attempt_id, "plan_id": plan.plan_id, "verdict": verdict,
                                  "target_finding_resolved": resolved, "new_findings": new,
                                  "detectors_rerun": detectors, "checks_skipped": _skipped(sb, rescanned),
+                                 "known_limitations": sandbox.known_limitations(sb, applied.artifacts["attempt_dir"])
+                                 if applied is not None else [],
                                  "sandbox": sb.reason or ("ran" if sb.ran else "skipped"),
                                  "risk_scale": "risk.json score + simulate_after when available, else band midpoint"})
     store.add_evidence(summary_ev)
@@ -192,9 +233,16 @@ def validator_node(state: GraphState) -> dict:
         f.status = FindingStatus.PLANNED
         out = {"route": "replan", "last_validation": {"verdict": verdict, "attempt_id": attempt_id, "new": new}}
     store.update_finding(f)
+    pr_rel = None
+    if verdict == "verified" and applied is not None:  # D2-10: local branch + PR.md, never pushed (G5.5)
+        pr = call_tool(AGENT, "local_fix_branch", None, actx, store, audit,
+                       args={"plan_id": plan.plan_id, "attempt_id": attempt_id, "finding_id": f.finding_id},
+                       plan=plan, approval=approval)
+        if pr is not None:
+            pr_rel = f"attempts/{attempt_id}/PR.md"
     audit.emit(AGENT, "agent_end",
                f"{verdict.upper()}: {f.title[:70]} (target resolved={resolved}, new findings={len(new)}; "
                f"build={sb.build_ok}, tests_ran={sb.tests_ran}) -> {f.status.value}",
                finding_id=f.finding_id, evidence_ids=[summary_ev.evidence_id, *det_ev][:50],
-               data={"attempt_id": attempt_id, "verdict": verdict})
+               data={"attempt_id": attempt_id, "verdict": verdict, **({"pr_markdown": pr_rel} if pr_rel else {})})
     return out

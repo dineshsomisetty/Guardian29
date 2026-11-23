@@ -25,7 +25,7 @@ from typing import Annotated, Any, Literal
 from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from guardian.api.auth import Principal, TokenStore, check_bind, principal_for
@@ -36,11 +36,13 @@ RUN_RE = r"^(latest|run_[A-Za-z0-9_]+)$"
 FID_RE = r"^fd_[0-9A-Z]{26}$"
 EID_RE = r"^ev_[0-9A-Z]{26}$"
 PID_RE = r"^pl_[0-9A-Z]{26}$"
+AID_RE = r"^at_[0-9A-Z]{26}$"
 
 RunId = Annotated[str, PathParam(pattern=RUN_RE)]
 Fid = Annotated[str, PathParam(pattern=FID_RE)]
 Eid = Annotated[str, PathParam(pattern=EID_RE)]
 Pid = Annotated[str, PathParam(pattern=PID_RE)]
+Aid = Annotated[str, PathParam(pattern=AID_RE)]
 
 SSE_POLL_S = 0.25
 SSE_KEEPALIVE_S = 15.0
@@ -235,6 +237,13 @@ def create_app(runs_dir: Path | None = None, *, tokens: TokenStore | None = None
     @app.get("/runs/{run_id}/plans/{plan_id}")
     def get_plan(run_id: RunId, plan_id: Pid) -> Any:
         return _read_json(run_dir(run_id) / "plans" / f"{plan_id}.json")
+
+    @app.get("/runs/{run_id}/attempts/{attempt_id}/pr.md")
+    def get_pr_markdown(run_id: RunId, attempt_id: Aid) -> Response:
+        f = run_dir(run_id) / "attempts" / attempt_id / "PR.md"  # fixed file name, id validated by regex
+        if not f.is_file():
+            raise HTTPException(404, "PR.md not found")
+        return Response(f.read_text(encoding="utf-8"), media_type="text/markdown")
 
     @app.get("/runs/{run_id}/validation")
     def list_validation(run_id: RunId) -> list:

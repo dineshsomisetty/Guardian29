@@ -41,7 +41,8 @@ def is_offline() -> bool:
 
 class IntelClient:
     def __init__(self, cache_dir: Path | str | None = None, transport: httpx.BaseTransport | None = None,
-                 offline: bool | None = None, min_interval: float = MIN_INTERVAL_S, ctx=None, agent: str = "guardrail"):
+                 offline: bool | None = None, min_interval: float = MIN_INTERVAL_S, ctx=None, agent: str = "guardrail",
+                 max_age: float | None = None):
         self.cache_dir = Path(cache_dir or os.environ.get("GUARDIAN_INTEL_CACHE") or DEFAULT_CACHE)
         self._ctx = ctx  # ToolContext: G3.5 guardrail events go to this run's trace
         self._agent = agent
@@ -51,6 +52,9 @@ class IntelClient:
         self._http = httpx.Client(transport=transport, timeout=20.0,
                                   headers={"User-Agent": "guardian-hackathon/0.1 (read-only)"})
         self._offline = offline
+        # watch mode: cap every cache max-age (seconds) so advisories are refreshed; env GUARDIAN_INTEL_MAX_AGE
+        env_age = os.environ.get("GUARDIAN_INTEL_MAX_AGE")
+        self.max_age = max_age if max_age is not None else (float(env_age) if env_age else None)
         self.min_interval = min_interval
 
     @property
@@ -70,6 +74,8 @@ class IntelClient:
             data = json.loads(p.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return None
+        if self.max_age is not None and max_age is not None:
+            max_age = min(max_age, self.max_age)
         if max_age is not None and not self.offline and time.time() - data["_ts"] > max_age:
             return None
         return data
