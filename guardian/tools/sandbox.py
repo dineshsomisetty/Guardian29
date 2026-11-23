@@ -38,7 +38,7 @@ from guardian.tools.registry import ToolContext, ToolOutput
 LOG_LINES = 200
 NODE_IMAGE = "node:22-slim"  # default when package.json has no engines.node
 PY_IMAGE = "python:3.11-slim"  # default when the target's Dockerfile names no python base
-DEPS_RECIPE = "r2"  # bump when the deps-image recipe changes, so a stale cached image is not reused
+DEPS_RECIPE = "r4"  # bump when the deps-image recipe changes, so a stale cached image is not reused
 # native addons only: top-level packages (incl. scoped) that ship a binding.gyp; failures are printed, not hidden
 NATIVE_REBUILD = (
     "native=$(find node_modules -mindepth 2 -maxdepth 3 -name binding.gyp -not -path '*/node_modules/*/node_modules/*' "
@@ -145,13 +145,55 @@ def _scripts(work: Path) -> dict:
         return {}
 
 
+def npm_projects(work: Path) -> list[str]:
+    """Relative dirs of the npm projects to install ("" = root first), e.g. Juice Shop: ["", "frontend"]. Only
+    projects with a lockfile (resolved by discovery or the validator) count, so the install is reproducible."""
+    from guardian.adapters.npm import find_projects
+
+    rels = [""] if (work / "package.json").is_file() else []  # the root always, even with no dependencies
+    for proj in find_projects(work):
+        if proj.lockfile.exists() or proj.name == "root":
+            rel = proj.dir.relative_to(work).as_posix()
+            rels.append("" if rel == "." else rel)
+    return sorted(set(rels), key=lambda r: (r != "", r))
+
+
+PREBUILD_SKIP = {"node_modules", "dist", ".angular", ".git", "coverage", ".cache"}
+
+
+def prebuilt_subprojects(work: Path) -> list[str]:
+    """npm subprojects the root `build` script builds (`cd frontend && ...`) and that have their own `build`
+    script. They are built while the deps image is made (install step: registry network on, inside the
+    container), because a production web build may fetch resources (Juice Shop's Angular build inlines web
+    fonts); validation builds then stay --network none and copy the prebuilt dist/ in."""
+    sc = _scripts(work)
+    # the root build plus the scripts it calls with `npm run <name>` (one level, as Juice Shop's build does)
+    chain = sc.get("build") or ""
+    chain += " " + " ".join(sc.get(n, "") for n in re.findall(r"npm run ([\w:.-]+)", chain))
+    return [rel for rel in npm_projects(work)
+            if rel and "build" in _scripts(work / rel)
+            and (f"cd {rel} " in chain + " " or f"cd {rel}&" in chain or f"--prefix {rel}" in chain)]
+
+
+def _source_files(d: Path):
+    for f in sorted(d.rglob("*")):
+        if f.is_file() and not any(part in PREBUILD_SKIP for part in f.relative_to(d).parts):
+            yield f
+
+
 def lock_hash(work: Path, kind: str) -> str:
-    names = ["package.json", "package-lock.json"] if kind == "npm" else ["requirements.txt"]
     h = hashlib.sha256(kind.encode())
-    for n in names:
-        p = work / n
-        if p.exists():
-            h.update(n.encode() + p.read_bytes())
+    if kind == "npm":
+        files = [f"{d}/{n}".lstrip("/") for d in npm_projects(work) for n in ("package.json", "package-lock.json")]
+    else:
+        files = ["requirements.txt"]
+    for n in files:
+        f = work / n
+        h.update(n.encode() + b"\0" + (f.read_bytes() if f.is_file() else b"") + b"\0")
+    if kind == "npm":  # a prebuilt subproject's sources are part of the deps image
+        for rel in prebuilt_subprojects(work):
+            for f in _source_files(work / rel):
+                h.update(f.relative_to(work).as_posix().encode() + b"\0" + f.read_bytes() + b"\0")
     return h.hexdigest()[:16]
 
 
@@ -211,19 +253,30 @@ def _build_deps_image(runner: Runner, work: Path, kind: str, tag: str, timeout: 
     ctx = Path(tempfile.mkdtemp(prefix="guardian-deps-"))
     try:
         if kind == "npm":
-            lock = work / "package-lock.json"
-            shutil.copy2(work / "package.json", ctx / "package.json")
-            if lock.exists():
-                shutil.copy2(lock, ctx / "package-lock.json")
-            cmd = "npm ci --ignore-scripts" if lock.exists() else "npm install --ignore-scripts"
+            runs = []
+            for rel in npm_projects(work):
+                src, dst = work / rel, ctx / rel
+                dst.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src / "package.json", dst / "package.json")
+                lock = src / "package-lock.json"
+                if lock.exists():
+                    shutil.copy2(lock, dst / "package-lock.json")
+                cmd = "npm ci --ignore-scripts" if lock.exists() else "npm install --ignore-scripts"
+                peer = " --legacy-peer-deps" if rel else ""  # as discovery resolved subprojects (D2-02)
+                runs.append(f"RUN cd /deps/{rel} && {cmd}{peer} --no-audit --no-fund && {NATIVE_REBUILD}\n")
+            for rel in prebuilt_subprojects(work):
+                for f in _source_files(work / rel):
+                    dst = ctx / f.relative_to(work)
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(f, dst)
+                runs.append(f"RUN cd /deps/{rel} && NG_CLI_ANALYTICS=false npm run build\n")
             # Install with scripts off, then rebuild only native addons (packages that ship a binding.gyp,
             # e.g. sqlite3), inside this container: the app cannot start without them, and this is where
             # untrusted install code is allowed to run (never on the host). Telemetry postinstalls are off.
             (ctx / "Dockerfile").write_text(
                 f"FROM {base_image(work, kind)}\nWORKDIR /deps\nCOPY . /deps/\n"
                 "ENV SCARF_ANALYTICS=false DO_NOT_TRACK=1 npm_config_update_notifier=false\n"
-                f"RUN {cmd} --no-audit --no-fund\n"
-                f"RUN {NATIVE_REBUILD}\n", encoding="utf-8")
+                + "".join(runs), encoding="utf-8")
         else:
             shutil.copy2(work / "requirements.txt", ctx / "requirements.txt")
             (ctx / "Dockerfile").write_text(
@@ -313,7 +366,7 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
     tag = f"guardian-deps:{kind}-{lock_hash(work, kind)}-{re.sub(r'[^a-z0-9.]+', '-', base)}-{DEPS_RECIPE}"
     res.image = tag
     containers: list[str] = []
-    link = work / "node_modules"
+    links = [work / r / "node_modules" for r in (npm_projects(work) if kind == "npm" else [])]
     try:
         if not _build_deps_image(runner, work, kind, tag, timeout, res):
             res.verdict = "timeout" if res.phases[-1].timed_out else "failed_build"
@@ -322,8 +375,18 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
         steps: list[tuple[str, str]] = []  # (phase name, shell script)
         if kind == "npm":
             sc = _scripts(work)
-            pre = "trap 'rm -f /work/node_modules' EXIT; ln -s /deps/node_modules /work/node_modules && "
-            build = "build:server" if "build:server" in sc else ("build" if "build" in sc else None)
+            projs = npm_projects(work)
+            links = [f"/work/{r}/node_modules".replace("//", "/") for r in projs]
+            pre = (f"trap 'rm -f {' '.join(links)}' EXIT; "
+                   + " && ".join(f"ln -s /deps/{r}/node_modules {ln}".replace("//", "/") for r, ln in zip(projs, links, strict=True))
+                   + " && export NG_CLI_ANALYTICS=false && ")
+            # subprojects the root build builds (e.g. Juice Shop's Angular frontend) were built in the deps image:
+            # copy their dist/ in (the app's integration tests need it), then build the server part offline
+            pre_built = prebuilt_subprojects(work)
+            for rel in pre_built:
+                pre += f"rm -rf /work/{rel}/dist && cp -r /deps/{rel}/dist /work/{rel}/dist && "
+            full = len(projs) > 1 and "build" in sc and not pre_built
+            build = "build" if full else ("build:server" if "build:server" in sc else ("build" if "build" in sc else None))
             if build:
                 steps.append(("build", pre + f"npm run {build}"))
             test = "test:server" if "test:server" in sc else (
@@ -375,11 +438,12 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
     finally:
         for c in containers:
             _cleanup(runner, c)  # G6.5 even after --rm
-        try:
-            if os.path.lexists(link):
-                link.unlink()
-        except OSError:
-            pass  # a Linux symlink created through the bind mount may be unreadable on Windows hosts
+        for link in links:
+            try:
+                if os.path.lexists(link):
+                    link.unlink()
+            except OSError:
+                pass  # a Linux symlink created through the bind mount may be unreadable on Windows hosts
 
 
 # ---------------------------------------------------------------- tool: sandbox_validate

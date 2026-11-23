@@ -270,3 +270,68 @@ def test_a_suite_that_never_passes_unpatched_is_disclosed_as_not_runnable(tmp_pa
     assert res.notes and "not runnable in the sandbox" in res.notes[0]
     facts = next(e for e in out.evidence if e.kind == "test_result").facts
     assert facts["notes"] == res.notes
+
+
+def test_multi_project_npm_installs_every_project_and_runs_the_full_build(tmp_path, monkeypatch):
+    """Juice Shop layout: root server + frontend/ app. Both get their dependencies; the full `build` runs
+    (the API tests need the built frontend); both node_modules are linked into the read-only test container."""
+    w = tmp_path / "run" / "attempts" / ("at_" + "F" * 26) / "work"
+    (w / "frontend").mkdir(parents=True)
+    scripts = {"build": "npm run build:frontend && npm run build:server", "build:server": "tsc",
+               "test:server": "node --test", "test:api": "node --test api"}
+    (w / "package.json").write_text(json.dumps({"dependencies": {"express": "4"}, "scripts": scripts}))
+    (w / "package-lock.json").write_text("{}")
+    (w / "frontend" / "package.json").write_text(json.dumps({"dependencies": {"@angular/core": "20"}}))
+    (w / "frontend" / "package-lock.json").write_text("{}")
+    seen = {}
+
+    class Capture(FakeDocker):
+        def __call__(self, argv, timeout):
+            if argv[1] == "build":
+                seen["dockerfile"] = (Path(argv[-1]) / "Dockerfile").read_text(encoding="utf-8")
+            return super().__call__(argv, timeout)
+
+    fake = use(monkeypatch, Capture())
+    sandbox.sandbox_validate(ctx_for(w, tmp_path))
+    df = seen["dockerfile"]
+    assert "RUN cd /deps/ && npm ci --ignore-scripts --no-audit" in df
+    assert "RUN cd /deps/frontend && npm ci --ignore-scripts --legacy-peer-deps" in df
+    runs = [a[-1] for a in fake.calls if a[1] == "run"]
+    build = next(r for r in runs if "npm run build" in r)
+    assert "npm run build\n" in build + "\n" and "npm run build:server" not in build
+    assert "ln -s /deps/frontend/node_modules /work/frontend/node_modules" in build
+    assert all("--network" in a and "none" in a for a in fake.calls if a[1] == "run")
+
+
+def test_subproject_built_by_the_root_build_is_prebuilt_in_the_deps_image(tmp_path, monkeypatch):
+    """Juice Shop: build = build:frontend (cd frontend && npm run build) + build:server. The frontend build may
+    fetch web fonts, so it runs while the deps image is made; validation copies its dist/ and builds the server
+    part with --network none."""
+    w = tmp_path / "run" / "attempts" / ("at_" + "G" * 26) / "work"
+    (w / "frontend" / "src").mkdir(parents=True)
+    scripts = {"build": "npm run build:frontend && npm run build:server", "build:frontend": "cd frontend && npm run build",
+               "build:server": "tsc", "test:server": "node --test"}
+    (w / "package.json").write_text(json.dumps({"dependencies": {"express": "4"}, "scripts": scripts}))
+    (w / "package-lock.json").write_text("{}")
+    (w / "frontend" / "package.json").write_text(json.dumps({"dependencies": {"a": "1"}, "scripts": {"build": "ng build"}}))
+    (w / "frontend" / "package-lock.json").write_text("{}")
+    (w / "frontend" / "src" / "main.ts").write_text("console.log(1)")
+    assert sandbox.prebuilt_subprojects(w) == ["frontend"]
+    h1 = sandbox.lock_hash(w, "npm")
+    (w / "frontend" / "src" / "main.ts").write_text("console.log(2)")
+    assert sandbox.lock_hash(w, "npm") != h1  # frontend sources are part of the deps image
+    seen = {}
+
+    class Capture(FakeDocker):
+        def __call__(self, argv, timeout):
+            if argv[1] == "build":
+                ctx = Path(argv[-1])
+                seen["dockerfile"] = (ctx / "Dockerfile").read_text(encoding="utf-8")
+                seen["src_copied"] = (ctx / "frontend" / "src" / "main.ts").is_file()
+            return super().__call__(argv, timeout)
+
+    fake = use(monkeypatch, Capture())
+    sandbox.sandbox_validate(ctx_for(w, tmp_path))
+    assert "RUN cd /deps/frontend && NG_CLI_ANALYTICS=false npm run build" in seen["dockerfile"] and seen["src_copied"]
+    build = next(a[-1] for a in fake.calls if a[1] == "run" and "npm run build" in a[-1])
+    assert "cp -r /deps/frontend/dist /work/frontend/dist" in build and build.endswith("npm run build:server")
