@@ -135,3 +135,28 @@ def test_old_bursts_and_partial_maintainer_rotation_are_not_findings():
     takeover = {"latest_maintainers": [{"name": "mallory"}], "previous_maintainers": [{"name": "alice"}],
                 "latest": "2.0.0"}
     assert pr.maintainer_facts(takeover)["latest_version"] == "2.0.0"
+
+
+
+def test_burst_ignores_prereleases_and_packages_that_release_weekly():
+    from datetime import UTC, datetime, timedelta
+
+    from guardian.tools import package_risk as pr
+
+    now = datetime.now(UTC)
+    pre = {"time": {f"20.0.0-next.{i}": (now - timedelta(days=6 - i)).isoformat() for i in range(6)}}
+    assert not [a for a in pr.release_activity(pre, now=now) if a["rule"] == "release_burst"]
+    busy = {f"19.{i}.0": (now - timedelta(days=100 + 6 * i)).isoformat() for i in range(60)}  # >1/week last year
+    busy |= {f"20.0.{i}": (now - timedelta(days=6 - i)).isoformat() for i in range(6)}
+    assert not [a for a in pr.release_activity({"time": busy}, now=now) if a["rule"] == "release_burst"]
+
+
+
+def test_a_fresh_release_alone_is_not_unusual():
+    from datetime import UTC, datetime, timedelta
+
+    from guardian.tools import package_risk as pr
+
+    now = datetime.now(UTC)
+    meta = {"time": {"created": "2015-01-01T00:00:00Z", "5.0.0": (now - timedelta(days=1)).isoformat()}}
+    assert pr.release_activity(meta, now=now) == []

@@ -30,10 +30,17 @@ def release_activity(meta: dict, thresholds: dict | None = None, now: datetime |
     now = now or datetime.now(UTC)
     t = meta.get("time") or {}
     times = sorted(dt for k, v in t.items() if k not in ("created", "modified", "unpublished") and (dt := _ts(v)))
+    # stable releases only: big projects publish -next/-rc builds daily, which is their normal cadence
+    stable = sorted(dt for k, v in t.items()
+                    if k not in ("created", "modified", "unpublished") and "-" not in k and (dt := _ts(v)))
     out = []
     n, d = int(c["release_burst_versions"]), timedelta(days=c["release_burst_days"])
-    # only a *recent* burst is a signal: almost every mature package had a busy week at some point
-    recent = [x for x in times if now - x <= timedelta(days=c["release_burst_recent_days"])]
+    window = timedelta(days=c["release_burst_recent_days"])
+    # only a *recent* burst, and only for a package that normally releases less than weekly, is a signal
+    recent = [x for x in stable if now - x <= window]
+    year_before = [x for x in stable if window < now - x <= window + timedelta(days=365)]
+    if len(year_before) >= 52:
+        recent = []  # a package that already releases weekly or faster: a busy week is normal for it
     for i in range(len(recent) - n + 1):
         if recent[i + n - 1] - recent[i] <= d:
             out.append({"rule": "release_burst", "versions": n, "window_days": c["release_burst_days"],
@@ -46,6 +53,9 @@ def release_activity(meta: dict, thresholds: dict | None = None, now: datetime |
     if created and now - created < timedelta(days=c["min_package_age_days"]):
         out.append({"rule": "very_young_package", "created": created.date().isoformat(),
                     "age_days": (now - created).days})
+    # a fresh release alone is routine for active projects: keep it only as context for a real signal
+    if [a["rule"] for a in out] == ["very_recent_release"]:
+        return []
     return out
 
 
