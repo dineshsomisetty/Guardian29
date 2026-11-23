@@ -37,3 +37,11 @@ def safe_path(work: Path, rel: str | Path) -> Path:
     if p != work and work not in p.parents:
         raise PermissionError(f"path escapes work copy: {rel}")
     return p
+
+
+def prepare_workspace(ctx):
+    """Tool entry point (registry binding `workspace`): copy the target into the run's work dir."""
+    from guardian.tools.registry import ToolOutput
+
+    work = create_workspace(ctx.repo, ctx.run_dir)
+    return ToolOutput(artifacts={"work_dir": work}, summary=f"work copy at {work.name}/ (remotes stripped)")

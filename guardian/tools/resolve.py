@@ -37,6 +37,19 @@ def resolve_npm_project(project_dir: Path, legacy_peer_deps: bool = False, timeo
     return {"lockfile": str(lock), "seconds": round(time.time() - t0, 1), "flags": args}
 
 
+def _fixture_lock(fixtures: Path | None, name: str, rel: str) -> Path | None:
+    """Committed fallback lockfile. Accepts `<fx>/<rel>/package-lock.json` or Dev5's `<fx>/<name>.package-lock.json`
+    (root project: `<fx>/package-lock.json`)."""
+    if not fixtures:
+        return None
+    fixtures = Path(fixtures)
+    for cand in (fixtures / ("" if rel in (".", "") else rel) / "package-lock.json",
+                 fixtures / f"{name}.package-lock.json"):
+        if cand.is_file():
+            return cand
+    return None
+
+
 def resolve_all(work: Path, projects: dict[str, str] | None = None, fixtures: Path | None = None) -> dict:
     """Resolve each npm project (default: root + frontend). Falls back to committed fixture lockfiles."""
     work = Path(work)
@@ -52,10 +65,22 @@ def resolve_all(work: Path, projects: dict[str, str] | None = None, fixtures: Pa
             try:  # frontend often needs this
                 out[name] = resolve_npm_project(d, legacy_peer_deps=True)
             except Exception as e:
-                fx = Path(fixtures) / rel / "package-lock.json" if fixtures else None
-                if fx and fx.is_file():
+                fx = _fixture_lock(fixtures, name, rel)
+                if fx:
                     shutil.copy(fx, d / "package-lock.json")
                     out[name] = {"lockfile": str(d / "package-lock.json"), "seconds": 0, "flags": ["fixture-fallback"]}
                 else:
                     raise e
     return out
+
+
+def resolve_lockfiles(ctx):
+    """Tool entry point (registry binding `resolve_lockfiles`). Never executes install scripts (C2, rule 6)."""
+    from guardian.tools.registry import ToolOutput
+
+    root = Path(__file__).resolve().parents[2]
+    work = Path(ctx.work_dir or ctx.repo)
+    res = resolve_all(work, fixtures=root / "tests" / "fixtures" / Path(ctx.repo).name)
+    detail = ", ".join(f"{k}: {v['seconds']}s{' (fixture)' if 'fixture-fallback' in v['flags'] else ''}"
+                       for k, v in res.items())
+    return ToolOutput(artifacts={"lockfiles": res}, summary=f"lockfiles resolved ({detail}); --ignore-scripts")

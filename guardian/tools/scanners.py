@@ -9,9 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import secrets
 import subprocess
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,17 +17,8 @@ from typing import Any
 import networkx as nx
 
 from guardian.core.graph_build import paths_to
+from guardian.core.models import new_id
 from guardian.tools.sbom import find_tool
-
-_CROCKFORD = "0123456789abcdefghjkmnpqrstvwxyz"
-
-
-def new_id(prefix: str) -> str:
-    """`ev_<ulid-like>` / `fd_<ulid-like>`: 48-bit ms timestamp + 80 random bits, base32, sortable."""
-    n = (int(time.time() * 1000) << 80) | secrets.randbits(80)
-    s = "".join(_CROCKFORD[(n >> (5 * i)) & 31] for i in range(25, -1, -1))
-    return f"{prefix}_{s}"
-
 
 def _purl(p: str) -> str:
     return p.split("?", 1)[0]
@@ -65,6 +54,7 @@ def _cvss(vuln: dict, related: list[dict]) -> float | None:
 
 def parse_grype(doc: dict, G: nx.DiGraph | None, run_id: str, raw_file: Path | None = None) -> tuple[list[dict], list[dict]]:
     """Grype document -> (findings, evidence). One finding per (purl, vuln_id); duplicates are merged."""
+    G = getattr(G, "G", G)  # accept DependencyGraph or a raw networkx graph
     version = (doc.get("descriptor") or {}).get("version", "unknown")
     sha = hashlib.sha256(Path(raw_file).read_bytes()).hexdigest() if raw_file and Path(raw_file).is_file() else None
     now = datetime.now(timezone.utc).isoformat()
@@ -114,6 +104,17 @@ def scan_sbom(sbom_file: Path, run_path: Path, G: nx.DiGraph, run_id: str) -> tu
 
 
 def to_models(findings: list[dict], evidence: list[dict]):
-    """Convert to Pydantic objects once guardian.core.models exists (Dev1, D1-01)."""
-    from guardian.core.models import Evidence, Finding  # type: ignore
+    from guardian.core.models import Evidence, Finding
+
     return [Finding(**f) for f in findings], [Evidence(**e) for e in evidence]
+
+
+def grype_scan(ctx):
+    """Tool entry point (registry binding `grype`)."""
+    from guardian.tools.registry import ToolOutput
+
+    if ctx.sbom_path is None:
+        raise RuntimeError("no SBOM available: discovery must run first")
+    findings, evidence = scan_sbom(Path(ctx.sbom_path), Path(ctx.run_dir), ctx.graph, ctx.run_id)
+    fds, evs = to_models(findings, evidence)
+    return ToolOutput(findings=fds, evidence=evs, summary=f"{len(fds)} vulnerabilities (grype, offline DB)")

@@ -90,7 +90,7 @@ def _lock_edges(lock: dict) -> list[tuple[str, str, str, str]]:
     return edges
 
 
-def build_graph(work: Path, sbom_path: Path, projects: dict[str, str] | None = None) -> nx.DiGraph:
+def build_dependency_graph(work: Path, sbom_path: Path, projects: dict[str, str] | None = None) -> nx.DiGraph:
     projects = projects or DEFAULT_PROJECTS
     work = Path(work)
     sbom = _load_json(sbom_path)
@@ -220,16 +220,15 @@ def add_findings(G: nx.DiGraph, findings: Iterable[Any]) -> None:
             if nid in G:
                 _attach(G, nid, fid, risk)
             continue
-        fp = _g(f, "file_path")
-        if cat == "unpinned_ci" and fp:
-            nid, kind, label = f"ci:{fp}", "ci", Path(fp).name
-        elif cat == "untrusted_image":
-            ref = (purl or _g(f, "title", "image")).removeprefix("image:")
-            nid, kind, label = f"image:{ref}", "image", ref
-        elif fp:
-            nid, kind, label = f"config:{fp}", "config", Path(fp).name
+        if cat == "cve":
+            continue  # CVE on a component that is not in the graph: nothing to attach to
+        fp, title = _g(f, "file_path"), _g(f, "title", "")
+        kind = {"unpinned_ci": "ci", "untrusted_image": "image"}.get(cat, "config")
+        if kind == "image" and purl:
+            nid = f"image:{purl}"  # same id scheme as guardian.graph.workflow.pseudo_node_id
         else:
-            continue
+            nid = f"{kind}:{fp or title}"
+        label = nid.split(":", 1)[1].split("/")[-1]
         if nid not in G:
             G.add_node(nid, id=nid, kind=kind, label=label, risk=None, finding_ids=[])
             for root in G.graph.get("roots", [])[:1]:
@@ -268,3 +267,52 @@ def export_graph(G: nx.DiGraph, out_file: Path) -> dict:
     return {"nodes": len(data["nodes"]), "edges": len(data["edges"]), "packages": len(pk),
             "direct": sum(1 for n in pk if n["direct"]), "transitive": sum(1 for n in pk if not n["direct"]),
             "roots": data["roots"], "edge_source": dict(G.graph["edge_source"])}
+
+
+class DependencyGraph:
+    """Object handed to the pipeline as `ctx.graph` (contract: to_json, paths_to, stats, add_pseudo_nodes, nodes)."""
+
+    def __init__(self, G: nx.DiGraph, sbom_components: int | None = None):
+        self.G = G
+        self.sbom_components = sbom_components
+
+    @property
+    def nodes(self):
+        return self.G.nodes
+
+    def paths_to(self, purl: str, max_paths: int = 5) -> list[list[str]]:
+        return paths_to(self.G, _purl(purl), max_paths)
+
+    def node_for_name(self, name: str) -> dict | None:
+        """First package node with this npm name (used by detectors that start from a manifest entry)."""
+        for _, d in self.G.nodes(data=True):
+            if d.get("kind") == "package" and d.get("label") == name:
+                return d
+        return None
+
+    def add_pseudo_nodes(self, findings: Iterable[Any]) -> None:
+        add_findings(self.G, findings)
+
+    def to_json(self) -> dict:
+        return to_json(self.G)
+
+    def stats(self) -> dict:
+        pk = [d for _, d in self.G.nodes(data=True) if d.get("kind") == "package"]
+        return {"components": len(pk), "direct": sum(1 for d in pk if d["direct"]),
+                "transitive": sum(1 for d in pk if not d["direct"]), "projects": list(self.G.graph["roots"]),
+                "edge_source": dict(self.G.graph["edge_source"])}
+
+
+def build_graph(ctx):
+    """Tool entry point (registry binding `graph_build`) -> ToolOutput(graph=DependencyGraph, Evidence kind='graph')."""
+    from guardian.core.models import Evidence
+    from guardian.tools.registry import ToolOutput
+
+    G = build_dependency_graph(Path(ctx.work_dir or ctx.repo), Path(ctx.sbom_path))
+    dg = DependencyGraph(G)
+    st = dg.stats()
+    ev = Evidence(run_id=ctx.run_id, kind="graph", source_tool="graph_build", facts=st,
+                  artifact_path=str(Path(ctx.sbom_path)))
+    return ToolOutput(evidence=[ev], artifacts={"graph": dg},
+                      summary=f"{st['components']} packages ({st['direct']} direct, {st['transitive']} transitive); "
+                              f"edges from {st['edge_source']}")

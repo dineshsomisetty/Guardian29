@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from guardian.core.graph_build import add_findings, build_graph, export_graph, paths_to
+from guardian.core.graph_build import add_findings, build_dependency_graph as build_graph, export_graph, paths_to
 
 LOCK = {"packages": {
     "": {"name": "app", "version": "1.0.0", "dependencies": {"express": "^4", "@s/lib": "^1"},

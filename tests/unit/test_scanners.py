@@ -3,7 +3,8 @@ from pathlib import Path
 
 import networkx as nx
 
-from guardian.tools.scanners import new_id, parse_grype
+from guardian.core.models import new_id
+from guardian.tools.scanners import parse_grype, to_models
 
 FX = Path(__file__).resolve().parents[1] / "fixtures" / "juice-shop" / "grype_sample.json"
 
@@ -52,3 +53,10 @@ def test_unfixed_has_no_fixed_versions_and_unknown_graph_ok():
 def test_new_id_format_and_unique():
     a, b = new_id("ev"), new_id("ev")
     assert a.startswith("ev_") and len(a) == 3 + 26 and a != b
+
+
+def test_converts_to_pydantic_models():
+    doc = json.loads(FX.read_text())
+    F, E = parse_grype(doc, graph_for(doc), "run_x")
+    fds, evs = to_models(F, E)
+    assert fds[0].category.value == "cve" and fds[0].evidence_ids == [evs[0].evidence_id]
