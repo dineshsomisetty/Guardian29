@@ -275,6 +275,9 @@ def _finalize(run_id: str, rc: RunContext, settings: Settings, started: datetime
         (run_dir / "changes.json").write_text(json.dumps(ctx.artifacts["changes"], indent=2, default=str),
                                               encoding="utf-8")
     summary = build_summary(run_id, ctx, findings, status, started, settings, rc.llm.model if rc.llm else None)
+    if "run_llm" in ctx.artifacts:
+        # a resumed run makes no LLM calls: keep the provenance of the process that did (mode, model)
+        summary["llm"] = ctx.artifacts["run_llm"]
     summary["remediation"] = remediation_outcomes(run_dir, store)
     pending = get_pending(run_dir)
     summary["pending_plan"] = {"plan_id": pending.plan_id, "plan_hash": pending.plan_hash,
@@ -380,6 +383,8 @@ def resume(run_id: str, approval: Approval, settings: Settings | None = None, ll
                                budget=Budget(max_llm_tokens=settings.max_llm_tokens))
         if values.get("compare_ref"):
             tool_ctx.artifacts["compare_ref"] = values["compare_ref"]
+        if summary.get("llm"):
+            tool_ctx.artifacts["run_llm"] = summary["llm"]
         if (run_dir / "changes.json").exists():
             tool_ctx.artifacts["changes"] = json.loads((run_dir / "changes.json").read_text(encoding="utf-8"))
         _rebuild_graph(tool_ctx)

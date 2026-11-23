@@ -164,3 +164,19 @@ def test_validator_unreachable_without_approval(target, settings):
                                    "ops": [{"op": "remove_dependency", "file_path": "package.json",
                                             "args": {"name": "ngy-cookie"}}]}, plan=plan, approval=None)
     assert out is None and not (ctx.run_dir / "attempts").exists()
+
+
+def test_resume_keeps_the_original_llm_provenance(target, settings, fake_llm_factory):
+    """`decide` runs in a fresh process with its own settings and no LLM; the run summary must still name
+    the mode and model that produced the LLM assessments (principle 3: honest labels)."""
+    from dataclasses import replace
+    s = replace(_settings(settings, plans=1), llm_mode="replay")
+    llm, backend = fake_llm_factory(lambda *a: '{"assessments": []}')
+    run_dir = workflow.run(target, run_id="run_prov", settings=s, llm=llm, echo=False)
+    before = _summary(run_dir)["llm"]
+    assert before == {"mode": "replay", "model": backend.model}
+
+    run_dir = _decide(replace(s, llm_mode="live"), "run_prov", "approve")
+    after = _summary(run_dir)
+    assert after["status"] == "done"
+    assert after["llm"] == before
