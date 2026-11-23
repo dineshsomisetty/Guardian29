@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8Q74C77PEFHEZRJZYB",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-4xc9-xhrj-v574",
+    "aliases": [
+      "CVE-2018-16487"
+    ],
+    "cvss": null,
+    "fixed_versions": [
+      "4.17.11"
+    ],
+    "purl": "pkg:npm/lodash@2.4.2",
+    "name": "lodash",
+    "version": "2.4.2"
+  },
+  "excerpt": "Prototype Pollution in lodash",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

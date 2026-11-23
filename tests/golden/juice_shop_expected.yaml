@@ -1,0 +1,90 @@
+# D5-02 golden file: what a CP1 run on OWASP Juice Shop (commit c9f99228d) MUST contain.
+# Checked by tests/integration/test_golden.py against runs/LATEST (skipped when no run exists).
+#
+# Matchers are stable facts about the target (category, file, line, purl, name), never run-specific ids.
+# Lines are for the pinned commit; if the target commit changes, re-verify them (docs/targets.md).
+# Every entry here is P0 for CP1 (GUARDIAN_PLAN.md §3.2). Do not weaken a check to make it pass:
+# a failing check is a P0 miss to report.
+
+target: juice-shop
+commit_prefix: c9f99228d
+
+summary:
+  status: done
+  components: {min: 1400, max: 2000}     # 1,656 on 2026-11-23 (root + frontend lockfiles, resolved)
+  direct: {min: 100}                     # 154 on 2026-11-23
+  projects: [root, frontend]
+
+graph:
+  roots: [root, frontend]
+  # every package node that lies on a finding's dependency path must carry origin + integrity
+  path_nodes_require: [origin, integrity]
+  # non-package findings must also appear in the graph as pseudo-nodes
+  pseudo_nodes:
+    - config:.npmrc
+    - ci:.github/workflows/ci.yml
+    - image:node:24
+    - image:gcr.io/distroless/nodejs24-debian13
+
+findings:
+  - name: jsonwebtoken CVE traced through express-jwt (vulnerable transitive -> direct parent)
+    category: cve
+    component_purl_prefix: "pkg:npm/jsonwebtoken@"
+    path_contains: "pkg:npm/express-jwt@0.1.3"
+    require: [vuln_id]
+  - name: sanitize-html 1.4.2 CVE
+    category: cve
+    component_purl: "pkg:npm/sanitize-html@1.4.2"
+    require: [vuln_id]
+  - name: express-jwt 0.1.3 CVE (direct)
+    category: cve
+    component_purl: "pkg:npm/express-jwt@0.1.3"
+    require: [vuln_id]
+  - name: typosquat ngy-cookie (Frontend Typosquatting challenge)
+    category: typosquat
+    file_path: frontend/package.json
+    line: 59
+    text_contains: ngy-cookie
+  - name: legacy typosquat epilogue-js (Legacy Typosquatting challenge)
+    category: typosquat
+    file_path: ftp/package.json.bak
+    text_contains: epilogue-js
+  - name: lockfile disabled (.npmrc package-lock=false)
+    category: lockfile
+    file_path: .npmrc
+    line: 1
+  - name: unpinned CI action coverallsapp/github-action@v2
+    category: unpinned_ci
+    file_path: .github/workflows/ci.yml
+    line: 198
+    text_contains: coverallsapp/github-action@v2
+  - name: tag-only base image node:24
+    category: untrusted_image
+    file_path: Dockerfile
+    line: 1
+    text_contains: "node:24"
+  - name: tag-only base image gcr.io/distroless/nodejs24-debian13
+    category: untrusted_image
+    file_path: Dockerfile
+    line: 22
+    text_contains: gcr.io/distroless/nodejs24-debian13
+
+changes:
+  base: ftp/package.json.bak
+  head: package.json
+  removed_names: [epilogue-js]
+  require_evidence: true
+
+trace:
+  agents: [discovery, detection, evidence_analyst]
+  event_types: [handoff, decision]
+  handoffs_from: [discovery, detection]
+  decision_agent: supervisor
+
+evidence:
+  every_finding_cites_evidence: true
+  evidence_files_exist: true
+
+# Not part of the hard P0 list above; reported as xfail when missing so the gap stays visible.
+advisory:
+  llm_explanations_min: 1      # evidence analyst (LLM) wrote >= 1 explanation with claims

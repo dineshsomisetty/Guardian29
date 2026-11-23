@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8QX5D07SFCTA5KVCQ7",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-8x88-c5mf-7j5w",
+    "aliases": [
+      "CVE-2026-59874"
+    ],
+    "cvss": 8.7,
+    "fixed_versions": [
+      "7.5.18"
+    ],
+    "purl": "pkg:npm/tar@6.2.1",
+    "name": "tar",
+    "version": "6.2.1"
+  },
+  "excerpt": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

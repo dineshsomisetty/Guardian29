@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8QQS07ERN0YTE7AMS5",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-qwph-4952-7xr6",
+    "aliases": [
+      "CVE-2022-23540"
+    ],
+    "cvss": 6.4,
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "purl": "pkg:npm/jsonwebtoken@0.4.0",
+    "name": "jsonwebtoken",
+    "version": "0.4.0"
+  },
+  "excerpt": "jsonwebtoken vulnerable to signature validation bypass due to insecure default algorithm in jwt.verify()",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

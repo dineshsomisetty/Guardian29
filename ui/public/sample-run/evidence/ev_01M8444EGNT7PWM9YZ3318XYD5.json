@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNT7PWM9YZ3318XYD5",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-34x7-hfp2-rc4v",
+    "aliases": [
+      "CVE-2026-24842"
+    ],
+    "severity": "High",
+    "cvss": 8.2,
+    "fixed_versions": [
+      "7.5.7"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<7.5.7",
+    "purl": "pkg:npm/tar@6.2.1",
+    "name": "tar",
+    "version": "6.2.1",
+    "data_source": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v"
+  },
+  "excerpt": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

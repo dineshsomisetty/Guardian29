@@ -1,0 +1,21 @@
+{
+  "evidence_id": "ev_01M8444J8QP7G25QS994Q49PS1",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-5mrr-rgp6-x4gr",
+    "aliases": [],
+    "cvss": null,
+    "fixed_versions": [],
+    "purl": "pkg:npm/marsdb@0.6.11",
+    "name": "marsdb",
+    "version": "0.6.11"
+  },
+  "excerpt": "Command Injection in marsdb",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

@@ -1,0 +1,137 @@
+/* Chain of Custody: forensic intake form. One 1px hairline grid, no shadows, no rounded cards. */
+@import "@fontsource/public-sans/400.css";
+@import "@fontsource/public-sans/600.css";
+@import "@fontsource/public-sans/800.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource/barlow-condensed/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/600.css";
+
+:root {
+  /* ink + ground */
+  --ink: #14233f;          /* custody ink: rail, header band, primary text */
+  --ink-2: #1d3157;        /* rail hover / active row */
+  --ink-line: #2c4069;     /* hairlines on ink */
+  --on-ink: #e6ecf4;       /* text on ink */
+  --on-ink-muted: #9fb1c9; /* secondary text on ink (tinted, not grey) */
+  --ground: #f4f6f8;       /* form ground */
+  --sheet: #ffffff;        /* field sheets */
+  --line: #d3dae3;         /* 1px form hairline */
+  --line-soft: #e6eaef;
+  --text: #14233f;
+  --text-2: #4a5b75;       /* secondary text, 7:1 on white */
+  --text-3: #66768e;       /* tertiary / field numbers, 4.6:1 on white */
+
+  /* state: risk only */
+  --critical: #c8102e;
+  --high: #c76a12;
+  --medium: #8f7614;
+  --low: #5b6b82;
+  --critical-wash: #fbe9ec;
+  --high-wash: #fbf0e4;
+  --medium-wash: #f6f1dc;
+  --low-wash: #eef1f5;
+
+  /* claim labels */
+  --verified: #2e7d5b;
+  --verified-wash: #e6f2ec;
+  --inferred: #4a5b75;
+  --fact: #14233f;
+
+  --font-form: "Public Sans", system-ui, sans-serif;
+  --font-label: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --font-value: "JetBrains Mono", ui-monospace, monospace;
+
+  /* type scale: every font size in the css is rem, so the whole interface steps up with the root size.
+     16px baseline (body 14px, labels 12px, values 12.5px); 18px from 1600px wide (body 15.75px, labels 13.5px,
+     values 14px). Graph node boxes stay in px: dagre lays them out, and the canvas zoom scales them. */
+  --rail-w: 16.5rem;
+  --sheet-w: 28.25rem;
+  --strip-h: 6.5rem;
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html { font-size: 16px; }
+@media (min-width: 1600px) { html { font-size: 18px; } }
+@media (min-width: 2200px) { html { font-size: 20px; } }
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font: 0.875rem/1.45 var(--font-form);
+  color: var(--text);
+  background: var(--ground);
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+::selection { background: #c9d8ee; color: var(--ink); }
+:focus-visible { outline: 2px solid #3a6fd8; outline-offset: 2px; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+h1, h2, h3, p { margin: 0; }
+
+/* scrollbars from the palette */
+* { scrollbar-width: thin; scrollbar-color: #b7c2d0 transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #b7c2d0; border: 3px solid var(--ground); border-radius: 6px; }
+
+/* shared atoms ------------------------------------------------------------ */
+
+/* condensed caps label, the pre-printed part of the form */
+.label {
+  font: 600 0.75rem/1 var(--font-label);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* filled-in value */
+.value { font: 400 0.7812rem/1.45 var(--font-value); color: var(--text); overflow-wrap: anywhere; }
+
+/* numbered field box, e.g. 1a */
+.fieldno {
+  display: inline-grid; place-items: center;
+  min-width: 1.625rem; height: 1.25rem; padding: 0 4px;
+  border: 1px solid var(--line);
+  font: 600 0.7188rem/1 var(--font-value);
+  color: var(--text-3);
+}
+
+/* risk stamp */
+.stamp {
+  display: inline-flex; align-items: center; gap: 6px;
+  height: 1.4rem; padding: 0 0.5rem;
+  border: 1px solid currentColor;
+  font: 700 0.75rem/1 var(--font-label);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  white-space: nowrap;
+}
+.stamp.critical { color: var(--critical); background: var(--critical-wash); }
+.stamp.high { color: var(--high); background: var(--high-wash); }
+.stamp.medium { color: var(--medium); background: var(--medium-wash); }
+.stamp.low { color: var(--low); background: var(--low-wash); }
+.stamp.verified { color: var(--verified); background: var(--verified-wash); }
+.stamp.inferred { color: var(--inferred); background: var(--sheet); border-style: dashed; }
+.stamp.fact { color: var(--fact); background: var(--sheet); }
+.stamp.rule { color: var(--text-2); background: var(--sheet); }
+
+.risk-critical { color: var(--critical); }
+.risk-high { color: var(--high); }
+.risk-medium { color: var(--medium); }
+.risk-low { color: var(--low); }
+
+/* a white field sheet panel with a hairline */
+.sheetpanel { background: var(--sheet); border: 1px solid var(--line); }
+
+/* panel title row inside the work area */
+.panelhead {
+  display: flex; align-items: baseline; gap: 14px;
+  padding: 18px 24px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--sheet);
+}
+.panelhead h2 { font: 800 1.1875rem/1.2 var(--font-form); letter-spacing: -0.01em; }
+.panelhead .meta { color: var(--text-2); font-size: 0.8125rem; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

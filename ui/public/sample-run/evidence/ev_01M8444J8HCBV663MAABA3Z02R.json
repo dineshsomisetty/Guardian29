@@ -1,0 +1,15 @@
+{
+  "evidence_id": "ev_01M8444J8HCBV663MAABA3Z02R",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.537586Z",
+  "facts": {
+    "results": 2
+  },
+  "excerpt": null,
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": "bb3e00f213324b14c33a2221bd127b5b606155dfbc9e765c8f2ffde3ce73c674"
+}

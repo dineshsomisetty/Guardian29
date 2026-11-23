@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8Q8BV1247V36PV704V",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-rjqq-98f6-6j3r",
+    "aliases": [
+      "CVE-2021-26539"
+    ],
+    "cvss": 5.3,
+    "fixed_versions": [
+      "2.3.1"
+    ],
+    "purl": "pkg:npm/sanitize-html@1.4.2",
+    "name": "sanitize-html",
+    "version": "1.4.2"
+  },
+  "excerpt": "Improper Input Validation in sanitize-html",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}
