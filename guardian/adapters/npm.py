@@ -90,3 +90,27 @@ def read_npmrc(project_dir: Path) -> list[tuple[int, str, str, str]]:
         k, v = s.split("=", 1)
         out.append((i, k.strip(), v.strip(), s))
     return out
+
+
+_LOCK_KEY = re.compile(r'^\s*"((?:[^"]*/)?node_modules/[^"]+)"\s*:\s*\{')
+
+
+def lock_entries(lock_path: Path) -> dict[str, dict]:
+    """Lockfile v2/v3 `packages` entries keyed by path, each with `_line` (1-based line of its key) and `_name`."""
+    text = Path(lock_path).read_text(encoding="utf-8")
+    pk = json.loads(text).get("packages", {})
+    lines = {}
+    for i, line in enumerate(text.splitlines(), 1):
+        m = _LOCK_KEY.match(line)
+        if m and m.group(1) not in lines:
+            lines[m.group(1)] = i
+    out = {}
+    for key, ent in pk.items():
+        if not key or "node_modules/" not in key:
+            continue
+        out[key] = {**ent, "_line": lines.get(key), "_name": ent.get("name") or key.rsplit("node_modules/", 1)[1]}
+    return out
+
+
+def npm_purl(name: str, version: str) -> str:
+    return f"pkg:npm/{name.replace('@', '%40', 1) if name.startswith('@') else name}@{version}"
