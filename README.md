@@ -151,6 +151,18 @@ The golden test is skipped when there is no run in `runs/`.
   unmerged `origin/dev04` branch), the investigator agent, EPSS/KEV/reachability, reports, watch mode.
   Day 2: Docker sandbox build/test/rescan, image SBOM, CVE remediation.
 
+## Contributors
+
+Five-person team, one owned area each, equal standing (areas as defined in `GUARDIAN_PLAN.md`):
+
+| Role | Area | Contributor |
+|---|---|---|
+| Dev1 | Agentic AI workflow: agents, orchestration, guardrails, remediation loop | Nibiru7899 |
+| Dev2 | Tools, graph, sandbox | Somisetty Dinesh |
+| Dev3 | UI and API | tarunkumar |
+| Dev4 | Threat intel, scoring, detectors, reports | dheeraj856 |
+| Dev5 | Targets, decisions, docs | Kavya Penikalapati |
+
 ## Credits
 
 Graph rendering: React Flow (xyflow, MIT) and dagre (MIT).
