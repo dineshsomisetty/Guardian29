@@ -11,6 +11,14 @@ export const CATEGORY_LABEL: Record<string, string> = {
   lockfile: "Missing lockfile",
   unexpected_change: "Unexpected change",
   provenance: "Weak provenance",
+  provenance_gap: "Provenance gap",
+  policy_violation: "Policy violation",
+  maintainer_change: "Maintainer or release change",
+  dependency_confusion: "Dependency confusion",
+  malicious_indicator: "Malicious indicator",
+  integrity_change: "Integrity change",
+  major_jump: "Major version jump",
+  outdated: "Outdated package",
 };
 
 export const CATEGORY_SHORT: Record<string, string> = {
@@ -21,6 +29,14 @@ export const CATEGORY_SHORT: Record<string, string> = {
   untrusted_image: "Tag-only image",
   lockfile: "No lockfile",
   unexpected_change: "Unexpected change",
+  provenance_gap: "Provenance gap",
+  policy_violation: "Policy",
+  maintainer_change: "Maintainer change",
+  dependency_confusion: "Dep. confusion",
+  malicious_indicator: "Malicious",
+  integrity_change: "Integrity change",
+  major_jump: "Major jump",
+  outdated: "Outdated",
 };
 
 export const CATEGORY_WHY: Record<string, string> = {
@@ -31,6 +47,14 @@ export const CATEGORY_WHY: Record<string, string> = {
   untrusted_image: "A container base image referenced by a movable tag, so what you build can change silently.",
   lockfile: "Without a lockfile, installs can silently pull different (or tampered) versions.",
   unexpected_change: "A dependency changed in a way that does not match the surrounding history.",
+  provenance_gap: "We cannot confirm where this package came from or who built it, so a tampered release would look the same.",
+  policy_violation: "Breaks one of your own rules in guardian.yaml, such as unpinned actions or a denylisted package.",
+  maintainer_change: "Who publishes this package, or how often it is released, changed recently. Account takeovers often look like this.",
+  dependency_confusion: "A public package uses the name of one of your internal packages, so installs could fetch the attacker's copy.",
+  malicious_indicator: "The package shows signs of deliberately harmful behaviour.",
+  integrity_change: "The same version now has a different checksum, which means its contents changed after release.",
+  major_jump: "A dependency jumped a major version without an explanation, which can break code or hide a takeover.",
+  outdated: "The package is deprecated or far behind its latest release, so fixes no longer reach you.",
 };
 
 const humanize = (s: string) => {

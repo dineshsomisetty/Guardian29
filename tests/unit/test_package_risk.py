@@ -67,7 +67,10 @@ def by_cat(out):
 def test_maintainer_change_burst_confusion_and_provenance_gap(tmp_path, settings):
     seed("swapped", packument("swapped", [("1.0.0", "2020-01-01T00:00:00Z", ["alice"]),
                                           ("1.1.0", "2021-01-01T00:00:00Z", ["mallory"])], repo=None))
-    burst = [(f"2.0.{i}", f"2021-03-0{i + 1}T00:00:00Z", ["bob"]) for i in range(6)]
+    from datetime import UTC, datetime, timedelta
+
+    start = datetime.now(UTC) - timedelta(days=20)  # a burst only counts when it is recent
+    burst = [(f"2.0.{i}", (start + timedelta(days=i)).strftime("%Y-%m-%dT%H:%M:%SZ"), ["bob"]) for i in range(6)]
     seed("bursty", packument("bursty", burst))
     for n in ("signed-a", "signed-b", "signed-c"):
         seed(n, packument(n, [("1.0.0", "2020-01-01T00:00:00Z", ["z"])]))
@@ -112,3 +115,23 @@ def test_findings_are_capped_and_only_direct_prod_deps_are_checked(tmp_path, set
     maint = [f for f in out.findings if f.title.startswith("swap") and "maintainer set" in f.title]
     assert len(maint) == 2
     assert not any("devonly" in f.title for f in out.findings)
+
+
+
+def test_old_bursts_and_partial_maintainer_rotation_are_not_findings():
+    """Noise control: a busy week years ago, or one maintainer added next to the old ones, is normal."""
+    from datetime import UTC, datetime, timedelta
+
+    from guardian.tools import package_risk as pr
+
+    now = datetime.now(UTC)
+    old = {"time": {f"1.0.{i}": f"2019-01-0{i + 1}T00:00:00Z" for i in range(6)}}
+    assert not [a for a in pr.release_activity(old, now=now) if a["rule"] == "release_burst"]
+    recent = {"time": {f"2.0.{i}": (now - timedelta(days=10 - i)).isoformat() for i in range(6)}}
+    assert [a for a in pr.release_activity(recent, now=now) if a["rule"] == "release_burst"]
+    rotation = {"latest_maintainers": [{"name": "alice"}, {"name": "carol"}],
+                "previous_maintainers": [{"name": "alice"}], "latest": "2.0.0"}
+    assert pr.maintainer_facts(rotation) is None
+    takeover = {"latest_maintainers": [{"name": "mallory"}], "previous_maintainers": [{"name": "alice"}],
+                "latest": "2.0.0"}
+    assert pr.maintainer_facts(takeover)["latest_version"] == "2.0.0"

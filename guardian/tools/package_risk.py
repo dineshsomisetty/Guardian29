@@ -12,7 +12,8 @@ from datetime import UTC, datetime, timedelta
 
 from guardian.tools.provenance import maintainer_changed, provenance_for
 
-DEFAULTS = {"release_burst_versions": 5, "release_burst_days": 7, "new_version_days": 3, "min_package_age_days": 7}
+DEFAULTS = {"release_burst_versions": 5, "release_burst_days": 7, "new_version_days": 3, "min_package_age_days": 7,
+            "release_burst_recent_days": 90}
 PEER_MIN = 3  # peers that must have a signal before its absence counts as a gap
 PEER_SHARE = 0.5
 
@@ -31,10 +32,12 @@ def release_activity(meta: dict, thresholds: dict | None = None, now: datetime |
     times = sorted(dt for k, v in t.items() if k not in ("created", "modified", "unpublished") and (dt := _ts(v)))
     out = []
     n, d = int(c["release_burst_versions"]), timedelta(days=c["release_burst_days"])
-    for i in range(len(times) - n + 1):
-        if times[i + n - 1] - times[i] <= d:
+    # only a *recent* burst is a signal: almost every mature package had a busy week at some point
+    recent = [x for x in times if now - x <= timedelta(days=c["release_burst_recent_days"])]
+    for i in range(len(recent) - n + 1):
+        if recent[i + n - 1] - recent[i] <= d:
             out.append({"rule": "release_burst", "versions": n, "window_days": c["release_burst_days"],
-                        "start": times[i].date().isoformat()})
+                        "start": recent[i].date().isoformat()})
             break
     if times and now - times[-1] <= timedelta(days=c["new_version_days"]):
         out.append({"rule": "very_recent_release", "published": times[-1].date().isoformat(),
@@ -46,8 +49,18 @@ def release_activity(meta: dict, thresholds: dict | None = None, now: datetime |
     return out
 
 
+def _maintainer_names(people) -> set[str]:
+    return {(p.get("name") or p.get("email") or "").lower() if isinstance(p, dict) else str(p).lower()
+            for p in people or []} - {""}
+
+
 def maintainer_facts(meta: dict) -> dict | None:
+    """Only a full takeover is a finding: the latest release's maintainers share nobody with the previous
+    release's. Ordinary rotation (someone added or removed) is normal and would only add noise."""
     if not maintainer_changed(meta):
+        return None
+    cur, prev = _maintainer_names(meta.get("latest_maintainers")), _maintainer_names(meta.get("previous_maintainers"))
+    if not cur or not prev or cur & prev:
         return None
     return {"previous": meta.get("previous_maintainers"), "latest": meta.get("latest_maintainers"),
             "latest_version": meta.get("latest")}
