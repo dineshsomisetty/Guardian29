@@ -237,3 +237,27 @@ def test_failing_tests_parses_tap_leaves_django_and_pytest():
         "test_login (app.tests.LoginTest)", "test_x (a.B)"}
     assert sandbox.failing_tests("FAILED tests/test_a.py::test_b - assert 1\n") == {"tests/test_a.py::test_b"}
     assert sandbox.parse_counts("# tests 443\n# pass 439\n# fail 2\n") == {"passed": 439, "failed": 2, "total": 441}
+
+
+def test_deps_image_recipe_uses_target_node_and_rebuilds_only_native_addons(tmp_path, monkeypatch):
+    """Juice Shop's API tests need sqlite3's native binding: install with scripts off, then rebuild only packages
+    shipping a binding.gyp, inside the container, on the node version the project declares."""
+    w = tmp_path / "run" / "attempts" / ("at_" + "E" * 26) / "work"
+    w.mkdir(parents=True)
+    (w / "package.json").write_text(json.dumps({"engines": {"node": "20 - 24"}, "scripts": {"build:server": "tsc"}}))
+    (w / "package-lock.json").write_text("{}")
+    seen = {}
+
+    class Capture(FakeDocker):
+        def __call__(self, argv, timeout):
+            if argv[1] == "build":
+                seen["dockerfile"] = (Path(argv[-1]) / "Dockerfile").read_text(encoding="utf-8")
+                seen["tag"] = argv[argv.index("-t") + 1]
+            return super().__call__(argv, timeout)
+
+    use(monkeypatch, Capture())
+    sandbox.sandbox_validate(ctx_for(w, tmp_path))
+    df = seen["dockerfile"]
+    assert df.startswith("FROM node:20-slim") and "npm ci --ignore-scripts" in df
+    assert "binding.gyp" in df and "npm rebuild $native" in df and "SCARF_ANALYTICS=false" in df
+    assert seen["tag"].endswith(f"-{sandbox.DEPS_RECIPE}")

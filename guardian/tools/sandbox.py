@@ -38,6 +38,14 @@ from guardian.tools.registry import ToolContext, ToolOutput
 LOG_LINES = 200
 NODE_IMAGE = "node:22-slim"  # default when package.json has no engines.node
 PY_IMAGE = "python:3.11-slim"  # default when the target's Dockerfile names no python base
+DEPS_RECIPE = "r2"  # bump when the deps-image recipe changes, so a stale cached image is not reused
+# native addons only: top-level packages (incl. scoped) that ship a binding.gyp; failures are printed, not hidden
+NATIVE_REBUILD = (
+    "native=$(find node_modules -mindepth 2 -maxdepth 3 -name binding.gyp -not -path '*/node_modules/*/node_modules/*' "
+    "| sed -e 's#^node_modules/##' -e 's#/binding.gyp$##' | sort -u | tr '\\n' ' '); "
+    "echo \"native addons: ${native:-none}\"; "
+    "if [ -n \"$native\" ]; then npm rebuild $native --no-audit --no-fund || echo 'native rebuild failed'; fi"
+)
 LIMITS = ["--cpus", "2", "--memory", "4g", "--pids-limit", "512"]
 HARDEN = ["--user", "1000:1000", "--security-opt", "no-new-privileges", "--cap-drop", "ALL"]
 
@@ -208,12 +216,18 @@ def _build_deps_image(runner: Runner, work: Path, kind: str, tag: str, timeout: 
             if lock.exists():
                 shutil.copy2(lock, ctx / "package-lock.json")
             cmd = "npm ci --ignore-scripts" if lock.exists() else "npm install --ignore-scripts"
+            # Install with scripts off, then rebuild only native addons (packages that ship a binding.gyp,
+            # e.g. sqlite3), inside this container: the app cannot start without them, and this is where
+            # untrusted install code is allowed to run (never on the host). Telemetry postinstalls are off.
             (ctx / "Dockerfile").write_text(
-                f"FROM {NODE_IMAGE}\nWORKDIR /deps\nCOPY . /deps/\nRUN {cmd} --no-audit --no-fund\n", encoding="utf-8")
+                f"FROM {base_image(work, kind)}\nWORKDIR /deps\nCOPY . /deps/\n"
+                "ENV SCARF_ANALYTICS=false DO_NOT_TRACK=1 npm_config_update_notifier=false\n"
+                f"RUN {cmd} --no-audit --no-fund\n"
+                f"RUN {NATIVE_REBUILD}\n", encoding="utf-8")
         else:
             shutil.copy2(work / "requirements.txt", ctx / "requirements.txt")
             (ctx / "Dockerfile").write_text(
-                f"FROM {PY_IMAGE}\nRUN python -m venv /venv\nCOPY requirements.txt /tmp/\n"
+                f"FROM {base_image(work, kind)}\nRUN python -m venv /venv\nCOPY requirements.txt /tmp/\n"
                 "RUN /venv/bin/pip install --no-cache-dir -r /tmp/requirements.txt\n", encoding="utf-8")
         (ctx / ".dockerignore").write_text(".env\n*.pem\n*.key\n.npmrc\n.git\n", encoding="utf-8")
         inspect = runner([_docker(), "image", "inspect", tag], 30)
@@ -296,7 +310,7 @@ def run_sandbox(work: Path, attempt_id: str, runner: Runner, timeout: int) -> Sa
         return res
     res.kind, res.ran = kind, True
     base = base_image(work, kind)
-    tag = f"guardian-deps:{kind}-{lock_hash(work, kind)}-{re.sub(r'[^a-z0-9.]+', '-', base)}"
+    tag = f"guardian-deps:{kind}-{lock_hash(work, kind)}-{re.sub(r'[^a-z0-9.]+', '-', base)}-{DEPS_RECIPE}"
     res.image = tag
     containers: list[str] = []
     link = work / "node_modules"
