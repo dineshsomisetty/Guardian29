@@ -49,11 +49,14 @@
 .rail-label { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
 .rail-badge { font-size: var(--fs-xs); color: var(--text-2); background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; padding: 0 7px; line-height: 18px; }
 .rail-item.gate .rail-badge { color: var(--high-text); border-color: rgba(245, 158, 11, 0.4); }
-.rail-key { opacity: 0; transition: opacity var(--t) var(--ease); }
+.rail-item { position: relative; }
+/* the shortcut hint floats over the item's right edge on hover/focus, so it never takes width from the label */
+.rail-key { position: absolute; right: var(--s2); opacity: 0; background: var(--raised); transition: opacity var(--t) var(--ease); }
 .rail-item:hover .rail-key, .rail-item:focus-visible .rail-key { opacity: 1; }
 .rail-c .rail-label, .rail-c .rail-badge, .rail-c .rail-key { display: none; }
 .rail-c .rail-item { padding: 0; justify-content: center; }
-.rail .tip-wrap { display: flex; width: 100%; }
+.rail .tip-wrap { display: flex; width: 100%; min-width: 0; }
+.rail .tip-wrap > .rail-item, .rail li { min-width: 0; } /* let labels ellipsize instead of pushing badges out */
 
 /* ---- main */
 .main { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--canvas); }
@@ -221,7 +224,7 @@
 .keys dt { white-space: nowrap; } .keys dd { margin: 0; color: var(--text-2); }
 
 @media (max-width: 1360px) {
-  :root { --rail-w: 176px; }
+  :root { --rail-w: 196px; }
   .pn { padding: 0 4px; gap: 4px; font-size: var(--fs-xs); }
   .pe { flex-basis: 6px; }
   .pipe { padding-left: var(--s3); padding-right: var(--s3); }
@@ -229,5 +232,5 @@
   .rail-badge { padding: 0 6px; flex: none; }
   .top { gap: var(--s2); padding: 0 var(--s3); }
   .brand { width: calc(var(--rail-w) - var(--s3) - var(--s2)); }
-  .switcher select { max-width: 220px; }
+  .switcher select { max-width: 220px; text-overflow: ellipsis; }
 }

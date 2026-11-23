@@ -13,6 +13,14 @@ const STATUS: Record<string, { text: string; cls: string }> = {
   running: { text: "Running", cls: "info" },
 };
 
+/** run_20261124_001424 -> "24 Nov 00:14"; a named run (run_juice_shop_demo) keeps its name. */
+function runLabel(id: string): string {
+  const m = /^run_(\d{4})(\d{2})(\d{2})_(\d{2})(\d{2})/.exec(id);
+  if (!m) return id.replace(/^run_/, "").replace(/_/g, " ");
+  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][Number(m[2]) - 1];
+  return `${Number(m[3])} ${month} ${m[4]}:${m[5]}`;
+}
+
 export default function Header() {
   const { data, runs, switchRun, kind, status, events, live, drawerOpen, setDrawerOpen, setDrawerAgent, setHelpOpen, me, signOut } = useStore();
   const s = data.summary;
@@ -33,7 +41,7 @@ export default function Header() {
           <select value={data.runId} onChange={(e) => switchRun(e.target.value)} disabled={kind === "sample" || list.length < 2}>
             {list.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.target} · {r.id.replace(/^run_/, "")}
+                {r.target} · {runLabel(r.id)}
               </option>
             ))}
           </select>
