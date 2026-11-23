@@ -17,7 +17,7 @@ from typing import Annotated, Any, Literal
 from fastapi import FastAPI, HTTPException, Request
 from fastapi import Path as PathParam
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from guardian.core.config import load_settings
@@ -157,13 +157,26 @@ def create_app(runs_dir: Path | None = None) -> FastAPI:
         def handler(run_id: RunId) -> Any:
             return _read_json(run_dir(run_id) / file)
 
-        handler.__name__ = f"get_{name}"
+        handler.__name__ = f"get_{name.replace('.', '_')}"
         app.get(f"/runs/{{run_id}}/{name}")(handler)
 
     fixed("summary", "run_summary.json")
     fixed("graph", "graph.json")
     fixed("changes", "changes.json")
     fixed("findings", "findings.json")
+    fixed("report.json", "report.json")
+
+    @app.get("/runs/{run_id}/risk")
+    def get_risk(run_id: RunId) -> Any:
+        f = run_dir(run_id) / "risk.json"
+        return _read_json(f) if f.is_file() else []
+
+    @app.get("/runs/{run_id}/report.html", response_class=HTMLResponse)
+    def get_report_html(run_id: RunId) -> HTMLResponse:
+        f = run_dir(run_id) / "report.html"
+        if not f.is_file():
+            raise HTTPException(404, "report.html not found")
+        return HTMLResponse(f.read_text(encoding="utf-8"))
 
     @app.get("/runs/{run_id}/findings/{fid}")
     def get_finding(run_id: RunId, fid: Fid) -> Any:

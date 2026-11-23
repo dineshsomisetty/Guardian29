@@ -6,6 +6,12 @@ typosquat, the workflow line for an action, the resolved lockfile for a missing 
 CVE upgrade path are D1-07 (Day 2). A retry never repeats an earlier plan for the same finding: after a reject
 or a failed validation the next candidate is used, and when none is left the finding is escalated (G5.4).
 
+CVE findings get upgrade candidates (D1-07): `safe_version_lookup` (OSV + scanner fixed versions + registry latest)
+and `compat_hint` evidence. A direct dependency is moved to a fixed version (lowest first, then later ones on
+retry); a transitive one is fixed by upgrading its direct parent. `target_version` must appear in the
+safe_version_lookup evidence the plan cites (G4.5, enforced in `build_plan`). When no untried candidate is left
+the finding is escalated. `expected_risk_reduction` comes from `scoring.simulate_after`, never from an LLM.
+
 Heuristic findings (typosquat) only get replace / remove / escalate (G5.3).
 The plan, its dry-run diff and its hash are fixed *before* the human gate (C6), so the approval binds to the
 exact change that will be applied.
@@ -14,11 +20,13 @@ exact change that will be applied.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 
 from guardian.core.models import (
     Claim,
     ClaimLabel,
+    CompatHint,
     Evidence,
     Finding,
     FindingCategory,
@@ -27,11 +35,13 @@ from guardian.core.models import (
     RemediationPlan,
     new_id,
 )
-from guardian.core.plans import list_plans, save_plan, set_pending
+from guardian.core.plans import list_plans, load_risks, save_plan, set_pending
+from guardian.core.scoring import simulate_after
 from guardian.graph.state import GraphState, RunContext, get_ctx
 from guardian.guardrails.approval import plan_hash
 from guardian.guardrails.grounding import value_matches
 from guardian.tools.registry import call_tool
+from guardian.tools.threat_intel import parse_purl
 
 AGENT = "remediation"
 MAX_ATTEMPTS = 3  # G5.4
@@ -48,6 +58,7 @@ class Candidate:
     detector: str
     evidence_ids: list[str] = field(default_factory=list)
     sha_lookup: tuple[str, str] | None = None  # (action, ref) resolved just before the plan is fixed
+    compat: CompatHint | None = None
 
 
 def ops_key(ops: list[PatchOp]) -> str:
@@ -62,9 +73,94 @@ def _facts(rc: RunContext, f: Finding) -> tuple[dict, Evidence | None]:
     return {}, None
 
 
+def _manifest_declares(rc: RunContext, rel: str, name: str) -> bool:
+    try:
+        text = (rc.tool_ctx.repo / rel).read_text(encoding="utf-8")
+    except OSError:
+        return False
+    return re.search(rf'"{re.escape(name)}"\s*:\s*"', text) is not None
+
+
+def _lookup(rc: RunContext, purl: str, vuln_ids: list[str], fixed: list[str]) -> Evidence | None:
+    ctx = rc.tool_ctx
+    out = call_tool(AGENT, "safe_version_lookup", None, ctx, rc.store, rc.audit,
+                    args={"purl": purl, "vuln_ids": vuln_ids[:50], "scanner_fixed": fixed[:50]})
+    return out.evidence[0] if out and out.evidence else None
+
+
+def _compat(rc: RunContext, purl: str, cur: str, to: str) -> Evidence | None:
+    out = call_tool(AGENT, "compat_hint", None, rc.tool_ctx, rc.store, rc.audit,
+                    args={"purl": purl, "from_version": cur, "to_version": to})
+    return out.evidence[0] if out and out.evidence else None
+
+
+def _upgrade(rc: RunContext, f: Finding, purl: str, pkg_file: str, why: list, lookup: Evidence, target: str,
+             *, via: str | None = None) -> Candidate | None:
+    name, cur, _ = parse_purl(purl)
+    compat = _compat(rc, purl, cur or "0.0.0", target)
+    claims = list(why)
+    claims.append((f"{target} is a candidate version from safe_version_lookup", "candidates", target))
+    ev_ids = [lookup.evidence_id]
+    hint = None
+    if compat is not None:
+        ev_ids.append(compat.evidence_id)
+        fx = compat.facts
+        hint = CompatHint(from_version=fx["from_version"], to_version=fx["to_version"], semver_delta=fx["semver_delta"],
+                          engines_ok=fx.get("engines_ok"), peer_dep_changes=fx.get("peer_dep_changes", []),
+                          deprecated_target=fx.get("deprecated_target"), level=fx["level"])
+        claims.append((f"{name} {cur} -> {target} is a {fx['semver_delta']} version change "
+                       f"(compatibility risk {fx['level']})", "semver_delta", fx["semver_delta"]))
+    if via:
+        claims.append((f"the vulnerable package is transitive; upgrading its direct parent {via} is not proven "
+                       f"to pull a fixed version until the sandbox rebuild and rescan", None, None))
+    return Candidate("upgrade", [PatchOp(op="set_dependency_version", file_path=pkg_file,
+                                         args={"name": name, "version": f"^{target}"})],
+                     target, claims, "scanner re-scan", evidence_ids=ev_ids, compat=hint)
+
+
+def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
+    """Upgrade candidates, safest first. Direct dependency: each fixed version; transitive: the direct parent."""
+    purl = f.component_purl
+    if not purl or not purl.startswith("pkg:npm/"):
+        return []
+    name, cur, _ = parse_purl(purl)
+    pkg_file = "package.json" if f.project in (None, "root") else f"{f.project}/package.json"
+    ids = [i for i in [f.vuln_id, *f.aliases] if i]
+    out: list[Candidate] = []
+    direct = any(len(p) == 2 for p in f.dependency_paths) or not f.dependency_paths
+    if direct and _manifest_declares(rc, pkg_file, name):
+        lk = _lookup(rc, purl, ids, f.fixed_versions)
+        if lk is not None:
+            why = [(f"{f.vuln_id} affects {name} {cur}; affected range {lk.facts.get('affected_range') or f.affected_range}",
+                    None, None)]
+            for v in lk.facts.get("candidates", []):
+                c = _upgrade(rc, f, purl, pkg_file, why, lk, v)
+                if c:
+                    out.append(c)
+        return out
+    for path in f.dependency_paths:
+        if len(path) < 3 or not path[1].startswith("pkg:npm/"):
+            continue
+        parent = path[1]
+        pname, pcur, _ = parse_purl(parent)
+        if not _manifest_declares(rc, pkg_file, pname):
+            continue
+        lk = _lookup(rc, parent, [], [])
+        if lk is None:
+            continue
+        why = [(f"{f.vuln_id} affects {name} {cur}, which is pulled in by {pname} {pcur}", None, None)]
+        for v in lk.facts.get("candidates", [])[-1:]:  # the registry latest of the direct parent
+            c = _upgrade(rc, f, parent, pkg_file, why, lk, v, via=pname)
+            if c and ops_key(c.ops) not in {ops_key(o.ops) for o in out}:
+                out.append(c)
+    return out
+
+
 def candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     facts, _ = _facts(rc, f)
     out: list[Candidate] = []
+    if f.category is FindingCategory.CVE:
+        return cve_candidates(rc, f)
     if f.category is FindingCategory.TYPOSQUAT and facts.get("name") and f.file_path:
         name, popular = facts["name"], facts.get("similar_to")
         why = (f"'{name}' differs from the popular package '{popular}' by {facts.get('distance')} edit(s)",
@@ -111,7 +207,14 @@ def _claims(rc: RunContext, f: Finding, cand: Candidate, extra: list[str]) -> li
 
 def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> RemediationPlan | None:
     ctx, store, audit = rc.tool_ctx, rc.store, rc.audit
-    extra: list[str] = []
+    extra: list[str] = list(cand.evidence_ids)
+    if cand.action == "upgrade":  # G4.5: the target version must come from safe_version_lookup evidence
+        allowed = {v for i in cand.evidence_ids if (e := store.get_evidence(i)) and e.kind == "osv"
+                   for v in e.facts.get("candidates", [])}
+        if cand.target not in allowed:
+            audit.emit("guardrail", "guardrail", f"G4.5 blocked upgrade target {cand.target}: not in "
+                       f"safe_version_lookup evidence", finding_id=f.finding_id, data={"rule": "G4.5"})
+            return None
     ops = list(cand.ops)
     target = cand.target
     if cand.sha_lookup:
@@ -131,12 +234,16 @@ def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> Rem
         return None
     extra.append(preview.evidence[0].evidence_id)
     files = sorted({o.file_path for o in ops})
-    risk = f.initial_risk.value if f.initial_risk else "unknown"
+    before = load_risks(rc.tool_ctx.run_dir).get(f.finding_id)
+    after_score, after_band = simulate_after(before, cand.action)
+    reduction = (f"score {before.score} ({before.band.value}) -> {after_score} ({after_band.value}) once the "
+                 f"patched copy re-scans clean (simulate_after, section 7)" if before else
+                 f"{f.initial_risk.value if f.initial_risk else 'unknown'} -> resolved if {cand.detector} no longer "
+                 f"reports it on the patched copy")
     plan = RemediationPlan(
         plan_id=plan_id, plan_hash="", finding_id=f.finding_id, attempt=attempt, action=cand.action, ops=ops,
         target_version=target, rationale=_claims(rc, f, cand, extra),
-        expected_risk_reduction=(f"{risk} -> resolved, if {cand.detector} re-run on the patched copy no longer "
-                                 f"reports it and reports nothing new (Day-1 validation; risk-score delta in Day 2, D1-06)"),
+        expected_risk_reduction=reduction, compatibility_impact=cand.compat,
         rollback=(f"Nothing is applied to the target: the patch lands in a fresh copy under runs/<run>/attempts/. "
                   f"Discard that folder to roll back; after adoption, revert the diff of {', '.join(files)}."),
         evidence_ids=[*f.evidence_ids, *extra],

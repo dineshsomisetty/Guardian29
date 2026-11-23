@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from guardian.core.models import Approval, RemediationPlan, ValidationResult
+from guardian.core.models import Approval, RemediationPlan, RiskAssessment, ValidationResult
 
 
 def save_plan(run_dir: Path, plan: RemediationPlan) -> Path:
@@ -65,3 +65,16 @@ def list_validations(run_dir: Path) -> list[ValidationResult]:
     d = run_dir / "validation"
     return [ValidationResult.model_validate_json(p.read_text(encoding="utf-8")) for p in sorted(d.glob("at_*.json"))] \
         if d.is_dir() else []
+
+
+def save_risks(run_dir: Path, risks: list) -> None:
+    """risk.json: list[RiskAssessment], highest score first (written by the risk analyst)."""
+    data = [r.model_dump(mode="json") for r in risks]
+    (run_dir / "risk.json").write_text(json.dumps(data, indent=1), encoding="utf-8")
+
+
+def load_risks(run_dir: Path) -> dict[str, RiskAssessment]:
+    path = run_dir / "risk.json"
+    if not path.exists():
+        return {}
+    return {r["finding_id"]: RiskAssessment.model_validate(r) for r in json.loads(path.read_text(encoding="utf-8"))}

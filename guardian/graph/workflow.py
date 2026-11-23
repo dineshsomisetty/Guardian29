@@ -63,8 +63,8 @@ def route_after_detection(state: GraphState) -> str:
     audit = get_ctx(state["run_id"]).audit
     n = len(state.get("finding_ids", []))
     if n == 0:
-        audit.emit("supervisor", "decision", "No findings -> end of run (nothing to analyse)")
-        return END
+        audit.emit("supervisor", "decision", "No findings -> reporter (nothing to analyse, report still written)")
+        return "reporter"
     audit.emit("supervisor", "decision", f"{n} findings with evidence -> evidence_analyst for explanation + initial risk")
     return "evidence_analyst"
 
@@ -126,7 +126,7 @@ def build_graph(checkpointer=None):
         g.add_node(name, fn)
     g.add_edge(START, "discovery")
     g.add_conditional_edges("discovery", route_after_discovery, ["detection"])
-    g.add_conditional_edges("detection", route_after_detection, ["evidence_analyst", END])
+    g.add_conditional_edges("detection", route_after_detection, ["evidence_analyst", "reporter"])
     g.add_edge("evidence_analyst", "investigator")
     g.add_edge("investigator", "risk_analyst")
     g.add_conditional_edges("risk_analyst", route_after_risk, ["remediation", "reporter"])

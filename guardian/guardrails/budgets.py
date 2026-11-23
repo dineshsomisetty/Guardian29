@@ -23,7 +23,8 @@ DEFAULT_LIMITS: dict[str, AgentLimit] = {
     "discovery": AgentLimit(tool_calls=12, seconds=1800),
     "detection": AgentLimit(tool_calls=20, seconds=1800),
     "investigator": AgentLimit(tool_calls=8, seconds=300),
-    "remediation": AgentLimit(tool_calls=30, seconds=600),
+    "risk_analyst": AgentLimit(tool_calls=20, seconds=900),
+    "remediation": AgentLimit(tool_calls=60, seconds=900),
     "validator": AgentLimit(tool_calls=40, seconds=1800),
 }
 FALLBACK_LIMIT = AgentLimit(tool_calls=10, seconds=300)

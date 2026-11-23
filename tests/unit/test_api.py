@@ -173,3 +173,17 @@ def test_cors(client):
     assert ok.headers["access-control-allow-origin"] == "http://localhost:5173"
     bad = client.get("/runs", headers={"Origin": "http://evil.example"})
     assert "access-control-allow-origin" not in bad.headers
+
+
+def test_risk_and_report_routes(client, runs):
+    d = runs / RUN
+    assert client.get(f"/runs/{RUN}/risk").json() == []
+    assert client.get(f"/runs/{RUN}/report.json").status_code == 404
+    assert client.get(f"/runs/{RUN}/report.html").status_code == 404
+    write(d / "risk.json", [{"finding_id": FID, "score": 50}])
+    write(d / "report.json", {"run_id": RUN})
+    (d / "report.html").write_text("<html><body>r</body></html>", encoding="utf-8")
+    assert client.get(f"/runs/{RUN}/risk").json() == [{"finding_id": FID, "score": 50}]
+    assert client.get(f"/runs/{RUN}/report.json").json() == {"run_id": RUN}
+    r = client.get(f"/runs/{RUN}/report.html")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html") and "<body>r" in r.text

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import shutil
 
+from guardian.adapters import pypi
 from guardian.adapters.npm import find_projects
 from guardian.core.config import REPO_ROOT
 from guardian.core.models import Evidence
@@ -48,5 +49,18 @@ def resolve_lockfiles(ctx: ToolContext) -> ToolOutput:
             facts={"project": proj.name, "lockfile": proj.lockfile.relative_to(work).as_posix(),
                    "lockfile_in_target": had_lock, "source": source, "install_scripts_executed": False},
             file_path=proj.lockfile.relative_to(work).as_posix(), sha256=sha256_file(proj.lockfile)))
-    return ToolOutput(evidence=evidence, artifacts={"npm_projects": projects},
-                      summary=f"lockfiles for {projects} (no install scripts executed)")
+    pip_projects = []
+    for proj in pypi.find_projects(work):  # pip: requirements pins are the lock; nothing is installed (C2)
+        pins = [p for r in proj.requirements for p in pypi.requirement_pins(r)]
+        pip_projects.append(proj.name)
+        evidence.append(Evidence(
+            run_id=ctx.run_id, kind="detector_result", source_tool="resolve:pip",
+            facts={"project": proj.name, "requirements": [r.relative_to(work).as_posix() for r in proj.requirements],
+                   "pinned": sum(1 for p in pins if p[1]), "unpinned": sum(1 for p in pins if not p[1]),
+                   "source": "requirements pins (not resolved, not installed)", "install_scripts_executed": False},
+            file_path=proj.requirements[0].relative_to(work).as_posix(), sha256=sha256_file(proj.requirements[0])))
+    if not projects and not pip_projects:
+        return ToolOutput(summary="no npm or pip project found: nothing to resolve")
+    return ToolOutput(evidence=evidence, artifacts={"npm_projects": projects, "pip_projects": pip_projects},
+                      summary=f"lockfiles for {projects}, pip requirements for {pip_projects} "
+                              f"(no install scripts executed)")

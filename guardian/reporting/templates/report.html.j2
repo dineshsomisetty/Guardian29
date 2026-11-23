@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardian report {{ r.run_id }}</title>
+<style>
+:root{--bg:#14161a;--panel:#1c1f25;--line:#2e333b;--fg:#e4e6ea;--mute:#9aa1ac;--crit:#e5534b;--high:#e08a3c;--med:#d4b84a;--low:#4caf7a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:1040px;margin:0 auto;padding:24px 16px 64px}
+h1{font-size:1.6rem;margin:0 0 4px} h2{font-size:1.15rem;margin:32px 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+h3{font-size:1rem;margin:0 0 4px} .mute{color:var(--mute)} code,pre{font-family:ui-monospace,Consolas,monospace;font-size:13px}
+code{background:var(--panel);padding:1px 5px;border-radius:3px;word-break:break-all}
+pre{background:var(--panel);border:1px solid var(--line);padding:8px;overflow:auto;max-height:260px;margin:6px 0}
+table{border-collapse:collapse;width:100%;margin:8px 0} th,td{border:1px solid var(--line);padding:5px 8px;text-align:left;vertical-align:top;font-size:14px}
+th{background:var(--panel);font-weight:600}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin:10px 0}
+.b{display:inline-block;padding:0 8px;border-radius:9px;font-size:12px;color:#111;font-weight:600}
+.critical{background:var(--crit)}.high{background:var(--high)}.medium{background:var(--med)}.low{background:var(--low)}
+.verified{background:var(--low)}.inferred{background:#8b93a1}.unsupported{background:var(--crit)}
+details summary{cursor:pointer;color:var(--mute)}
+</style></head><body><main>
+<h1>Guardian report</h1>
+<p class="mute">Run <code>{{ r.run_id }}</code> · target <code>{{ r.target or "-" }}</code>{% if r.commit %} · commit <code>{{ r.commit[:12] }}</code>{% endif %} · generated {{ r.generated_at }}</p>
+
+<h2>Summary</h2>
+<table>
+<tr><th>Status</th><td>{{ r.summary.status or "-" }}</td><th>Findings</th><td>{{ (r.summary.findings or {}).total if r.summary.findings else r.findings|length }}</td>
+<th>Final confidence</th><td>{{ r.final_confidence }}</td></tr>
+<tr><th>Components</th><td>{{ r.inventory.components }}</td><th>Direct</th><td>{{ r.inventory.direct }}</td><th>Transitive</th><td>{{ r.inventory.transitive }}</td></tr>
+<tr><th>Audit events</th><td>{{ r.audit.events }}</td><th>LLM calls</th><td>{{ r.audit.llm_calls }}</td><th>Tool calls</th><td>{{ r.audit.tool_calls }}</td></tr>
+</table>
+{% if r.summary.llm %}<p class="mute">LLM: {{ r.summary.llm.mode }} / {{ r.summary.llm.model }} · offline: {{ r.summary.offline }}</p>{% endif %}
+
+<h2>Risk ranking</h2>
+{% set by_id = {} %}{% for e in r.findings %}{% set _ = by_id.update({e.finding.finding_id: e}) %}{% endfor %}
+{% if r.ranking %}
+<table><tr><th>#</th><th>Finding</th><th>Score</th><th>Band</th><th>Confidence</th><th>Factors (value x weight)</th></tr>
+{% for fid in r.ranking %}{% set e = by_id[fid] %}{% set k = e.risk %}
+<tr><td>{{ loop.index }}</td><td>{{ e.finding.title }}<br><span class="mute">{{ fid }}</span></td><td>{{ k.score }}</td>
+<td><span class="b {{ k.band }}">{{ k.band }}</span>{% if k.override_applied %}<br><span class="mute">override: {{ k.override_applied }}</span>{% endif %}</td>
+<td>{{ k.confidence }}</td>
+<td>{% for n in ["S","E","R","P","X"] %}{% set fv = k.factors[n] %}{{ n }} {{ fv.value }} <span class="mute">({{ fv.tier }}{% if fv.unknown %}, unknown{% endif %})</span><br>{% endfor %}
+{% if k.factors.provenance_modifier %}provenance modifier +{{ k.factors.provenance_modifier }}{% endif %}</td></tr>
+{% endfor %}</table>
+<p class="mute">score = 100 x (0.30 S + 0.25 E + 0.20 R + 0.15 P + 0.10 X) + provenance modifier; for CI/lockfile/image findings the R weight moves to S. Weights are our own choice.</p>
+{% else %}<p class="mute">No risk scores recorded.</p>{% endif %}
+
+<h2>Findings and evidence</h2>
+{% for e in r.findings %}{% set f = e.finding %}
+<div class="card"><h3>{{ f.title }}</h3>
+<p class="mute">{{ f.finding_id }} · {{ f.category }} · scope {{ f.scope }} · status {{ f.status }}{% if f.component_purl %} · <code>{{ f.component_purl }}</code>{% endif %}{% if f.cvss is not none %} · CVSS {{ f.cvss }}{% endif %}{% if f.fixed_versions %} · fixed in {{ f.fixed_versions|join(", ") }}{% endif %}</p>
+{% if e.risk %}<p>{{ e.risk.summary }}</p>
+{% for c in e.risk.claims %}<p><span class="b {{ c.label }}">{{ c.label }}</span> {{ c.text }} <span class="mute">[{{ c.evidence_ids|join(", ") }}]</span></p>{% endfor %}{% endif %}
+{% if f.explanation %}<p class="mute">{{ f.explanation }}</p>{% endif %}
+{% for c in f.claims %}<p><span class="b {{ c.label }}">{{ c.label }}</span> {{ c.text }}</p>{% endfor %}
+{% for p in e.paths %}<p class="mute">path: {{ p|join(" > ") }}</p>{% endfor %}
+{% if e.evidence %}<details><summary>{{ e.evidence|length }} evidence item(s)</summary>
+{% for ev in e.evidence %}<p><code>{{ ev.evidence_id }}</code> {{ ev.kind }} · {{ ev.source_tool }}</p>{% if ev.excerpt %}<pre>{{ ev.excerpt }}</pre>{% endif %}{% endfor %}</details>{% endif %}
+</div>
+{% else %}<p class="mute">No findings.</p>{% endfor %}
+
+<h2>Actions and approvals</h2>
+{% for a in r.actions %}{% set p = a.plan %}
+<div class="card"><h3>{{ p.action }}{% if p.target_version %} to {{ p.target_version }}{% endif %} <span class="mute">(plan {{ p.plan_id }}, attempt {{ p.attempt }})</span></h3>
+<p class="mute">finding {{ p.finding_id }}</p>
+{% for c in p.rationale %}<p><span class="b {{ c.label }}">{{ c.label }}</span> {{ c.text }}</p>{% endfor %}
+<p>Expected: {{ p.expected_risk_reduction }}<br>Rollback: {{ p.rollback }}</p>
+{% if p.compatibility_impact %}<p>Compatibility: {{ p.compatibility_impact.semver_delta }} change, risk {{ p.compatibility_impact.level }}</p>{% endif %}
+<p>Approval: {% if a.approval %}<b>{{ a.approval.decision }}</b> by {{ a.approval.decided_by }} at {{ a.approval.ts }}{% if a.approval.comment %} - {{ a.approval.comment }}{% endif %}{% else %}<b>none (not applied)</b>{% endif %}</p>
+{% for v in a.validations %}<table><tr><th colspan="2">Validation {{ v.attempt_id }}: {{ v.verdict }}</th></tr>
+<tr><td>Build ok</td><td>{{ v.build_ok }}</td></tr><tr><td>Unit / integration tests</td><td>{{ v.unit_tests }} / {{ v.integration_tests }}</td></tr>
+<tr><td>Target resolved</td><td>{{ v.target_finding_resolved }}</td></tr><tr><td>New findings</td><td>{{ v.new_findings|join(", ") or "none" }}</td></tr>
+<tr><td>Risk before / after</td><td>{{ v.risk_before }} / {{ v.risk_after }}</td></tr><tr><td>Confidence</td><td>{{ v.final_confidence }}</td></tr></table>{% endfor %}
+</div>
+{% else %}<p class="mute">No remediation plans were created.</p>{% endfor %}
+
+<h2>Remaining or accepted risk</h2>
+{% if r.remaining_risk %}<table><tr><th>Finding</th><th>Status</th><th>Score</th></tr>
+{% for x in r.remaining_risk %}<tr><td>{{ by_id[x.finding_id].finding.title if x.finding_id in by_id else x.finding_id }}</td><td>{{ x.status }}</td><td>{{ x.score }}</td></tr>{% endfor %}</table>
+{% else %}<p class="mute">Every finding was verified fixed.</p>{% endif %}
+
+<h2>Guardrail events</h2>
+{% if r.guardrail_events %}<table><tr><th>Rule</th><th>Event</th></tr>
+{% for g in r.guardrail_events %}<tr><td>{{ g.data.rule or "-" }}</td><td>{{ g.summary }}</td></tr>{% endfor %}</table>
+{% else %}<p class="mute">No guardrail blocks.</p>{% endif %}
+
+<h2>Limitations</h2>
+<ul class="mute"><li>Scoring weights are our own choice; the factor table lets anyone recompute.</li>
+<li>Reachability is an import search, not call-graph analysis.</li>
+<li>LLM text is labelled INFERRED unless every asserted value is present in tool evidence.</li>
+<li>Advisory data is as of scan time (cached copies when offline).</li></ul>
+</main></body></html>
