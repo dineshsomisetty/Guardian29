@@ -77,8 +77,21 @@ def _finding_view(f: Finding) -> dict:
     )
 
 
+_FETCH_KEYS = ("source", "scripts_source")
+
+
+def _prompt_facts(facts: dict) -> dict:
+    """Facts as the LLM sees them. Where a fact was fetched from ("cache" vs "registry.npmjs.org") stays in the
+    Evidence for the audit trail, but is left out of the prompt: it is the only thing that differs between a
+    live run and its offline replay, and it would make replay miss its cache (G7.3)."""
+    def fetch_note(v) -> bool:
+        return isinstance(v, str) and (v == "cache" or v.startswith(("registry.", "api.", "github.com"))
+                                       or v.endswith((".org", ".com", ".io", ".dev", ".gov")))
+    return {k: v for k, v in facts.items() if not (k in _FETCH_KEYS and fetch_note(v))}
+
+
 def _evidence_view(ev: Evidence) -> dict:
-    facts = json.dumps(ev.facts, default=str, sort_keys=True)
+    facts = json.dumps(_prompt_facts(ev.facts), default=str, sort_keys=True)
     if len(facts) > 3000:
         facts = facts[:3000] + "...(truncated)"
     return {"evidence_id": ev.evidence_id, "kind": ev.kind, "source_tool": ev.source_tool,

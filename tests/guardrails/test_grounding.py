@@ -89,3 +89,17 @@ def test_version_extraction_ignores_sentence_period():
     assert versions("pinned to python:3.9-alpine.") == ["3.9-alpine"]
     assert versions("upgrade to 1.2.3-rc.1 now") == ["1.2.3-rc.1"]
     assert versions("from 0.1.3. Then 8.5.1, done") == ["0.1.3", "8.5.1"]
+
+
+def test_prompt_view_ignores_where_a_fact_was_fetched_from():
+    """G7.3: live and replayed runs must build the same prompt even though one fetched from the registry and
+    the other read the cache; meaningful 'source' values (e.g. osv+scanner) stay."""
+    from guardian.agents.evidence_analyst import _evidence_view
+    from guardian.core.models import Evidence
+
+    live = Evidence(run_id="r", kind="registry_metadata", source_tool="t",
+                    facts={"package": "x", "source": "registry.npmjs.org"})
+    cached = Evidence(run_id="r", kind="registry_metadata", source_tool="t", facts={"package": "x", "source": "cache"})
+    assert _evidence_view(live)["facts"] == _evidence_view(cached)["facts"] == '{"package": "x"}'
+    osv = Evidence(run_id="r", kind="osv", source_tool="t", facts={"source": "osv+scanner"})
+    assert "osv+scanner" in _evidence_view(osv)["facts"]
