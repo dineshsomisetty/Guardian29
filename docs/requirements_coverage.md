@@ -14,6 +14,9 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | `run_juice_final_offline` | same, `GUARDIAN_OFFLINE=1` + LLM replay, network blocked | identical 91 findings, 52 LLM answers from cache, **0 network attempts, 0 errors** |
 | `run_pygoat_final` / `_offline` | PyGoat (pip, Django) | 58 packages, 470 findings, top risk 88.65 (`django` 3.2.18), plan `django` → 4.2.26 in the exact requirements file; offline replay **0 network attempts, 0 errors** |
 | batch `runs/batch_*.json` | Juice Shop, PyGoat, NodeGoat (npm) | 1,656 / 58 / 1,091 packages; top risks 90 / 89 / 84; all paused at the gate |
+| `run_webgoat2` | OWASP WebGoat (Maven/Java) | 49 Maven packages from `pom.xml`, 36 CVEs (top `xstream` 1.4.5, 76.33), OSV cross-check 37 advisories, plan: pin `actions/checkout@v7` to its commit SHA |
+| sandbox, PyGoat (unmodified) | Docker, `--network none` for build/test | install 84 s; `compileall` + `manage.py check` passed; **Django test suite 54/54 passed** |
+| sandbox, Juice Shop (unmodified) | Docker, `--network none` for build/test | `tsc` build passed; unit `test:server` **439/441**, the same 2 `jwtForgedChallenge` failures as without any fix (baseline), so not blamed on a fix; API suite needs the built Angular frontend: 0/61 even unpatched, disclosed as not runnable in the sandbox |
 | `run_e2e_juice` (earlier) | Juice Shop, approved `express-jwt` 0.1.3 → 8.5.1 | sandbox **build failed** (`tsc` TS2349: express-jwt 8 changed its API) → re-plan → escalated: the sandbox caught a breaking upgrade before it reached the repo |
 
 ---
@@ -40,7 +43,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | 3 Analyze: "Correlate severity with exploitability, reachability, exposure, provenance, and application context" | ✅ | S (CVSS), E (EPSS percentile, CISA KEV), R (import reachability), P (prod/dev), X (exposure), + provenance modifier | `guardian/core/scoring.py::compute`; `test_kev_override_and_not_applicable_weights` |
 | 3 Analyze: "determine which findings actually require attention" | ✅ | bands Critical/High/Medium/Low; only the top findings enter the remediation loop | `risk_analyst.select` |
 | 4 Remediate: "upgrade, replace, pin, remove, mitigate, block, or request further review, with supporting evidence" | ✅ | all seven actions exist; target values come only from evidence (G4.5) | `guardian/agents/remediation.py`, `guardian/tools/patching.py`; `tests/unit/test_d2_image_block_mitigate.py`, `test_g45_blocks_target_absent_from_evidence` |
-| 5 Validate: "Build and test proposed changes" | ✅ | Docker sandbox: install, then build + unit + integration tests with `--network none` | `guardian/tools/sandbox.py`; real failed build in `run_e2e_juice`; `test_sandbox_validator.py::test_failed_tests_then_replan_then_high` |
+| 5 Validate: "Build and test proposed changes" | ✅ | Docker sandbox: install, then build + unit + integration tests with `--network none`; results judged against the unpatched project (a failure that exists without the fix is disclosed, not blamed on it) | `guardian/tools/sandbox.py`; real runs above (PyGoat 54/54, Juice Shop 439/441 = baseline); `test_failures_that_already_fail_unpatched_are_not_blamed_on_the_fix` |
 | 5 Validate: "rescan the resulting application" | ✅ | Syft + Grype on the patched copy; optional built-image rescan | `sandbox.rescan_patched`; `test_image_build_rescan_limits_ignore_and_cleanup` |
 | 5 Validate: "verify that the risk has been reduced" | ✅ | target finding gone + risk before → after | `ValidationResult.risk_before/after` |
 | 5 Validate: "detect newly introduced problems" | ✅ | new vulnerabilities, unexpected new packages, new detector or policy findings → `regressed` | `test_new_vuln_is_regressed`; `test_validator_flags_only_new_or_increased_policy_violations` |
@@ -85,7 +88,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 
 | Line | Status | Proof |
 |---|---|---|
-| Analyze package manifests and lockfiles | ✅ | `package.json`, `package-lock.json`, `requirements*.txt`; `pom.xml` via Syft (WebGoat cloned; Maven is scanned but not patched) |
+| Analyze package manifests and lockfiles | ✅ | `package.json`, `package-lock.json`, `requirements*.txt`, `pom.xml` (WebGoat: 49 Maven packages; Maven is scanned and prioritised, not patched) |
 | Identify direct and transitive dependencies | ✅ | `graph.json` |
 | Capture component names and versions | ✅ | SBOM + graph nodes |
 | Generate or consume an SBOM (CycloneDX or SPDX) | ✅ | CycloneDX |
@@ -120,7 +123,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | Expected risk reduction, compatibility impact and rollback option | ✅ | `simulate_after`, `compat_hint`, rollback text in every plan |
 | Apply the remediation in a controlled branch or sandbox | ✅ | fresh copy under `runs/<id>/attempts/`; local branch for a verified fix |
 | Build the application | ✅ | sandbox build phase (real: Juice Shop `tsc`) |
-| Run unit and integration tests | ✅ | `test:server` + `test:api` (npm), `manage.py check/test` (Django) |
+| Run unit and integration tests | ✅ | `test:server` + `test:api` (npm), `manage.py test` (Django). Real: PyGoat Django suite 54/54; Juice Shop unit 439/441 (= baseline). Juice Shop's API suite needs the built Angular frontend and is disclosed as not runnable in the sandbox |
 | Rescan the resulting artifact | ✅ | patched tree always; built image with `GUARDIAN_IMAGE_BUILD=1` |
 | Compare before-and-after SBOM | ✅ | `sbom_diff` evidence, UI table |
 | Detect newly introduced vulnerabilities or dependencies | ✅ | `regressed` verdict |

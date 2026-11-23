@@ -101,12 +101,16 @@ Golden tests check the newest real Juice Shop run against `tests/golden/juice_sh
 | OWASP Juice Shop | npm (Node, Angular), Docker | large realistic tree (1,656 packages), typosquats, install scripts, unpinned CI |
 | PyGoat | pip (Django), Docker | second ecosystem, old Django with many advisories |
 | OWASP NodeGoat | npm | older dependencies (optional extra) |
+| OWASP WebGoat | Maven (Java) | `pom.xml` parsing, Java dependency findings (optional extra) |
 
 ## Known limitations
 
 - Reachability is import-level (is the package imported in production code?), not function-level.
 - The built-image rescan (G6.7) is opt-in (`GUARDIAN_IMAGE_BUILD=1`): it runs the target's Dockerfile with network on.
 - CVE upgrades are planned for npm and pip; Maven is scanned (SBOM, CVEs) but not patched.
+- Sandbox tests are judged against the unpatched project: failures that already happen without the fix are
+  disclosed, not blamed on it. Juice Shop's API suite needs its built Angular frontend, so it is reported as
+  not runnable in the sandbox (its unit suite runs: 439/441, the same 2 failures as the unmodified app).
 - Rego policies are mirrored by a native Python evaluator; `conftest`/`opa` is used only if installed.
 - LLM explanations need a provider key or a recorded replay cache; without one the rule-based risk is used.
 
