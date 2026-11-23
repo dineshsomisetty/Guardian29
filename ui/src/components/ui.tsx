@@ -88,16 +88,21 @@ const CLAIM_HELP = {
   verified: "A Verified fact is read straight from scanner output, a registry record or a file in your repository. You can open its source and check it.",
   inferred: "An AI inference is the model's reasoning about what the facts mean. It is useful context, but it is not proven by a source, so treat it as a judgement.",
   unsupported: "Guardian could not tie this statement to any evidence, so it is not relied on.",
+  pending: "Guardian's own reasoning about the fix that the sources do not prove on their own yet. The sandbox build, tests and re-scan are what check it.",
 };
 
-export function ClaimMark({ label, help = true }: { label: string; help?: boolean }) {
+/** Who wrote an unproven statement: the AI model, or Guardian's deterministic rules (plans). */
+export type ClaimOrigin = "ai" | "rule";
+
+export function ClaimMark({ label, help = true, origin = "ai" }: { label: string; help?: boolean; origin?: ClaimOrigin }) {
   const v = label === "verified";
   const i = label === "inferred";
   const cls = v ? "v" : i ? "i" : "u";
-  const text = v ? "Verified fact" : i ? "AI inference" : "Unsupported";
+  const text = v ? "Verified fact" : i ? (origin === "rule" ? "Not yet proven" : "AI inference") : "Unsupported";
   const el = <span className={`claim-tag ${cls}`}>{text}</span>;
+  const helpKey = v ? "verified" : i ? (origin === "rule" ? "pending" : "inferred") : "unsupported";
   return help ? (
-    <Tip text={CLAIM_HELP[v ? "verified" : i ? "inferred" : "unsupported"]} side="top">
+    <Tip text={CLAIM_HELP[helpKey]} side="top">
       {el}
     </Tip>
   ) : (
@@ -127,13 +132,17 @@ export function Cites({ ids, onCite }: { ids: string[]; onCite?: (id: string) =>
   );
 }
 
-export function ClaimList({ claims, onCite }: { claims: Claim[]; onCite?: (id: string) => void }) {
+export function ClaimList({ claims, onCite, origin = "ai" }: {
+  claims: Claim[];
+  onCite?: (id: string) => void;
+  origin?: ClaimOrigin;
+}) {
   if (!claims.length) return <p className="muted">No individual claims were recorded for this finding.</p>;
   return (
     <ul className="claims">
       {claims.map((c, i) => (
         <li key={`${i}-${c.text.slice(0, 24)}`}>
-          <ClaimMark label={c.label} />
+          <ClaimMark label={c.label} origin={origin} />
           <p className="claim-text">{c.text}</p>
           <Cites ids={c.evidence_ids} onCite={onCite} />
         </li>

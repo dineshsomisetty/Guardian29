@@ -223,13 +223,13 @@ function PlanDetail({ plan, finding }: { plan: RemediationPlan; finding: Finding
             {verified.length > 0 && (
               <div className="claimgroup">
                 <h4 className="mini-h">Verified facts <span className="faint">(from scanners and registries)</span></h4>
-                <ClaimList claims={verified} onCite={openEvidence} />
+                <ClaimList claims={verified} onCite={openEvidence} origin="rule" />
               </div>
             )}
             {inferred.length > 0 && (
               <div className="claimgroup">
-                <h4 className="mini-h">AI inferences <span className="faint">(the model's judgement, not proven)</span></h4>
-                <ClaimList claims={inferred} onCite={openEvidence} />
+                <h4 className="mini-h">Not yet proven <span className="faint">(reasoning the sandbox run will check)</span></h4>
+                <ClaimList claims={inferred} onCite={openEvidence} origin="rule" />
               </div>
             )}
             {plan.rationale.length === 0 && <p className="muted">No reasoning was recorded for this plan.</p>}

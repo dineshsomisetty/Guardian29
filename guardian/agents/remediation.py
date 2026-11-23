@@ -143,8 +143,9 @@ def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     if direct and _manifest_declares(rc, pkg_file, name):
         lk = _lookup(rc, purl, ids, f.fixed_versions)
         if lk is not None:
+            # checkable against the scanner evidence (vuln_id), so grounding can mark it a verified fact
             why = [(f"{f.vuln_id} affects {name} {cur}; affected range {lk.facts.get('affected_range') or f.affected_range}",
-                    None, None)]
+                    "vuln_id", f.vuln_id)]
             for v in lk.facts.get("candidates", []):
                 c = _upgrade(rc, f, purl, pkg_file, why, lk, v)
                 if c:
@@ -161,7 +162,7 @@ def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
         lk = _lookup(rc, parent, [], [], child=name if child_fixed else None, child_fixed=child_fixed)
         if lk is None:
             continue
-        why = [(f"{f.vuln_id} affects {name} {cur}, which is pulled in by {pname} {pcur}", None, None)]
+        why = [(f"{f.vuln_id} affects {name} {cur}, which is pulled in by {pname} {pcur}", "vuln_id", f.vuln_id)]
         ranges = lk.facts.get("child_ranges") or {}
         # safest first: the smallest parent upgrade whose dependency range provably excludes the vulnerable
         # child; then the parent's registry latest. A failed attempt moves on to the next (G5.4: max 3).
@@ -206,7 +207,7 @@ def pip_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     lk = _lookup(rc, f.component_purl, ids, f.fixed_versions)
     if lk is None:
         return []
-    why = [(f"{f.vuln_id} affects {name} {cur}, pinned in {rel}", None, None)]
+    why = [(f"{f.vuln_id} affects {name} {cur}, pinned in {rel}", "vuln_id", f.vuln_id)]
     out = []
     for v in lk.facts.get("candidates", []):
         c = _upgrade(rc, f, f.component_purl, rel, why, lk, v, op="set_requirement_version", spec="==")
