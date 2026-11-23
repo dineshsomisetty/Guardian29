@@ -30,7 +30,7 @@ class FakeBackend:
 @pytest.fixture
 def settings(tmp_path: Path):
     return load_settings(runs_dir=tmp_path / "runs", llm_mode="live", llm_cache_dir=tmp_path / "llmcache",
-                         max_llm_findings=40)
+                         max_llm_findings=40, max_plans=0)  # CP1 tests: no remediation loop
 
 
 @pytest.fixture
