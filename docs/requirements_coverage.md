@@ -6,14 +6,15 @@ Every line of the slides is listed below with its status, what Guardian does, an
 **Status:** ✅ done (built and tested) · 🟡 partial (built, with the stated gap) · ❌ not done.
 **Proof** points at code, a test (`tests/...::name`) or a real run (`runs/<id>/`).
 
-Real runs used as proof (DeepSeek live, then replayed offline):
+Real runs used as proof (DeepSeek live, then replayed offline with the network blocked):
 
 | Run | Target | Result |
 |---|---|---|
-| `run_juice_record` | OWASP Juice Shop (npm) | 1,656 packages (154 direct, 1,502 transitive), 113 findings, top risk 90.17 (`jsonwebtoken` via `express-jwt`), paused at the human gate |
-| `run_juice_offline` | same, `GUARDIAN_OFFLINE=1` + LLM replay, network blocked | identical 113 findings, 52 LLM answers from cache, **0 network attempts, 0 errors** |
-| batch `runs/batch_*.json` | Juice Shop, PyGoat (pip), NodeGoat (npm) | 1,656 / 58 / 1,091 packages; top risks 90 / 89 / 84; all paused at the gate |
-| `run_e2e_juice` | Juice Shop, approved fix `express-jwt` 0.1.3 → 8.5.1 | sandbox **build failed** (`tsc` TS2349: express-jwt 8 changed its API) → re-plan → escalated, exactly the safety the brief asks for |
+| `run_juice_final` | OWASP Juice Shop (npm), DeepSeek live (record) | 1,656 packages (154 direct, 1,502 transitive), 91 findings, top risk 90.17 (`jsonwebtoken` 0.1.0 via `express-jwt` 0.1.3), plan `express-jwt` → 3.4.0, paused at the human gate |
+| `run_juice_final_offline` | same, `GUARDIAN_OFFLINE=1` + LLM replay, network blocked | identical 91 findings, 52 LLM answers from cache, **0 network attempts, 0 errors** |
+| `run_pygoat_final` / `_offline` | PyGoat (pip, Django) | 58 packages, 470 findings, top risk 88.65 (`django` 3.2.18), plan `django` → 4.2.26 in the exact requirements file; offline replay **0 network attempts, 0 errors** |
+| batch `runs/batch_*.json` | Juice Shop, PyGoat, NodeGoat (npm) | 1,656 / 58 / 1,091 packages; top risks 90 / 89 / 84; all paused at the gate |
+| `run_e2e_juice` (earlier) | Juice Shop, approved `express-jwt` 0.1.3 → 8.5.1 | sandbox **build failed** (`tsc` TS2349: express-jwt 8 changed its API) → re-plan → escalated: the sandbox caught a breaking upgrade before it reached the repo |
 
 ---
 
