@@ -12,6 +12,8 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from guardian.tools.file_read import is_denied
+
 
 class RunsHandler(SimpleHTTPRequestHandler):
     runs_dir: Path
@@ -40,16 +42,29 @@ class RunsHandler(SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
             return
+        super().do_GET()
+
+    def denied(self, fs_path: str) -> bool:
+        """G1.1, decided on the resolved file path (after URL decoding, `.`/`..`, case and symlinks), not on
+        the raw URL: refuse anything outside runs/, any run's `work/` copy, and sensitive file names."""
+        root = Path(self.directory).resolve()
+        target = Path(fs_path).resolve()
+        if not target.is_relative_to(root):
+            return True
+        rel = target.relative_to(root)
+        if len(rel.parts) >= 2 and rel.parts[1].casefold() == "work":
+            return True
+        return is_denied(rel)
+
+    def send_head(self):  # shared by GET and HEAD
         if self.path.startswith("/latest/") or self.path == "/latest":
             latest_file = self.runs_dir / "LATEST"
             latest = latest_file.read_text().strip() if latest_file.exists() else (self._runs() or [""])[0]
             self.path = "/" + latest + self.path[len("/latest"):]
-        parts = [p for p in self.path.split("?")[0].split("/") if p]
-        # G1.1: never serve the target work copy (keys, .env) or raw scanner dumps beyond the run's own files
-        if len(parts) >= 2 and parts[1] == "work":
-            self.send_error(403, "work copy is not served")
-            return
-        super().do_GET()
+        if self.denied(self.translate_path(self.path)):
+            self.send_error(403, "not served (work copy or sensitive file)")
+            return None
+        return super().send_head()
 
 
 def serve_runs(runs_dir: Path, port: int = 8001) -> None:
