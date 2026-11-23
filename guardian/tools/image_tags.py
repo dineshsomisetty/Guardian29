@@ -61,6 +61,9 @@ def pick_newer(tag: str, tags: list[str], limit: int = 2) -> list[str]:
     ranked = sorted(found, key=_vkey, reverse=True)
     # prefer full x.y.z releases over x.y aliases when both exist
     full = [v for v in ranked if v.count(".") >= 2] or ranked
+    if current.count(".") < 2:
+        # a moving tag (24) already points at its newest release: anything older would be a downgrade
+        limit = 1
     return [f"{v}{suffix}" for v in full[:limit]]
 
 
