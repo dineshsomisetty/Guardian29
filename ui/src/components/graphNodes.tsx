@@ -1,0 +1,85 @@
+import { memo } from "react";
+import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Container, FileCog, Workflow } from "lucide-react";
+import type { VisNodeData } from "../lib/layout";
+
+export type GNode = Node<VisNodeData>;
+
+const Ports = () => (
+  <>
+    <Handle type="target" position={Position.Left} isConnectable={false} className="gport" />
+    <Handle type="source" position={Position.Right} isConnectable={false} className="gport" />
+  </>
+);
+
+const ProjectNode = memo(function ProjectNode({ data }: NodeProps<GNode>) {
+  return (
+    <div className="gnode g-project">
+      <Ports />
+      <span className="g-project-name">{data.label}</span>
+      <span className="g-project-count mono">{data.packages.toLocaleString()} pkgs</span>
+    </div>
+  );
+});
+
+const PackageNode = memo(function PackageNode({ data }: NodeProps<GNode>) {
+  const risk = data.findings > 0 ? (data.risk ?? "low") : null;
+  return (
+    <div className={`gnode g-pkg${risk ? ` has-risk r-${risk}` : ""}`}>
+      <Ports />
+      <span className="g-row">
+        <span className="g-name" title={data.label}>
+          {data.label}
+        </span>
+        {risk && (
+          <span className={`g-badge r-${risk} num`} title={`${data.findings} finding${data.findings === 1 ? "" : "s"}`}>
+            {data.findings}
+          </span>
+        )}
+      </span>
+      <span className="g-row g-meta">
+        <span className="mono g-ver">{data.version ?? ""}</span>
+        <span className={`g-scope ${data.dev ? "dev" : "prod"}`}>{data.dev ? "dev" : "prod"}</span>
+        {data.direct && <span className="g-tag">direct</span>}
+        {data.hidden > 0 && (
+          <span className="g-tag" title={`${data.hidden} collapsed direct dependencies`}>
+            +{data.hidden}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+});
+
+const ICON = { ci: Workflow, image: Container, config: FileCog } as const;
+const KIND = { ci: "CI", image: "Image", config: "Config" } as const;
+
+const PseudoNode = memo(function PseudoNode({ data }: NodeProps<GNode>) {
+  const k = data.kind as "ci" | "image" | "config";
+  const Icon = ICON[k] ?? FileCog;
+  const risk = data.findings > 0 ? (data.risk ?? "low") : null;
+  return (
+    <div className={`gnode g-pseudo${risk ? ` has-risk r-${risk}` : ""}`}>
+      <Ports />
+      <Icon size={14} aria-hidden />
+      <span className="g-name" title={data.label}>
+        {data.label}
+      </span>
+      <span className="g-tag">{KIND[k] ?? k}</span>
+      {risk && <span className={`g-badge r-${risk} num`}>{data.findings}</span>}
+    </div>
+  );
+});
+
+const TrayNode = memo(function TrayNode({ data }: NodeProps<GNode>) {
+  return (
+    <div className="gnode g-tray">
+      <Handle type="target" position={Position.Left} isConnectable={false} className="gport" />
+      <span>
+        {data.packages} other direct dependencies of <b>{data.label}</b>
+      </span>
+    </div>
+  );
+});
+
+export const nodeTypes = { project: ProjectNode, package: PackageNode, pseudo: PseudoNode, tray: TrayNode };

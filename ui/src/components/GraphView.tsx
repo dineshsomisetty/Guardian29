@@ -1,266 +1,192 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
-  Controls,
-  ReactFlow,
-  ReactFlowProvider,
-  useNodesInitialized,
-  useNodesState,
-  useReactFlow,
+  Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow,
+  type Edge, type NodeMouseHandler,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import "../styles/graph.css";
-import { Container, FileCog, Workflow } from "lucide-react";
-import { useSel } from "../state";
-import { buildVisible, pathHops, type VisNodeData } from "./graph/layout";
-import { nodeTypes, type CustodyNode } from "./graph/nodes";
-import { edgeTypes, type CustodyEdgeT } from "./graph/edges";
+import { Maximize2 } from "lucide-react";
+import { buildVisible } from "../lib/layout";
+import { useStore } from "../store";
+import { nodeTypes, type GNode } from "./graphNodes";
 
-function useReducedMotion() {
-  const q = "(prefers-reduced-motion: reduce)";
-  const [reduce, setReduce] = useState(() => typeof window !== "undefined" && window.matchMedia(q).matches);
-  useEffect(() => {
-    const m = window.matchMedia(q);
-    const on = () => setReduce(m.matches);
-    m.addEventListener("change", on);
-    return () => m.removeEventListener("change", on);
-  }, []);
-  return reduce;
-}
+const RISK_COLOR: Record<string, string> = {
+  critical: "#ef4444",
+  high: "#f59e0b",
+  medium: "#3b82f6",
+  low: "#52525b",
+};
 
 export default function GraphView() {
-  const { run } = useSel();
+  const { data } = useStore();
   const [onlyRisk, setOnlyRisk] = useState(false);
-  const vis = useMemo(() => buildVisible(run.graph, run.findings, onlyRisk), [run, onlyRisk]);
-  const roots = run.graph.roots;
-
+  const vis = useMemo(() => buildVisible(data.graph, data.findings, onlyRisk), [data.graph, data.findings, onlyRisk]);
+  if (data.graph.nodes.length === 0)
+    return (
+      <div className="empty">
+        <strong>No dependency graph recorded</strong>
+        <span>Discovery did not produce a graph for this run.</span>
+      </div>
+    );
   return (
-    <section className="g-panel" aria-label="Dependency graph">
-      <header className="panelhead g-head">
-        <div className="g-title">
-          <h2>Dependency graph</h2>
-          <p className="meta">
-            {roots.join(" + ")} · {vis.totalPackages.toLocaleString()} packages · showing{" "}
-            {vis.nodes.length.toLocaleString()}{" "}
-            {onlyRisk ? "(on a risk path, with findings, CI/image/config)" : "(direct, on a risk path, CI/image/config)"}
-          </p>
-        </div>
-        <Legend />
-        <label className="g-toggle">
-          <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} />
-          <span className="g-toggle-box" aria-hidden />
-          <span className="g-toggle-text">Show only risk paths</span>
-        </label>
-      </header>
-      {run.graph.nodes.length === 0 ? (
-        <div className="g-empty">
-          <p className="g-empty-title">No graph recorded</p>
-          <p>Discovery did not produce a dependency graph for this run, so there is nothing to trace yet.</p>
-        </div>
-      ) : (
-        <ReactFlowProvider>
-          <Canvas vis={vis} drawSalt={onlyRisk ? "r" : "a"} />
-        </ReactFlowProvider>
-      )}
-    </section>
+    <ReactFlowProvider>
+      <Canvas vis={vis} onlyRisk={onlyRisk} setOnlyRisk={setOnlyRisk} />
+    </ReactFlowProvider>
   );
 }
 
-function Legend() {
-  return (
-    <ul className="g-legend" aria-label="Legend">
-      {(["critical", "high", "medium", "low"] as const).map((r) => (
-        <li key={r}>
-          <span className={`g-sw r-${r}`} aria-hidden />
-          {r}
-        </li>
-      ))}
-      <li className="g-legend-gap">
-        <span className="g-shape g-shape-project" aria-hidden />
-        project
-      </li>
-      <li>
-        <span className="g-shape g-shape-pkg" aria-hidden />
-        package
-      </li>
-      <li>
-        <span className="g-shape g-shape-dev" aria-hidden />
-        dev
-      </li>
-      <li>
-        <Workflow size={13} strokeWidth={1.75} aria-hidden />
-        CI
-      </li>
-      <li>
-        <Container size={13} strokeWidth={1.75} aria-hidden />
-        image
-      </li>
-      <li>
-        <FileCog size={13} strokeWidth={1.75} aria-hidden />
-        config
-      </li>
-    </ul>
-  );
-}
-
-function Canvas({ vis, drawSalt }: { vis: ReturnType<typeof buildVisible>; drawSalt: string }) {
-  const { run, pathIds, selectedNodeId, selectedFindingId, selectNode } = useSel();
-  const reduce = useReducedMotion();
+function Canvas({
+  vis, onlyRisk, setOnlyRisk,
+}: {
+  vis: ReturnType<typeof buildVisible>;
+  onlyRisk: boolean;
+  setOnlyRisk: (b: boolean) => void;
+}) {
+  const { data, findingsById, selectedFindingId, selectedNodeId, focusIds, openNode } = useStore();
   const rf = useReactFlow();
-  const initialized = useNodesInitialized();
 
-  // positions: computed once per visible set
-  const base = useMemo<CustodyNode[]>(
+  // edges that lie on a vulnerable transitive path
+  const riskEdges = useMemo(() => {
+    const s = new Set<string>();
+    for (const f of data.findings)
+      for (const p of f.dependency_paths) for (let i = 0; i + 1 < p.length; i++) s.add(`${p[i]}>${p[i + 1]}`);
+    return s;
+  }, [data.findings]);
+  const focusEdges = useMemo(() => {
+    const s = new Set<string>();
+    const f = selectedFindingId ? findingsById.get(selectedFindingId) : undefined;
+    if (f) for (const p of f.dependency_paths) for (let i = 0; i + 1 < p.length; i++) s.add(`${p[i]}>${p[i + 1]}`);
+    return s;
+  }, [selectedFindingId, findingsById]);
+
+  const base = useMemo<GNode[]>(
     () =>
       vis.nodes.map((n) => {
         const k = n.data.kind;
-        const tray = k === "tray";
         return {
           id: n.id,
-          type: k === "project" || k === "package" || tray ? k : "pseudo",
+          type: k === "project" || k === "package" || k === "tray" ? k : "pseudo",
           position: { x: n.x, y: n.y },
           data: n.data,
+          width: n.w,
+          height: n.h,
           draggable: false,
           connectable: false,
-          selectable: !tray,
-          focusable: !tray,
-          ariaLabel: tray ? undefined : ariaFor(n.data),
-        };
+          selectable: k !== "tray",
+        } as GNode;
       }),
     [vis],
   );
-  const visibleSet = useMemo(() => new Set(vis.nodes.map((n) => n.id)), [vis]);
 
-  const hasPath = pathIds.size > 0;
-  const [nodes, setNodes, onNodesChange] = useNodesState<CustodyNode>([]);
-
-  // styles only: keep measured sizes, never re-run layout on selection
-  useEffect(() => {
-    setNodes((prev) => {
-      const prevById = new Map(prev.map((p) => [p.id, p]));
-      return base.map((n) => {
-        const on = pathIds.has(n.id);
-        const cls = [hasPath && !on ? "is-dim" : "", on ? "is-path" : "", n.id === selectedNodeId ? "is-sel" : ""]
-          .filter(Boolean)
-          .join(" ");
-        const old = prevById.get(n.id);
-        return { ...n, measured: old?.measured, className: cls };
-      });
-    });
-  }, [base, pathIds, selectedNodeId, hasPath, setNodes]);
-
-  const drawKey = `${selectedFindingId ?? ""}|${selectedNodeId ?? ""}|${drawSalt}`;
-  const edges = useMemo<CustodyEdgeT[]>(() => {
-    const hops = pathHops(vis.edges, pathIds, run.graph.roots);
-    return vis.edges.map((e) => {
-      const hop = hops.get(e.id) ?? -1;
-      return {
-        id: e.id,
-        source: e.source,
-        target: e.target,
-        type: "custody",
-        zIndex: hop >= 0 ? 2 : 0,
-        focusable: false,
-        selectable: false,
-        data: { hop, drawKey, dim: hasPath && hop < 0, via: e.via },
-      };
-    });
-  }, [vis, pathIds, run.graph.roots, drawKey, hasPath]);
-
-  // pan/zoom to the highlighted path whenever it changes (and on first render)
-  const pathKey = useMemo(() => [...pathIds].sort().join("|"), [pathIds]);
-  const [ready, setReady] = useState(false);
-  const canvasRef = useRef<HTMLDivElement>(null);
-  // real canvas size (not the window): the path is re-centred whenever the canvas is resized
-  const [size, setSize] = useState({ w: 0, h: 0 });
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      setSize((p) => (Math.abs(p.w - r.width) < 1 && Math.abs(p.h - r.height) < 1 ? p : { w: r.width, h: r.height }));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  useEffect(() => {
-    if (!initialized) return;
-    const ids = [...pathIds].filter((id) => visibleSet.has(id));
-    // first fit is instant (no sweep in from the origin); later ones glide
-    const duration = reduce || !ready ? 0 : 600;
-    const id = requestAnimationFrame(() => {
-      if (ids.length) {
-        // centre the highlighted path with even padding on every side (room for the finding chips on the
-        // node corners). Zoom fits the path, capped at 1.4; floor 0.8 so text stays legible when a path is
-        // physically wider than the canvas (the 3-node default path fits at ~0.95 at 1440x900)
-        const rect = canvasRef.current?.getBoundingClientRect();
-        const w = rect?.width ?? 0;
-        const h = rect?.height ?? 0;
-        const b = rf.getNodesBounds(ids);
-        const chip = 12;
-        const bw = b.width + 2 * chip;
-        const bh = b.height + 2 * chip;
-        const padX = 40; // clear space beyond the chips, every side
-        const padY = 40;
-        const fit = w && h ? Math.min((w - 2 * padX) / bw, (h - 2 * padY) / bh) : 1;
-        const zoom = Math.min(1.4, Math.max(fit, 0.8));
-        const cx = b.x + b.width / 2;
-        const cy = b.y + b.height / 2;
-        rf.setViewport({ x: w / 2 - cx * zoom, y: h / 2 - cy * zoom, zoom }, { duration });
-      }
-      else rf.fitView({ duration, padding: 0.05 });
-      // QA hook (plan D3-08: real graph renders < 2 s): ms since navigation start, read via performance.getEntriesByName
-      if (!performance.getEntriesByName("guardian:graph-ready").length) performance.mark("guardian:graph-ready");
-      setReady(true);
-    });
-    return () => cancelAnimationFrame(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialized, pathKey, visibleSet, size]);
-
-  const onKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLDivElement>) => {
-      if (e.key !== "Enter" && e.key !== " ") return;
-      const el = (e.target as HTMLElement).closest?.(".react-flow__node");
-      const id = el?.getAttribute("data-id");
-      if (id && !id.startsWith("tray:")) {
-        e.preventDefault();
-        selectNode(id);
-      }
-    },
-    [selectNode],
+  const nodes = useMemo<GNode[]>(
+    () =>
+      base.map((n) => {
+        const dim = focusIds && !focusIds.has(n.id);
+        const cls = [dim ? "is-dim" : "", n.id === selectedNodeId ? "is-sel" : ""].filter(Boolean).join(" ");
+        return cls === (n.className ?? "") ? n : { ...n, className: cls };
+      }),
+    [base, focusIds, selectedNodeId],
   );
 
+  const edges = useMemo<Edge[]>(
+    () =>
+      vis.edges.map((e) => {
+        const risk = riskEdges.has(e.id);
+        const onFocus = focusEdges.has(e.id);
+        const dim = focusIds && !(focusIds.has(e.source) && focusIds.has(e.target));
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          type: "smoothstep",
+          pathOptions: { borderRadius: 8 },
+          selectable: false,
+          focusable: false,
+          className: [risk ? "e-risk" : "e-base", onFocus ? "e-focus" : "", dim ? "e-dim" : ""].filter(Boolean).join(" "),
+        } as Edge;
+      }),
+    [vis.edges, riskEdges, focusEdges, focusIds],
+  );
+
+  // zoom to the selected node
+  useEffect(() => {
+    if (!selectedNodeId || !vis.nodes.some((n) => n.id === selectedNodeId)) return;
+    const t = window.setTimeout(
+      () => void rf.fitView({ nodes: [{ id: selectedNodeId }], duration: 220, maxZoom: 1.15, padding: 1.4 }),
+      30,
+    );
+    return () => window.clearTimeout(t);
+  }, [selectedNodeId, rf, vis.nodes]);
+
+  const fitOpts = useMemo(
+    () => ({
+      padding: 0.1,
+      maxZoom: 0.9,
+      nodes: vis.nodes.filter((n) => !n.data.plain && n.data.kind !== "tray").map((n) => ({ id: n.id })),
+    }),
+    [vis.nodes],
+  );
+
+  useEffect(() => {
+    const t = window.setTimeout(() => void rf.fitView({ ...fitOpts, duration: 220 }), 60);
+    return () => window.clearTimeout(t);
+  }, [fitOpts, rf]);
+
+  const onNodeClick: NodeMouseHandler = (_, node) => {
+    if (node.type !== "tray") openNode(node.id);
+  };
+
   return (
-    <div ref={canvasRef} className={`g-canvas${reduce ? " no-motion" : ""}${ready ? " is-ready" : ""}`} onKeyDown={onKeyDown}>
-      <ReactFlow<CustodyNode, CustodyEdgeT>
-        proOptions={{ hideAttribution: true }}
+    <div className="graph" aria-label="Dependency graph">
+      <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
         nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        onNodeClick={(_, n) => {
-          if (n.type !== "tray") selectNode(n.id);
-        }}
+        onNodeClick={onNodeClick}
+        fitView
+        fitViewOptions={fitOpts}
+        minZoom={0.04}
+        maxZoom={2}
         nodesDraggable={false}
         nodesConnectable={false}
-        elementsSelectable
-        minZoom={0.05}
-        maxZoom={2}
-        onlyRenderVisibleElements={false}
-        zoomOnDoubleClick={false}
+        nodesFocusable
+        edgesFocusable={false}
+        onlyRenderVisibleElements
+        colorMode="dark"
       >
-        <Controls showInteractive={false} position="top-left" />
+        <Background variant={BackgroundVariant.Dots} gap={22} size={1.2} color="rgba(255,255,255,0.09)" />
+        <MiniMap
+          pannable
+          zoomable
+          position="bottom-left"
+          nodeStrokeWidth={0}
+          nodeColor={(n) => {
+            const d = n.data as GNode["data"];
+            if (d.kind === "tray") return "#27272a";
+            if (d.findings > 0) return RISK_COLOR[d.risk ?? "low"];
+            return d.kind === "project" ? "#a1a1aa" : "#3f3f46";
+          }}
+          maskColor="rgba(9,9,11,0.72)"
+        />
+        <Panel position="top-left" className="gpanel">
+          <label className="switch">
+            <input type="checkbox" checked={onlyRisk} onChange={(e) => setOnlyRisk(e.target.checked)} />
+            <span className="switch-track" aria-hidden />
+            <span>Risk Paths Only</span>
+          </label>
+          <span className="gstat mono">
+            {vis.visiblePackages.toLocaleString()} of {vis.totalPackages.toLocaleString()} packages
+          </span>
+          <button type="button" className="btn ghost icon" aria-label="Fit graph to view" onClick={() => void rf.fitView({ ...fitOpts, duration: 220 })}>
+            <Maximize2 size={15} aria-hidden />
+          </button>
+        </Panel>
+        <Panel position="bottom-right" className="glegend">
+          <span><i className="lg lg-edge" aria-hidden /> vulnerable path</span>
+          <span><i className="lg lg-crit" aria-hidden /> critical</span>
+          <span><i className="lg lg-high" aria-hidden /> high</span>
+          <span><i className="lg lg-med" aria-hidden /> medium</span>
+        </Panel>
       </ReactFlow>
     </div>
   );
-}
-
-function ariaFor(d: VisNodeData) {
-  const kind = d.kind === "project" ? "Project" : d.kind === "package" ? "Package" : d.kind.toUpperCase();
-  const parts = [`${kind} ${d.label}${d.version ? ` ${d.version}` : ""}`];
-  if (d.direct) parts.push("direct dependency");
-  if (d.dev) parts.push("dev scope");
-  if (d.findings) parts.push(`${d.findings} finding${d.findings === 1 ? "" : "s"}, ${d.risk ?? "low"} risk`);
-  if (d.hidden) parts.push(`${d.hidden} collapsed dependencies`);
-  return parts.join(", ");
 }
