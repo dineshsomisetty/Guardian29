@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGMN1Z0465DPCH6QC2A",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.700931Z",
+  "facts": {
+    "vuln_id": "GHSA-c7hr-j4mj-j2w6",
+    "aliases": [
+      "CVE-2015-9235"
+    ],
+    "severity": "Critical",
+    "cvss": 9.8,
+    "fixed_versions": [
+      "4.2.2"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<4.2.2",
+    "purl": "pkg:npm/jsonwebtoken@0.1.0",
+    "name": "jsonwebtoken",
+    "version": "0.1.0",
+    "data_source": "https://github.com/advisories/GHSA-c7hr-j4mj-j2w6"
+  },
+  "excerpt": "Verification Bypass in jsonwebtoken",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

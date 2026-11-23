@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-23T00:00:00Z",
+  "title": "Design System: Guardian",
+  "extensions": {
+    "colorMeta": {
+      "custody-ink": { "role": "primary", "displayName": "Custody Ink", "canonical": "#14233f", "tonalRamp": ["#0a1222", "#14233f", "#1d3157", "#2c4069", "#4a5b75", "#9fb1c9", "#e6ecf4", "#f4f6f8"] },
+      "verified": { "role": "secondary", "displayName": "Verified Green", "canonical": "#2e7d5b", "tonalRamp": ["#12382a", "#1d5a42", "#2e7d5b", "#5aa083", "#8cc0a8", "#b9dccb", "#e6f2ec", "#f4faf7"] },
+      "llm-amber": { "role": "secondary", "displayName": "LLM Amber", "canonical": "#f3c969", "tonalRamp": ["#6a4b06", "#97700f", "#d9a22a", "#e3bd5c", "#f3c969", "#f7dc9a", "#fcf1d4", "#fefaee"] },
+      "critical": { "role": "tertiary", "displayName": "Critical", "canonical": "#c8102e", "tonalRamp": ["#5a0714", "#8a0b20", "#c8102e", "#d9485f", "#e68595", "#f3bcc5", "#fbe9ec", "#fdf5f6"] },
+      "high": { "role": "tertiary", "displayName": "High", "canonical": "#c76a12", "tonalRamp": ["#5a2f06", "#8f4d0c", "#c76a12", "#d98e48", "#e6b180", "#f2d2b3", "#fbf0e4", "#fdf8f2"] },
+      "medium": { "role": "tertiary", "displayName": "Medium", "canonical": "#8f7614", "tonalRamp": ["#403405", "#645210", "#8f7614", "#b09a45", "#cbbb7a", "#e3d8ac", "#f6f1dc", "#fbf8ee"] },
+      "low": { "role": "tertiary", "displayName": "Low", "canonical": "#5b6b82", "tonalRamp": ["#222b38", "#3a4658", "#5b6b82", "#7f8da2", "#a2adbc", "#c6cdd7", "#eef1f5", "#f7f8fa"] },
+      "form-ground": { "role": "neutral", "displayName": "Form Ground", "canonical": "#f4f6f8", "tonalRamp": ["#4a5b75", "#66768e", "#9aa8ba", "#b7c2d0", "#d3dae3", "#e6eaef", "#f4f6f8", "#ffffff"] }
+    },
+    "typographyMeta": {
+      "wordmark": { "displayName": "Wordmark", "purpose": "GUARDIAN mark and boot title, Barlow Condensed 700." },
+      "count": { "displayName": "Count", "purpose": "Strip and summary numbers on a shared baseline." },
+      "headline": { "displayName": "Panel Headline", "purpose": "Panel titles in Public Sans 800." },
+      "title": { "displayName": "Exhibit Title", "purpose": "Exhibit tag title." },
+      "body": { "displayName": "Form Body", "purpose": "Prose and statements, max 68ch." },
+      "label": { "displayName": "Pre-printed Label", "purpose": "Field labels, stamps, nav, column heads in condensed caps." },
+      "value": { "displayName": "Filled-in Value", "purpose": "Ids, versions, paths, hashes in JetBrains Mono, printed whole." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "All state transitions and entrances, 120-280ms." },
+      { "name": "custody-sign", "value": "280ms ease-out, translateY(6px) to 0, 70ms stagger per row", "purpose": "Custody log rows signing in." },
+      { "name": "custody-press", "value": "160ms ease-out, scale(1.15) to 1, delayed 220ms after the row", "purpose": "Stamp pressed after its row signs." },
+      { "name": "path-draw", "value": "stroke-dashoffset 1 to 0, ease-out", "purpose": "Selected critical path drawing on the graph." }
+    ],
+    "breakpoints": [
+      { "name": "stack", "value": "1100px" },
+      { "name": "strip-tight", "value": "1360px" },
+      { "name": "narrow", "value": "640px" },
+      { "name": "root-18px", "value": "1600px" },
+      { "name": "root-20px", "value": "2200px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Risk Stamp",
+      "kind": "chip",
+      "refersTo": "stamp-critical",
+      "description": "Condensed-caps stamp stating a risk level; the same shape carries VERIFIED, FACT, RULE, and a dashed INFERRED.",
+      "html": "<span class=\"ds-stamp ds-critical\">Critical</span> <span class=\"ds-stamp ds-verified\">Verified</span> <span class=\"ds-stamp ds-inferred\">Inferred</span>",
+      "css": ".ds-stamp { display: inline-flex; align-items: center; height: 1.4rem; padding: 0 0.5rem; border: 1px solid currentColor; font: 700 0.75rem/1 'Barlow Condensed', 'Arial Narrow', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; } .ds-critical { color: #c8102e; background: #fbe9ec; } .ds-verified { color: #2e7d5b; background: #e6f2ec; } .ds-inferred { color: #4a5b75; background: #fff; border-style: dashed; }"
+    },
+    {
+      "name": "Numbered Field",
+      "kind": "custom",
+      "refersTo": "field-number",
+      "description": "Numbered field row: box number, pre-printed label, filled-in mono value.",
+      "html": "<div class=\"ds-field\"><span class=\"ds-no\">1a</span><span class=\"ds-label\">Version</span><span class=\"ds-value\">4.17.20</span></div>",
+      "css": ".ds-field { display: grid; grid-template-columns: 30px 4.875rem minmax(0,1fr); gap: 10px; align-items: start; padding: 5px 16px; background: #fff; border-bottom: 1px solid #e6eaef; } .ds-no { display: inline-grid; place-items: center; min-width: 1.625rem; height: 1.25rem; padding: 0 4px; border: 1px solid #d3dae3; font: 600 0.7188rem/1 'JetBrains Mono', monospace; color: #66768e; } .ds-label { padding-top: 4px; font: 600 0.75rem/1 'Barlow Condensed', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; color: #66768e; } .ds-value { font: 400 0.7812rem/1.45 'JetBrains Mono', monospace; color: #14233f; overflow-wrap: anywhere; }"
+    },
+    {
+      "name": "Exhibit Tag",
+      "kind": "card",
+      "refersTo": "field-sheet",
+      "description": "Ink-bordered sheet with the top-right corner notched off by a ground-coloured triangle and a 1px diagonal.",
+      "html": "<div class=\"ds-tag\"><div class=\"ds-tag-title\">lodash prototype pollution</div></div>",
+      "css": ".ds-tag { --notch: 22px; position: relative; background: #fff; border: 1px solid #14233f; padding: 12px 18px; } .ds-tag::before { content: ''; position: absolute; top: -1px; right: -1px; border-style: solid; border-width: 0 var(--notch) var(--notch) 0; border-color: transparent #f4f6f8 transparent transparent; } .ds-tag::after { content: ''; position: absolute; top: -1px; left: calc(100% + 1px - var(--notch)); width: calc(var(--notch) * 1.41421); height: 1px; background: #14233f; transform-origin: 0 0; transform: rotate(45deg); } .ds-tag-title { font: 800 1.25rem/1.25 'Public Sans', sans-serif; letter-spacing: -0.01em; padding-right: 14px; color: #14233f; }"
+    },
+    {
+      "name": "Custody Log Row",
+      "kind": "custom",
+      "refersTo": "stamp-verified",
+      "description": "Signature component: an agent's numbered box, what it did, and the stamp it signed.",
+      "html": "<div class=\"ds-row\"><span class=\"ds-box\">2</span><div><div class=\"ds-who\">Evidence analyst</div><div class=\"ds-what\">Path to direct parent confirmed against tool facts.</div></div><span class=\"ds-stamp-v\">Verified</span></div>",
+      "css": ".ds-row { display: grid; grid-template-columns: 26px minmax(0,1fr) auto; gap: 12px; align-items: start; padding: 10px 16px 12px; background: #fff; border-bottom: 1px solid #e6eaef; } .ds-box { width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid #14233f; font: 600 0.7188rem/1 'JetBrains Mono', monospace; color: #14233f; } .ds-who { font: 700 0.875rem/1.15 'Barlow Condensed', sans-serif; letter-spacing: 0.08em; text-transform: uppercase; color: #14233f; } .ds-what { margin-top: 3px; font: 0.8125rem/1.45 'Public Sans', sans-serif; color: #14233f; } .ds-stamp-v { height: 1.4rem; padding: 0 0.5rem; display: inline-flex; align-items: center; border: 1px solid currentColor; color: #2e7d5b; background: #e6f2ec; font: 700 0.75rem/1 'Barlow Condensed', sans-serif; letter-spacing: 0.12em; text-transform: uppercase; }"
+    },
+    {
+      "name": "Rail Nav Row",
+      "kind": "nav",
+      "refersTo": "rail",
+      "description": "Rail navigation row: mono number, condensed-caps name, count; the current row has an amber left bar.",
+      "html": "<div class=\"ds-rail\"><button class=\"ds-nav\" aria-current=\"true\"><span class=\"ds-nav-name\">Graph</span><span class=\"ds-nav-count\">1,670</span></button><button class=\"ds-nav\"><span class=\"ds-nav-name\">Exhibits</span><span class=\"ds-nav-count\">70</span></button></div>",
+      "css": ".ds-rail { background: #14233f; width: 16.5rem; padding: 8px 0; } .ds-nav { width: 100%; display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 11px 22px; border: 0; border-left: 3px solid transparent; background: none; color: #e6ecf4; text-align: left; cursor: pointer; transition: background 160ms cubic-bezier(0.16,1,0.3,1); } .ds-nav:hover, .ds-nav[aria-current='true'] { background: #1d3157; } .ds-nav[aria-current='true'] { border-left-color: #f3c969; } .ds-nav-name { font: 700 1rem/1 'Barlow Condensed', sans-serif; letter-spacing: 0.06em; text-transform: uppercase; } .ds-nav-count { font: 0.7812rem 'JetBrains Mono', monospace; color: #9fb1c9; } .ds-nav:focus-visible { outline: 2px solid #3a6fd8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Segmented Filter",
+      "kind": "chip",
+      "refersTo": "segment-selected",
+      "description": "Square segmented control; the pressed segment fills with ink.",
+      "html": "<div class=\"ds-seg\"><button class=\"ds-seg-btn\" aria-pressed=\"true\">All</button><button class=\"ds-seg-btn\" aria-pressed=\"false\">Critical</button></div>",
+      "css": ".ds-seg { display: inline-flex; border: 1px solid #d3dae3; } .ds-seg-btn { height: 32px; padding: 0 11px; border: 0; border-right: 1px solid #d3dae3; background: #fff; font: 700 0.8125rem/1 'Barlow Condensed', sans-serif; letter-spacing: 0.1em; text-transform: uppercase; color: #4a5b75; cursor: pointer; transition: background 140ms cubic-bezier(0.16,1,0.3,1), color 140ms cubic-bezier(0.16,1,0.3,1); } .ds-seg-btn:last-child { border-right: 0; } .ds-seg-btn:hover { background: #f4f6f8; color: #14233f; } .ds-seg-btn[aria-pressed='true'] { background: #14233f; color: #e6ecf4; } .ds-seg-btn:focus-visible { outline: 2px solid #3a6fd8; outline-offset: 2px; }"
+    },
+    {
+      "name": "Graph Package Node",
+      "kind": "card",
+      "refersTo": "field-sheet",
+      "description": "232x56 package box; a 1.5px risk-coloured border and corner count chip when it carries findings.",
+      "html": "<div class=\"ds-node\"><span class=\"ds-node-text\"><span class=\"ds-node-name\">lodash</span><span class=\"ds-node-ver\">4.17.20</span></span><span class=\"ds-node-chip\">2</span></div>",
+      "css": ".ds-node { position: relative; width: 232px; height: 56px; padding: 0 12px; display: flex; align-items: center; background: #fff; border: 1.5px solid #c8102e; } .ds-node-text { display: flex; flex-direction: column; gap: 2px; } .ds-node-name { font: 600 14.5px/1.15 'JetBrains Mono', monospace; color: #14233f; } .ds-node-ver { font: 400 12.5px/1 'JetBrains Mono', monospace; color: #66768e; } .ds-node-chip { position: absolute; top: -9px; right: -9px; min-width: 18px; height: 18px; padding: 0 4px; display: inline-grid; place-items: center; font: 600 11.5px/1 'JetBrains Mono', monospace; color: #fff; background: #c8102e; border: 1px solid #c8102e; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Intake Form",
+    "overview": "Guardian is a forensic evidence-intake form rendered as a dashboard. A deep custody-ink rail and header band hold the case and the chain of agents; a cool form-grey ground carries white field sheets divided by one 1px hairline grid. Every finding is an exhibit with a tag, numbered particulars, and a custody log in which each agent signs in sequence. The system refuses the KPI-tile security dashboard and the unlabelled paragraph of AI output.\n\nDensity is high and precise: condensed caps for the pre-printed form labels, a plain grotesque for form prose, and monospace for filled-in values, printed whole and never truncated. Corners are square, surfaces are flat, and nothing casts a shadow. Colour is rationed: ink and grey carry structure, and the risk hues appear only where risk is stated.",
+    "keyCharacteristics": [
+      "One 1px hairline grid; separation by line, never by shadow or radius.",
+      "Three-voice type: condensed caps label, Public Sans form body, JetBrains Mono value.",
+      "Numbered field boxes (1a, 1b) and exhibit numbers act as navigation anchors.",
+      "Notched corners (exhibit tag top-right, graph filing tag top-left) as the only silhouette device.",
+      "Honest labelling: fact, VERIFIED, INFERRED, rule and rejected each have a distinct stamp."
+    ],
+    "rules": [
+      { "name": "The Risk-Only Rule", "body": "Red, orange, ochre and slate-low appear only to state a risk level. Structure, selection and emphasis use ink.", "section": "colors" },
+      { "name": "The Provenance Amber Rule", "body": "Amber means \"an LLM did this\". It never signals severity.", "section": "colors" },
+      { "name": "The Tinted Neutral Rule", "body": "Every grey is blue-tinted from the ink; no pure grey and no pure black text.", "section": "colors" },
+      { "name": "The Three Voices Rule", "body": "Printed form text is condensed caps, prose is Public Sans, entered data is mono. Never set a value in the form face or a label in mono.", "section": "typography" },
+      { "name": "The Printed Whole Rule", "body": "Hashes, ids and paths wrap; they are never ellipsised in the exhibit sheet.", "section": "typography" },
+      { "name": "The No-Shadow Rule", "body": "Nothing carries a box-shadow. If a surface needs lifting, give it a hairline or an ink fill.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do separate regions with a 1px hairline (#d3dae3, or #e6eaef inside rows), not shadow, tint blocks or radius.",
+      "Do keep every radius at 0 on surfaces and controls.",
+      "Do set labels in Barlow Condensed uppercase with 0.1-0.12em tracking, prose in Public Sans, entered data in JetBrains Mono.",
+      "Do pair every risk or claim state with a stamp that carries its word, not colour alone.",
+      "Do show a long hash or id in full, wrapped, in the exhibit sheet.",
+      "Do honour `prefers-reduced-motion`; animation exists only for custody signing, path draw and relay-band growth.",
+      "Do use ease-out `cubic-bezier(0.16, 1, 0.3, 1)` at 120-280ms for state transitions."
+    ],
+    "donts": [
+      "Don't add box-shadows, rounded cards, or gradient fills (the only gradients are the notch triangle and the diff hatch).",
+      "Don't use risk colours for anything other than a risk level, or amber for anything other than LLM provenance.",
+      "Don't introduce a second display face, or set structure in colour where ink works.",
+      "Don't put KPI tiles over a table, or present AI output as an unlabelled paragraph; every claim carries fact, VERIFIED, INFERRED or rule."
+    ]
+  }
+}

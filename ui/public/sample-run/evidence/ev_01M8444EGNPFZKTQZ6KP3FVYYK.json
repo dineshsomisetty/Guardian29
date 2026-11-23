@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-r6q2-hw4h-h46w",
+    "aliases": [
+      "CVE-2026-23950"
+    ],
+    "severity": "High",
+    "cvss": 8.8,
+    "fixed_versions": [
+      "7.5.4"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<=7.5.3",
+    "purl": "pkg:npm/tar@6.2.1",
+    "name": "tar",
+    "version": "6.2.1",
+    "data_source": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w"
+  },
+  "excerpt": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

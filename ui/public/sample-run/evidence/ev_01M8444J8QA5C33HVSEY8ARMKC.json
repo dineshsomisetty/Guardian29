@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8QA5C33HVSEY8ARMKC",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-8hfj-j24r-96c4",
+    "aliases": [
+      "CVE-2022-24785"
+    ],
+    "cvss": 7.5,
+    "fixed_versions": [
+      "2.29.2"
+    ],
+    "purl": "pkg:npm/moment@2.0.0",
+    "name": "moment",
+    "version": "2.0.0"
+  },
+  "excerpt": "Path Traversal: 'dir/../../filename' in moment.locale",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}

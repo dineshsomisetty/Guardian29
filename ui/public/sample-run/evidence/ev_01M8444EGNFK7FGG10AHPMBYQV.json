@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGNFK7FGG10AHPMBYQV",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.701931Z",
+  "facts": {
+    "vuln_id": "GHSA-hjrf-2m68-5959",
+    "aliases": [
+      "CVE-2022-23541"
+    ],
+    "severity": "Medium",
+    "cvss": 5,
+    "fixed_versions": [
+      "9.0.0"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<=8.5.1",
+    "purl": "pkg:npm/jsonwebtoken@0.4.0",
+    "name": "jsonwebtoken",
+    "version": "0.4.0",
+    "data_source": "https://github.com/advisories/GHSA-hjrf-2m68-5959"
+  },
+  "excerpt": "jsonwebtoken's insecure implementation of key retrieval function could lead to Forgeable Public/Private Tokens from RSA to HMAC",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

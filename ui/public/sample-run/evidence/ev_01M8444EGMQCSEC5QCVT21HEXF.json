@@ -1,0 +1,29 @@
+{
+  "evidence_id": "ev_01M8444EGMQCSEC5QCVT21HEXF",
+  "run_id": "run_20261123_172422",
+  "kind": "scanner_output",
+  "source_tool": "grype@0.122.1",
+  "created_at": "2026-11-23T11:54:47.700931Z",
+  "facts": {
+    "vuln_id": "GHSA-cgfm-xwp7-2cvr",
+    "aliases": [
+      "CVE-2022-25887"
+    ],
+    "severity": "High",
+    "cvss": 7.5,
+    "fixed_versions": [
+      "2.7.1"
+    ],
+    "fix_state": "fixed",
+    "affected_range": "<2.7.1",
+    "purl": "pkg:npm/sanitize-html@1.4.2",
+    "name": "sanitize-html",
+    "version": "1.4.2",
+    "data_source": "https://github.com/advisories/GHSA-cgfm-xwp7-2cvr"
+  },
+  "excerpt": "Sanitize-html Vulnerable To REDoS Attacks",
+  "file_path": "package-lock.json",
+  "line": null,
+  "artifact_path": "grype.json",
+  "sha256": null
+}

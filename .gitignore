@@ -1,0 +1,26 @@
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+targets/
+runs/
+data/cache/intel/
+node_modules/
+ui/dist/
+*.egg-info/
+tools/bin/
+tools/download/
+.env.local
+*.tsbuildinfo
+.claude/
+
+# impeccable design-process scratch (the durable results are DESIGN.md, PRODUCT.md, .impeccable/design.json and surfaces/)
+.impeccable/mocks/
+.impeccable/review/
+.impeccable/decision/
+.impeccable/questions/
+.impeccable/brief-body.md

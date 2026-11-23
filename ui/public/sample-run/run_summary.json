@@ -1,0 +1,39 @@
+{
+  "run_id": "run_20261123_172422",
+  "target": "juice-shop",
+  "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+  "started_at": "2026-11-23T11:54:22.466108+00:00",
+  "finished_at": "2026-11-23T11:55:15.014029+00:00",
+  "status": "done",
+  "sbom": {
+    "file": "sbom.cdx.json",
+    "components": 1656,
+    "direct": 154,
+    "transitive": 1502
+  },
+  "projects": [
+    "frontend",
+    "root"
+  ],
+  "findings": {
+    "total": 72,
+    "by_risk": {
+      "critical": 7,
+      "high": 21,
+      "medium": 38,
+      "low": 6
+    },
+    "by_category": {
+      "cve": 57,
+      "lockfile": 1,
+      "typosquat": 2,
+      "unpinned_ci": 7,
+      "untrusted_image": 5
+    }
+  },
+  "llm": {
+    "mode": "record",
+    "model": "deepseek-chat"
+  },
+  "offline": false
+}

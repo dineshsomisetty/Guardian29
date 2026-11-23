@@ -1,0 +1,25 @@
+{
+  "evidence_id": "ev_01M8444J8QWEGHFZMVRESMM2EY",
+  "run_id": "run_20261123_172422",
+  "kind": "osv",
+  "source_tool": "osv-scanner@2.7.1",
+  "created_at": "2026-11-23T11:54:51.543436Z",
+  "facts": {
+    "vuln_id": "GHSA-83g3-92jg-28cx",
+    "aliases": [
+      "CVE-2026-26960"
+    ],
+    "cvss": 7.1,
+    "fixed_versions": [
+      "7.5.8"
+    ],
+    "purl": "pkg:npm/tar@6.2.1",
+    "name": "tar",
+    "version": "6.2.1"
+  },
+  "excerpt": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+  "file_path": null,
+  "line": null,
+  "artifact_path": "osv.json",
+  "sha256": null
+}
