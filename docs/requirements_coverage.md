@@ -117,7 +117,7 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 | Upgrade to a safe version | ✅ | npm and pip |
 | Replace or remove the dependency | ✅ | typosquat plans |
 | Pin a trusted version | ✅ | pin action SHA, pin image digest, generate lockfile |
-| Update the container base image | 🟡 | `update_base_image` op exists; it is offered only when evidence lists a newer tag, and no tool produces that evidence yet, so in practice images get the digest pin |
+| Update the container base image | ✅ | the image detector records the newest explicit release on the same line from Docker Hub (cached, offline-safe); remediation offers pin-digest first, then update-to-that-release + digest. Real (Juice Shop): `FROM node:24` → attempt 1 `node:24@sha256:9d26…`, attempt 2 `node:24.22.3@sha256:9d26…`; `node:20.19.2-bookworm-slim` → `20.19.6-bookworm-slim`. A moving tag never gets an older release (no downgrades). `tests/unit/test_image_tags.py`, `test_update_base_image_only_with_newer_tag_from_evidence` |
 | Block the unsafe component | ✅ | `block_package` + `guardian.yaml` denylist |
 | Escalate for security review | ✅ | after 3 attempts or no safe plan (G5.4) |
 | Expected risk reduction, compatibility impact and rollback option | ✅ | `simulate_after`, `compat_hint`, rollback text in every plan |
@@ -154,7 +154,8 @@ Real runs used as proof (DeepSeek live, then replayed offline with the network b
 
 ## Summary
 
-* **All core requirements (slides 2–5) are done**, except one partial: base-image *update* is implemented but not
-  yet triggered automatically (digest pinning covers untrusted images).
+* **All core requirements (slides 2–5) are done.** Disclosed limitation: Juice Shop's API test suite needs its
+  built Angular frontend and is reported as not runnable in the sandbox (its unit suite and PyGoat's Django
+  suite run for real).
 * **Stretch goals:** 4 of 6 done; reachability and provenance are partial (import-level, registry-level).
 * **All deliverables exist.**
