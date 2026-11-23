@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardian Report {{ r.run_id }}</title>
+<style>
+ body{font:15px/1.5 system-ui,sans-serif;margin:2rem auto;max-width:1000px;padding:0 1rem;color:#1b1f23}
+ h1,h2{margin-top:2rem} table{border-collapse:collapse;width:100%;margin:.5rem 0}
+ th,td{border:1px solid #d0d7de;padding:.35rem .5rem;text-align:left;vertical-align:top;font-size:14px}
+ th{background:#f6f8fa} code{background:#f6f8fa;padding:0 .25rem;border-radius:3px;word-break:break-all}
+ .b{display:inline-block;padding:0 .5rem;border-radius:10px;font-size:12px;color:#fff}
+ .critical{background:#82071e}.high{background:#bc4c00}.medium{background:#9a6700}.low{background:#1a7f37}
+ .VERIFIED{background:#1a7f37}.INFERRED{background:#6e7781} .muted{color:#57606a}
+</style></head><body>
+<h1>Guardian Report</h1>
+<p class="muted">Run <code>{{ r.run_id }}</code>{% if r.target %} · target <code>{{ r.target }}</code>{% endif %} · generated {{ r.generated_at }}</p>
+
+<h2>Summary</h2>
+<table>
+ <tr><th>Findings</th><td>{{ r.summary.findings_total }}</td><th>Verified fixed</th><td>{{ r.summary.verified }}</td><th>Remaining</th><td>{{ r.summary.remaining }}</td></tr>
+</table>
+<p>By priority: {% for k,v in r.summary.by_priority.items() %}<span class="b {{ k }}">{{ k }} {{ v }}</span> {% else %}<span class="muted">none</span>{% endfor %}</p>
+
+<h2>Inventory</h2>
+<p>{{ r.inventory.component_count }} components ({{ r.inventory.direct_count }} direct, {{ r.inventory.transitive_count }} transitive);
+ roots: {{ r.inventory.roots|join(", ") or "-" }}; ecosystems: {% for k,v in r.inventory.by_ecosystem.items() %}{{ k }} {{ v }} {% endfor %}</p>
+{% if r.inventory.vulnerable_paths %}
+<table><tr><th>Finding</th><th>Component</th><th>Dependency path</th></tr>
+{% for vp in r.inventory.vulnerable_paths %}<tr><td>{{ vp.finding_id }}</td><td><code>{{ vp.purl }}</code></td>
+<td>{% for p in vp.paths %}{{ p|join(" → ") }}<br>{% endfor %}</td></tr>{% endfor %}</table>
+{% endif %}
+{% if r.inventory.changes %}
+<h3>What changed</h3>
+<p class="muted">{{ r.inventory.changes.base }} → {{ r.inventory.changes.head }}:
+ {{ r.inventory.changes.added|length }} added, {{ r.inventory.changes.removed|length }} removed,
+ {{ r.inventory.changes.changed|length }} version changes ({{ r.inventory.changes.changed|selectattr("major_jump")|list|length }} major jumps),
+ {{ r.inventory.changes.integrity_changed|length }} integrity changes.</p>
+{% endif %}
+
+<h2>Findings and evidence</h2>
+{% for f in r.findings %}
+<h3>{{ f.title }} {% if f.initial_risk %}<span class="b {{ f.initial_risk }}">initial: {{ f.initial_risk }}</span>{% endif %}</h3>
+<p class="muted">{{ f.finding_id }} · {{ f.category }} · scope {{ f.scope }} · status {{ f.status }}
+ {% if f.component_purl %}· <code>{{ f.component_purl }}</code>{% endif %}
+ {% if f.vuln_id %}· {{ f.vuln_id }}{% endif %}{% if f.cvss is not none %} · CVSS {{ f.cvss }}{% endif %}
+ {% if f.affected_range %}· vulnerable {{ f.affected_range }}{% endif %}
+ {% if f.fixed_versions %}· fixed in {{ f.fixed_versions|join(", ") }}{% endif %}</p>
+{% for c in f.claims %}<p><span class="b {{ c.label }}">{{ c.label }}</span> {{ c.text }}
+ {% if c.evidence_ids %}<span class="muted">[{{ c.evidence_ids|join(", ") }}]</span>{% endif %}</p>{% endfor %}
+{% if f.evidence %}<details><summary>{{ f.evidence|length }} evidence item(s)</summary>
+{% for e in f.evidence %}<pre>{{ e|tojson(indent=1) }}</pre>{% endfor %}</details>{% endif %}
+{% endfor %}
+
+<h2>Risk ranking</h2>
+{% if r.ranking %}<table><tr><th>Finding</th><th>Score</th><th>Priority</th><th>Confidence</th><th>Factors (recompute: sum of contributions)</th></tr>
+{% for k in r.ranking %}<tr><td>{{ k.finding_id }}</td><td>{{ k.score }}</td><td><span class="b {{ k.priority }}">{{ k.priority }}</span></td><td>{{ k.confidence }}</td>
+<td>{% for x in k.factors %}{{ x.name }}={{ x.raw }} (×{{ x.weight }} = {{ x.contribution }})<br>{% endfor %}
+{% if k.provenance_bonus %}provenance modifier +{{ k.provenance_bonus }}<br>{% endif %}{% if k.override_applied %}KEV override applied{% endif %}</td></tr>{% endfor %}</table>
+{% else %}<p class="muted">No scores recorded.</p>{% endif %}
+
+<h2>Actions and approvals</h2>
+{% for a in r.actions %}<p><b>{{ a.finding_id }}</b>: {{ a.action }}{% if a.target_version %} → {{ a.target_version }}{% endif %}<br>
+ {{ a.rationale }}<br><span class="muted">Risk reduction: {{ a.expected_risk_reduction }} · Compatibility: {{ a.compatibility_impact }} · Rollback: {{ a.rollback }}</span><br>
+ Approval: {% if a.approval %}{{ a.approval.decision }} by {{ a.approval.by }} at {{ a.approval.at }}{% if a.approval.comment %} — {{ a.approval.comment }}{% endif %}{% else %}<b>none (not applied)</b>{% endif %}</p>
+{% else %}<p class="muted">No actions recorded.</p>{% endfor %}
+
+<h2>Validation</h2>
+{% for v in r.validations %}<table><tr><th colspan="2">{{ v.finding_id }} · attempt {{ v.attempt }} · <b>{{ v.verdict }}</b></th></tr>
+<tr><td>Build</td><td>{{ v.build_ok }}</td></tr>
+<tr><td>Unit / integration tests</td><td>{{ v.unit_tests }} / {{ v.integration_tests }}</td></tr>
+<tr><td>Original finding resolved</td><td>{{ v.target_finding_resolved }}</td></tr>
+<tr><td>New findings</td><td>{{ v.new_findings|join(", ") or "none" }}</td></tr>
+<tr><td>Risk before → after</td><td>{{ v.risk_before }} → {{ v.risk_after }}</td></tr>
+<tr><td>Artifact rescanned</td><td>{{ v.artifact_rescanned }}</td></tr>
+<tr><td>SBOM diff</td><td>{{ v.sbom_diff|tojson }}</td></tr>
+<tr><td>Final confidence</td><td>{{ v.final_confidence }}</td></tr></table>
+{% else %}<p class="muted">No validations recorded.</p>{% endfor %}
+
+<h2>Remaining or accepted risk</h2>
+{% if r.remaining_risk %}<table><tr><th>Finding</th><th>Priority</th><th>Why remaining</th></tr>
+{% for x in r.remaining_risk %}<tr><td>{{ x.title }}<br><span class="muted">{{ x.finding_id }}</span></td><td>{{ x.priority }}</td><td>{{ x.reason }}</td></tr>{% endfor %}</table>
+{% else %}<p>None.</p>{% endif %}
+
+<h2>Guardrail events</h2>
+{% for g in r.guardrail_events %}<p><code>{{ g|tojson }}</code></p>{% else %}<p class="muted">None recorded.</p>{% endfor %}
+
+<h2>Audit trail</h2>
+<details><summary>{{ r.audit|length }} entries</summary>{% for a in r.audit %}<pre>{{ a|tojson }}</pre>{% endfor %}</details>
+
+<h2>Known limitations</h2>
+<ul>{% for l in r.limitations %}<li>{{ l }}</li>{% endfor %}</ul>
+</body></html>
