@@ -12,6 +12,10 @@ def test_pick_newer_keeps_line_and_variant_and_prefers_full_releases():
     assert it.pick_newer("3.9-alpine", ["3.9.25-alpine", "3.9.24-alpine", "3.13.1-alpine"]) == [
         "3.9.25-alpine", "3.9.24-alpine"]
     assert it.pick_newer("latest", tags) == [] and it.pick_newer("v19", ["v19.1.0"]) == []
+    # a full release only moves to strictly newer patches on its own minor line, same variant
+    slim = ["20.19.2-bookworm-slim", "20.19.6-bookworm-slim", "20.20.0-bookworm-slim", "20.19.6-bookworm"]
+    assert it.pick_newer("20.19.2-bookworm-slim", slim) == ["20.19.6-bookworm-slim"]
+    assert it.pick_newer("20.19.6-bookworm-slim", slim) == []
 
 
 def test_hub_repo_only_for_docker_hub():

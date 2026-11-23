@@ -19,7 +19,14 @@ from guardian.core.config import REPO_ROOT
 from guardian.guardrails.network import NetworkBlocked, check_url
 
 HUB_HOSTS = frozenset({"hub.docker.com"})
-_LINE = re.compile(r"^(\d+(?:\.\d+)?)(-[a-z0-9][a-z0-9.-]*)?$")  # "24", "3.9", "24-alpine", "3.9-slim-bookworm"
+# "24", "3.9", "24-alpine", "3.9-slim-bookworm", and full releases "20.19.2-bookworm-slim"
+_LINE = re.compile(r"^(\d+(?:\.\d+){0,2})(-[a-z][a-z0-9.-]*)?$")
+
+
+def _line_of(version: str) -> str:
+    """The release line a tag follows: a full x.y.z release moves only within x.y (patch updates)."""
+    parts = version.split(".")
+    return ".".join(parts[:2]) if len(parts) >= 3 else version
 
 
 def _cache_path() -> Path:
@@ -45,9 +52,12 @@ def pick_newer(tag: str, tags: list[str], limit: int = 2) -> list[str]:
     m = _LINE.match(tag or "")
     if not m:
         return []
-    line, suffix = m.group(1), m.group(2) or ""
+    current, suffix = m.group(1), m.group(2) or ""
+    line = _line_of(current)
     pat = re.compile(rf"^{re.escape(line)}(?:\.\d+)+{re.escape(suffix)}$")
     found = {t[: len(t) - len(suffix)] if suffix else t for t in tags if pat.match(t)}
+    if current.count(".") >= 2:  # already an explicit release: only strictly newer patches are an update
+        found = {v for v in found if _vkey(v) > _vkey(current)}
     ranked = sorted(found, key=_vkey, reverse=True)
     # prefer full x.y.z releases over x.y aliases when both exist
     full = [v for v in ranked if v.count(".") >= 2] or ranked
@@ -60,7 +70,7 @@ def newer_tags(image: str, tag: str, *, offline: bool, ctx=None, transport: http
     repo = hub_repo(image)
     if repo is None or not _LINE.match(tag or ""):
         return [], "not applicable (not a Docker Hub version tag)"
-    line = _LINE.match(tag).group(1)
+    line = _line_of(_LINE.match(tag).group(1))
     key = f"{repo}:{line}"
     path = _cache_path()
     try:
