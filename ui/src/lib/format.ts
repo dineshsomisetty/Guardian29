@@ -40,15 +40,6 @@ export function bandOf(f: Finding, risk: Map<string, RiskAssessment>): Risk | nu
   return risk.get(f.finding_id)?.band ?? f.initial_risk;
 }
 
-export function categoryLabel(c: string): string {
-  return c.replace(/_/g, " ");
-}
-
-export function findingHeadline(f: Finding): string {
-  if (f.vuln_id) return f.vuln_id;
-  return f.title;
-}
-
 export function claimCounts(fs: Finding[], risk: RiskAssessment[]) {
   let verified = 0;
   let inferred = 0;
@@ -63,10 +54,35 @@ export function claimCounts(fs: Finding[], risk: RiskAssessment[]) {
 
 export const fixed1 = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
 
-export const FACTORS = [
-  { key: "S", name: "Severity", weight: 0.3 },
-  { key: "E", name: "Exploitability", weight: 0.25 },
-  { key: "R", name: "Reachability", weight: 0.2 },
-  { key: "P", name: "Production", weight: 0.15 },
-  { key: "X", name: "Exposure", weight: 0.1 },
-] as const;
+
+export function purlVersion(id: string): string {
+  const l = purlLabel(id);
+  const i = l.lastIndexOf("@");
+  return i > 0 ? l.slice(i + 1) : "";
+}
+
+/** Findings that describe the same advisory on the same package (different versions) share a key. */
+export function groupKey(f: Finding): string {
+  if (f.category === "cve" && f.vuln_id && f.component_purl) return `cve|${f.vuln_id}|${purlName(f.component_purl)}`;
+  return f.finding_id;
+}
+
+export function fmtDate(ts: string | undefined | null): string {
+  if (!ts) return "";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+export function ago(ts: string | undefined | null): string {
+  if (!ts) return "";
+  const d = new Date(ts).getTime();
+  if (Number.isNaN(d)) return "";
+  const s = Math.max(0, (Date.now() - d) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+}
+
+export const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString()} ${n === 1 ? one : many}`;

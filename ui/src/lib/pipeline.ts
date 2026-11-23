@@ -20,9 +20,17 @@ export const AGENT_LABEL: Record<AgentId, string> = {
   investigator: "Investigator",
   risk_analyst: "Risk",
   remediation: "Remediation",
-  human_gate: "Human gate",
-  validator: "Validator",
-  reporter: "Reporter",
+  human_gate: "Approval",
+  validator: "Validation",
+  reporter: "Report",
+};
+
+export const STATE_WORD: Record<string, string> = {
+  idle: "Not started",
+  active: "Working",
+  done: "Done",
+  waiting: "Waiting for you",
+  error: "Problem",
 };
 
 export type NodeState = "idle" | "active" | "done" | "waiting" | "error";

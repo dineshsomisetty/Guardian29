@@ -1,20 +1,29 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  LOCAL_ME, getMe, getToken, setToken, type Me,
   detectSource, eventsUrl, fetchTrace, initialRunId, listRuns, loadDynamic, loadRun, type Src,
 } from "./api/client";
 import type {
-  AgentEvent, Finding, GraphNode, RemediationPlan, RiskAssessment, RunData, RunListItem, SourceKind,
+  AgentEvent, Finding, GraphNode, RemediationPlan, Risk, RiskAssessment, RunData, RunListItem, SourceKind,
 } from "./api/types";
+import { BootError, BootSkeleton, SignIn } from "./components/Boot";
 import { bandOf, isCve, riskRank } from "./lib/format";
 import { derivePipeline, type Pipeline } from "./lib/pipeline";
 
-export type View = "graph" | "findings" | "gate" | "validation" | "report";
-export const VIEWS: View[] = ["graph", "findings", "gate", "validation", "report"];
+export type View = "overview" | "graph" | "findings" | "gate" | "validation" | "report";
+export const VIEWS: View[] = ["overview", "graph", "findings", "gate", "validation", "report"];
+
+export interface FindingFilter {
+  risk: Risk | null;
+  cat: string | null;
+}
 
 export type InspectorTarget = { kind: "finding" | "evidence" | "node"; id: string } | null;
 export type LiveState = "connecting" | "live" | "poll" | "idle";
 
 interface Store {
+  me: Me;
+  signOut: () => void;
   kind: SourceKind;
   src: Src;
   runs: RunListItem[];
@@ -41,6 +50,14 @@ interface Store {
   order: string[];
   anomaliesFirst: boolean;
   setAnomaliesFirst: (b: boolean) => void;
+  findingFilter: FindingFilter;
+  setFindingFilter: (f: Partial<FindingFilter>) => void;
+  helpOpen: boolean;
+  setHelpOpen: (b: boolean) => void;
+  /** Show a finding's risk path in the graph. */
+  showInGraph: (nodeId: string) => void;
+  graphTarget: string | null;
+  clearGraphTarget: () => void;
 
   selectedFindingId: string | null;
   selectedNodeId: string | null;
@@ -64,37 +81,50 @@ export function useStore(): Store {
 
 function initialView(): View {
   const v = new URLSearchParams(window.location.search).get("view");
-  return (VIEWS as string[]).includes(v ?? "") ? (v as View) : "graph";
+  return (VIEWS as string[]).includes(v ?? "") ? (v as View) : "overview";
 }
 
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
-type Boot = { phase: "loading" } | { phase: "error"; message: string } | { phase: "ready"; kind: SourceKind; data: RunData };
+type Boot =
+  | { phase: "loading" }
+  | { phase: "error"; message: string; kind: SourceKind | null; runs: RunListItem[] }
+  | { phase: "signin"; bad: boolean }
+  | { phase: "ready"; kind: SourceKind; data: RunData; me: Me };
 
 export function Provider({ children }: { children: ReactNode }) {
   const [boot, setBoot] = useState<Boot>({ phase: "loading" });
   const [runs, setRuns] = useState<RunListItem[]>([]);
   const [runKey, setRunKey] = useState<string | null>(null); // null -> initial
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let dead = false;
     setBoot({ phase: "loading" });
     (async () => {
+      let kind: SourceKind | null = null;
       try {
-        const kind = await detectSource();
+        kind = await detectSource();
+        const me = kind === "api" ? await getMe() : LOCAL_ME;
         const id = runKey ?? initialRunId(kind);
         const data = await loadRun({ kind, runId: id });
         if (dead) return;
-        setBoot({ phase: "ready", kind, data });
+        setBoot({ phase: "ready", kind, data, me });
         listRuns(kind).then((r) => !dead && setRuns(r)).catch(() => undefined);
       } catch (e) {
-        if (!dead) setBoot({ phase: "error", message: String((e as Error).message ?? e) });
+        if (dead) return;
+        if (String((e as Error).message ?? e).startsWith("401")) {
+          setBoot({ phase: "signin", bad: !!getToken() });
+          return;
+        }
+        const found = kind ? await listRuns(kind).catch(() => [] as RunListItem[]) : [];
+        setBoot({ phase: "error", message: String((e as Error).message ?? e), kind, runs: found });
       }
     })();
     return () => {
       dead = true;
     };
-  }, [runKey]);
+  }, [runKey, attempt]);
 
   const switchRun = useCallback((id: string) => {
     const u = new URL(window.location.href);
@@ -103,29 +133,38 @@ export function Provider({ children }: { children: ReactNode }) {
     setRunKey(id);
   }, []);
 
-  if (boot.phase === "loading") return <div className="boot" role="status">Loading run</div>;
+  if (boot.phase === "loading") return <BootSkeleton />;
+  if (boot.phase === "signin")
+    return (
+      <SignIn
+        bad={boot.bad}
+        onSubmit={(t) => {
+          setToken(t);
+          setAttempt((n) => n + 1);
+        }}
+      />
+    );
   if (boot.phase === "error")
     return (
-      <div className="boot">
-        <p className="boot-title">No run to show</p>
-        <p>
-          Start the API with <code>uv run python -m guardian serve-api</code> or the static server with{" "}
-          <code>uv run python -m guardian serve-runs --port 8001</code>.
-        </p>
-        <p className="boot-err">{boot.message}</p>
-      </div>
+      <BootError
+        message={boot.message}
+        runs={boot.runs}
+        onRetry={() => setAttempt((n) => n + 1)}
+        onPick={(id) => switchRun(id)}
+      />
     );
   return (
-    <Inner key={`${boot.kind}|${boot.data.runId}`} kind={boot.kind} first={boot.data} runs={runs} switchRun={switchRun}>
+    <Inner key={`${boot.kind}|${boot.data.runId}`} kind={boot.kind} me={boot.me} first={boot.data} runs={runs} switchRun={switchRun}>
       {children}
     </Inner>
   );
 }
 
 function Inner({
-  kind, first, runs, switchRun, children,
+  kind, me, first, runs, switchRun, children,
 }: {
   kind: SourceKind;
+  me: Me;
   first: RunData;
   runs: RunListItem[];
   switchRun: (id: string) => void;
@@ -253,6 +292,11 @@ function Inner({
   const pipeline = useMemo(() => derivePipeline(events, status), [events, status]);
 
   const [anomaliesFirst, setAnomaliesFirst] = useState(false);
+  const [findingFilter, setFilterState] = useState<FindingFilter>({ risk: null, cat: null });
+  const setFindingFilter = useCallback((f: Partial<FindingFilter>) => setFilterState((p) => ({ ...p, ...f })), []);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [graphTarget, setGraphTarget] = useState<string | null>(null);
+  const clearGraphTarget = useCallback(() => setGraphTarget(null), []);
   const order = useMemo(() => {
     const score = (f: Finding) => riskById.get(f.finding_id)?.score ?? (f.cvss ?? 0) * 10;
     return [...data.findings]
@@ -274,6 +318,13 @@ function Inner({
     u.searchParams.set("view", v);
     window.history.replaceState(null, "", u);
   }, []);
+  const showInGraph = useCallback(
+    (nodeId: string) => {
+      setGraphTarget(nodeId);
+      setView("graph");
+    },
+    [setView],
+  );
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerAgent, setDrawerAgent] = useState<string | null>(null);
   const [selectedFindingId, setSelF] = useState<string | null>(null);
@@ -334,10 +385,15 @@ function Inner({
     return null;
   }, [selectedFindingId, selectedNodeId, findingsById]);
 
+  const signOut = useCallback(() => {
+    setToken(null);
+    window.location.reload();
+  }, []);
   const value: Store = {
-    kind, src, runs, switchRun, data, status, replay: data.summary.llm?.mode === "replay", events, live, pipeline,
+    me, signOut, kind, src, runs, switchRun, data, status, replay: data.summary.llm?.mode === "replay", events, live, pipeline,
     refresh, view, setView, drawerOpen, setDrawerOpen, drawerAgent, setDrawerAgent, findingsById, nodesById, riskById, plansById, order,
-    anomaliesFirst, setAnomaliesFirst, selectedFindingId, selectedNodeId, focusIds, inspector, openFinding,
+    anomaliesFirst, setAnomaliesFirst, findingFilter, setFindingFilter, helpOpen, setHelpOpen, showInGraph, graphTarget,
+    clearGraphTarget, selectedFindingId, selectedNodeId, focusIds, inspector, openFinding,
     openEvidence, openNode, selectNodeOnly, closeInspector, stepFinding,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

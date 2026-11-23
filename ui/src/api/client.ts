@@ -1,11 +1,60 @@
 import type {
-  AgentEvent, Approval, Changes, Evidence, Finding, GraphData, RemediationPlan, ReportJson, RiskAssessment,
+  AgentEvent, Approval, Evidence, Finding, GraphData, RemediationPlan, ReportJson, RiskAssessment,
   RunData, RunListItem, RunSummary, SourceKind, ValidationResult,
 } from "./types";
 
 export const API_BASE = ((import.meta.env.VITE_API_BASE as string | undefined) ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 export const RUNS_BASE = ((import.meta.env.VITE_RUNS_BASE as string | undefined) ?? "http://localhost:8001").replace(/\/$/, "");
 const SAMPLE = "/sample-run";
+
+// ---------------------------------------------------------------- auth (token lives in sessionStorage only)
+
+const TOKEN_KEY = "guardian.token";
+export function getToken(): string | null {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+export function setToken(t: string | null) {
+  try {
+    if (t) sessionStorage.setItem(TOKEN_KEY, t);
+    else sessionStorage.removeItem(TOKEN_KEY);
+  } catch {
+    /* storage unavailable: the token is kept for this page load only */
+    memToken = t;
+  }
+}
+let memToken: string | null = null;
+const token = () => getToken() ?? memToken;
+
+/** fetch that adds the bearer token when one is set (and only then, to avoid needless CORS preflights). */
+function afetch(url: string, init: RequestInit = {}): Promise<Response> {
+  const t = token();
+  if (!t || !url.startsWith(API_BASE)) return fetch(url, init);
+  return fetch(url, { ...init, headers: { ...(init.headers as Record<string, string> | undefined), Authorization: `Bearer ${t}` } });
+}
+
+export interface Me {
+  name: string;
+  role: "viewer" | "operator" | "approver";
+  mode: "token" | "local-dev";
+  can_start_runs: boolean;
+  can_decide: boolean;
+}
+export const LOCAL_ME: Me = { name: "Local dev", role: "approver", mode: "local-dev", can_start_runs: true, can_decide: true };
+
+export async function getMe(): Promise<Me> {
+  try {
+    const r = await afetch(`${API_BASE}/auth/me`, { cache: "no-store" });
+    if (r.status === 401) throw new Error("401 sign-in required");
+    if (r.ok) return (await r.json()) as Me;
+  } catch (e) {
+    if (String((e as Error).message).startsWith("401")) throw e;
+  }
+  return LOCAL_ME;
+}
 
 export interface Src {
   kind: SourceKind;
@@ -16,21 +65,21 @@ async function timedFetch(url: string, init?: RequestInit, ms = 2000): Promise<R
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), ms);
   try {
-    return await fetch(url, { cache: "no-store", ...init, signal: ctl.signal });
+    return await afetch(url, { cache: "no-store", ...init, signal: ctl.signal });
   } finally {
     clearTimeout(t);
   }
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const r = await fetch(url, { cache: "no-store" });
+  const r = await afetch(url, { cache: "no-store" });
   if (!r.ok) throw new Error(`${r.status} ${url}`);
   return (await r.json()) as T;
 }
 
 async function optJson<T>(url: string, fallback: T): Promise<T> {
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await afetch(url, { cache: "no-store" });
     return r.ok ? ((await r.json()) as T) : fallback;
   } catch {
     return fallback;
@@ -60,9 +109,8 @@ export function reportUrl(src: Src, kind: "json" | "html"): string {
   return `${root(src)}/report.${kind}`;
 }
 
-/** Candidate locations for an exported report, API first, then the static run server. */
+/** Where an exported report lives. The API is the only place checked when it is the data source. */
 export function reportCandidates(src: Src, kind: "json" | "html"): string[] {
-  if (src.kind === "api") return [reportUrl(src, kind), `${RUNS_BASE}/${src.runId}/report.${kind}`];
   return [reportUrl(src, kind)];
 }
 
@@ -70,7 +118,7 @@ export async function firstAvailable(urls: string[]): Promise<string | null> {
   for (const u of urls) {
     try {
       const ctl = new AbortController();
-      const r = await fetch(u, { cache: "no-store", signal: ctl.signal });
+      const r = await afetch(u, { cache: "no-store", signal: ctl.signal });
       ctl.abort();
       if (r.ok) return u;
     } catch {
@@ -80,12 +128,13 @@ export async function firstAvailable(urls: string[]): Promise<string | null> {
   return null;
 }
 
-export function traceFallbackUrl(src: Src): string {
-  return src.kind === "api" ? `${RUNS_BASE}/${src.runId}/trace.jsonl` : `${root(src)}/trace.jsonl`;
+export function traceFallbackUrl(src: Src): string | null {
+  return src.kind === "api" ? null : `${root(src)}/trace.jsonl`;
 }
 
 export function eventsUrl(src: Src): string {
-  return `${API_BASE}/runs/${src.runId}/events`;
+  const t = token();
+  return `${API_BASE}/runs/${src.runId}/events${t ? `?access_token=${encodeURIComponent(t)}` : ""}`;
 }
 
 // ---------------------------------------------------------------- source + run list
@@ -94,7 +143,7 @@ export async function detectSource(): Promise<SourceKind> {
   if (new URLSearchParams(window.location.search).get("source") === "sample") return "sample";
   try {
     const r = await timedFetch(`${API_BASE}/runs`);
-    if (r.ok) return "api";
+    if (r.ok || r.status === 401) return "api";
   } catch {
     /* fall through */
   }
@@ -143,7 +192,7 @@ export function initialRunId(kind: SourceKind): string {
 
 async function jsonLines<T>(url: string): Promise<T[]> {
   try {
-    const r = await fetch(url, { cache: "no-store" });
+    const r = await afetch(url, { cache: "no-store" });
     if (!r.ok) return [];
     return (await r.text())
       .split("\n")
@@ -198,12 +247,11 @@ export async function loadDynamic(src: Src): Promise<Dynamic> {
 }
 
 export async function loadRun(src: Src): Promise<RunData> {
-  const [graph, changes, dyn] = await Promise.all([
+  const [graph, dyn] = await Promise.all([
     getJson<GraphData>(resUrl(src, "graph")).catch(() => ({ nodes: [], edges: [], roots: [] }) as GraphData),
-    optJson<Changes | null>(resUrl(src, "changes"), null),
     loadDynamic(src),
   ]);
-  return { runId: dyn.summary.run_id ?? src.runId, graph, changes, ...dyn };
+  return { runId: dyn.summary.run_id ?? src.runId, graph, changes: null, ...dyn };
 }
 
 export async function loadReport(src: Src): Promise<ReportJson | null> {
@@ -226,7 +274,8 @@ export function loadEvidence(src: Src, id: string): Promise<Evidence | null> {
 }
 
 export async function fetchTrace(src: Src): Promise<AgentEvent[]> {
-  return jsonLines<AgentEvent>(traceFallbackUrl(src));
+  const u = traceFallbackUrl(src);
+  return u ? jsonLines<AgentEvent>(u) : [];
 }
 
 // ---------------------------------------------------------------- decision
@@ -242,21 +291,33 @@ export async function postDecision(
   body: { plan_hash: string; decision: string; comment: string | null; decided_by: string },
 ): Promise<DecisionResult> {
   try {
-    const r = await fetch(`${API_BASE}/runs/${src.runId}/plans/${planId}/decision`, {
+    const r = await afetch(`${API_BASE}/runs/${src.runId}/plans/${planId}/decision`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (r.ok) return { ok: true, message: "Decision recorded. The run is resuming." };
-    let detail = `${r.status}`;
+    if (r.ok) return { ok: true, message: "Decision recorded." };
+    let detail = "";
     try {
       const j = (await r.json()) as { detail?: unknown };
       detail = typeof j.detail === "string" ? j.detail : JSON.stringify(j.detail ?? j);
     } catch {
       /* keep status */
     }
-    return { ok: false, message: `${r.status}: ${detail}` };
-  } catch (e) {
-    return { ok: false, message: `Could not reach the API (${(e as Error).message}).` };
+    const friendly =
+      r.status === 401
+        ? "Your sign-in has expired or is not valid. Sign in again and retry."
+        : r.status === 403
+          ? "Your role cannot do this. Only approvers can decide on a fix."
+          : r.status === 429
+            ? "Guardian is busy with other runs right now. Wait a moment and try again."
+            : r.status === 409
+        ? "This run is not waiting for a decision any more. It may already have been answered."
+        : r.status === 400
+          ? "Guardian rejected the decision because it does not match the plan that is waiting. Reload the page and try again."
+          : "Guardian could not record the decision.";
+    return { ok: false, message: `${friendly}${detail ? ` (${detail})` : ""}` };
+  } catch {
+    return { ok: false, message: "Could not reach the Guardian API. Check that it is running and try again." };
   }
 }

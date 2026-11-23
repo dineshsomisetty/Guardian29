@@ -43,11 +43,11 @@ export interface VisibleGraph {
 }
 
 export const SIZE: Record<NodeKind, { w: number; h: number }> = {
-  project: { w: 132, h: 60 },
-  package: { w: 236, h: 62 },
-  ci: { w: 236, h: 48 },
-  image: { w: 236, h: 48 },
-  config: { w: 236, h: 48 },
+  project: { w: 168, h: 76 },
+  package: { w: 240, h: 66 },
+  ci: { w: 240, h: 52 },
+  image: { w: 240, h: 52 },
+  config: { w: 240, h: 52 },
 };
 
 const isPseudo = (k: NodeKind) => k === "ci" || k === "image" || k === "config";
@@ -137,7 +137,7 @@ export function buildVisible(graph: GraphData, findings: Finding[], onlyRisk: bo
     .map((e) => ({ ...e }));
 
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 16, ranksep: 32, marginx: 24, marginy: 24, ranker: "network-simplex" });
+  g.setGraph({ rankdir: "LR", nodesep: 20, ranksep: 44, marginx: 24, marginy: 24, ranker: "network-simplex" });
   g.setDefaultEdgeLabel(() => ({}));
 
   const out: VisNode[] = [];
@@ -242,4 +242,4 @@ export function buildVisible(graph: GraphData, findings: Finding[], onlyRisk: bo
   return { nodes: out, edges: [...dagEdges, ...trayEdges], totalPackages, visiblePackages };
 }
 
-export const TRAY_H = 34;
+export const TRAY_H = 38;

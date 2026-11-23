@@ -1,29 +1,38 @@
+import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronRight, Circle, Search, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Evidence, RemediationPlan, ValidationResult } from "../api/types";
-import { findingHeadline } from "../lib/format";
+import type { Evidence, Finding, RemediationPlan, ValidationResult } from "../api/types";
+import { bandOf } from "../lib/format";
+import { evidenceTitle, plainTitle } from "../lib/labels";
+import { planSummary } from "../lib/plan";
 import { useStore } from "../store";
 import { useCountTween, useEvidence, useEvidenceMany } from "./hooks";
-import { EvChip, Json, Section } from "./ui";
-
-const VERDICT_CLASS: Record<string, string> = { verified: "ok" };
+import { Callout, EmptyState, Json, Section, Skeleton } from "./ui";
 
 interface Attempt {
   plan: RemediationPlan;
   val: ValidationResult | undefined;
 }
 
+const FAIL_WORD: Record<string, string> = {
+  failed_build: "the build failed",
+  failed_tests: "tests failed",
+  failed_rescan: "the vulnerability was still present after the fix",
+  new_findings: "the fix introduced new findings",
+  no_fix: "the upgrade did not remove the vulnerability",
+};
+const failWord = (v: string) => FAIL_WORD[v] ?? v.replace(/_/g, " ");
+
 export default function ValidationView() {
-  const { data, findingsById } = useStore();
+  const { data, findingsById, riskById } = useStore();
   const ids = useMemo(() => [...new Set(data.plans.map((p) => p.finding_id))], [data.plans]);
   const [fid, setFid] = useState<string | null>(null);
   const current = fid && ids.includes(fid) ? fid : (ids.find((i) => data.validation.some((v) => v.finding_id === i)) ?? ids[0]);
 
   if (!ids.length)
     return (
-      <div className="empty">
-        <strong>Nothing validated yet</strong>
-        <span>Validation results appear after a plan is approved and the validator re-checks a patched copy.</span>
-      </div>
+      <EmptyState title="Nothing has been validated yet" center>
+        After you approve a fix, Guardian applies it to a sandbox copy, builds, tests and re-scans it. The result appears here.
+      </EmptyState>
     );
 
   const attempts: Attempt[] = data.plans
@@ -33,48 +42,85 @@ export default function ValidationView() {
 
   return (
     <div className="val">
-      <header className="val-head">
-        <h2>Validation</h2>
-        <label className="select-row">
-          <span className="muted">Finding</span>
-          <select value={current} onChange={(e) => setFid(e.target.value)}>
-            {ids.map((i) => {
-              const g = findingsById.get(i);
-              return (
-                <option key={i} value={i}>
-                  {g ? `${findingHeadline(g)} (${g.category})` : i}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-        {f && <span className="muted val-title">{f.title}</span>}
-      </header>
-      <Timeline attempts={attempts} />
-      <AttemptDetail key={current} attempts={attempts} />
+      <div className="val-in">
+        <header className="page-head">
+          <h1>Validation</h1>
+          <p className="muted">Did the fix work? Guardian tries every fix on a sandbox copy before anyone relies on it.</p>
+          {ids.length > 1 && (
+            <label className="select-row">
+              <span className="muted">Finding</span>
+              <select value={current} onChange={(e) => setFid(e.target.value)}>
+                {ids.map((i) => {
+                  const g = findingsById.get(i);
+                  return (
+                    <option key={i} value={i}>
+                      {g ? plainTitle(g, bandOf(g, riskById)) : i}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+          )}
+        </header>
+        <Verdict attempts={attempts} title={f ? plainTitle(f, bandOf(f, riskById)) : ""} finding={f} />
+        <Timeline attempts={attempts} />
+        <AttemptDetail key={current} attempts={attempts} />
+      </div>
     </div>
   );
 }
 
-function stepOf(a: Attempt) {
-  if (!a.val) return { cls: "gate", label: "Awaiting validation" };
-  if (a.val.verdict === "verified") return { cls: "ok", label: "Verified" };
-  return { cls: "bad", label: `Failed (${a.val.verdict.replace(/_/g, " ")})` };
+function Verdict({ attempts, title, finding }: { attempts: Attempt[]; title: string; finding: Finding | undefined }) {
+  const { riskById } = useStore();
+  const last = attempts[attempts.length - 1];
+  const failed = attempts.filter((a) => a.val && a.val.verdict !== "verified");
+  const ok = attempts.find((a) => a.val?.verdict === "verified");
+  if (ok?.val) {
+    const sm = planSummary(ok.plan, finding, finding ? bandOf(finding, riskById) : null);
+    return (
+      <Callout tone="ok" title="Verified: the vulnerability is gone, and the build and tests passed in the sandbox" icon={<CheckCircle2 size={20} aria-hidden />}>
+        To {sm.verb} {sm.pkg}
+        {sm.to ? ` to ${sm.to}` : ""} fixes: {title}.
+        {failed.length ? ` It took ${attempts.length} attempts; ${failed.length} earlier ${failed.length === 1 ? "attempt" : "attempts"} did not work and Guardian re-planned.` : ""}
+      </Callout>
+    );
+  }
+  if (last && !last.val)
+    return (
+      <Callout tone="gate" title="Waiting for validation" icon={<Circle size={20} aria-hidden />}>
+        The fix has not been tried in the sandbox yet. It runs after the plan is approved.
+      </Callout>
+    );
+  if (last?.val)
+    return (
+      <Callout tone="bad" title={`Failed attempt ${last.plan.attempt}: ${failWord(last.val.verdict)}`} icon={<XCircle size={20} aria-hidden />}>
+        Guardian re-plans after a failure, up to three attempts, and then hands the finding to a person. Nothing was changed in your repository.
+      </Callout>
+    );
+  return null;
 }
 
 function Timeline({ attempts }: { attempts: Attempt[] }) {
   const steps: { key: string; title: string; sub: string; cls: string }[] = [];
   attempts.forEach((a, i) => {
-    const s = stepOf(a);
-    steps.push({ key: a.plan.plan_id, title: `Attempt ${a.plan.attempt}`, sub: s.label, cls: s.cls });
+    const sm = planSummary(a.plan, undefined, null);
+    const what = `${sm.verb} ${sm.pkg}${sm.to ? ` to ${sm.to}` : ""}`;
+    const s = !a.val
+      ? { cls: "gate", label: "Waiting for validation" }
+      : a.val.verdict === "verified"
+        ? { cls: "ok", label: "Verified" }
+        : { cls: "bad", label: `Failed: ${failWord(a.val.verdict)}` };
+    steps.push({ key: a.plan.plan_id, title: `Attempt ${a.plan.attempt}: ${what}`, sub: s.label, cls: s.cls });
     const next = attempts[i + 1];
-    if (next) steps.push({ key: `re-${i}`, title: "Re-plan", sub: `${next.plan.action}${next.plan.target_version ? ` ${next.plan.target_version}` : ""}`, cls: "" });
+    if (next && a.val && a.val.verdict !== "verified") steps.push({ key: `re-${i}`, title: "Guardian re-plans", sub: "Tries a different version", cls: "" });
   });
   return (
-    <ol className="timeline" aria-label="Attempt timeline">
+    <ol className="timeline" aria-label="Attempts in order">
       {steps.map((s) => (
         <li key={s.key} className={`tl ${s.cls}`}>
-          <span className="tl-dot" aria-hidden />
+          <span className="tl-dot" aria-hidden>
+            {s.cls === "ok" ? <Check size={12} /> : s.cls === "bad" ? <XCircle size={12} /> : null}
+          </span>
           <span className="tl-title">{s.title}</span>
           <span className="tl-sub">{s.sub}</span>
         </li>
@@ -87,41 +133,30 @@ function AttemptDetail({ attempts }: { attempts: Attempt[] }) {
   const validated = attempts.filter((a) => a.val);
   const [idx, setIdx] = useState(Math.max(0, validated.length - 1));
   const a = validated[Math.min(idx, validated.length - 1)];
-  if (!a || !a.val)
-    return (
-      <div className="empty">
-        <strong>No validation result for this finding yet</strong>
-        <span>The latest plan has not been validated.</span>
-      </div>
-    );
+  if (!a || !a.val) return null;
   const v = a.val;
   return (
-    <div className="val-grid">
-      <div className="val-col">
-        {validated.length > 1 && (
-          <div className="seg-tabs" role="tablist" aria-label="Attempt">
-            {validated.map((x, i) => (
-              <button
-                key={x.plan.plan_id}
-                role="tab"
-                aria-selected={i === idx}
-                className={i === idx ? "on" : ""}
-                type="button"
-                onClick={() => setIdx(i)}
-              >
-                Attempt {x.plan.attempt}
-              </button>
-            ))}
-          </div>
-        )}
-        <ScoreDrop key={v.attempt_id} v={v} />
-        <Checks v={v} />
-        <SbomDiff id={v.sbom_diff_evidence_id} />
+    <>
+      {validated.length > 1 && (
+        <div className="seg-tabs" role="tablist" aria-label="Attempt">
+          {validated.map((x, i) => (
+            <button key={x.plan.plan_id} role="tab" aria-selected={i === idx} className={i === idx ? "on" : ""} type="button" onClick={() => setIdx(i)}>
+              Attempt {x.plan.attempt}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="val-grid">
+        <div className="val-col">
+          <ScoreDrop key={v.attempt_id} v={v} />
+          <Checks v={v} />
+        </div>
+        <div className="val-col">
+          <SbomDiff id={v.sbom_diff_evidence_id} />
+        </div>
       </div>
-      <div className="val-col">
-        <LogViewer ids={v.log_evidence_ids} />
-      </div>
-    </div>
+      <LogViewer ids={v.log_evidence_ids} />
+    </>
   );
 }
 
@@ -134,62 +169,47 @@ function ScoreDrop({ v }: { v: ValidationResult }) {
   const shown = useCountTween(now);
   const dropped = v.risk_before - v.risk_after;
   return (
-    <Section title="Risk score" aside={<span className={`pill ${VERDICT_CLASS[v.verdict] ?? "bad"}`}>{v.verdict.replace(/_/g, " ")}</span>}>
-      <div className="drop">
-        <div className="drop-nums">
-          <span className="num drop-before">{v.risk_before.toFixed(1)}</span>
-          <span aria-hidden className="drop-arrow">to</span>
-          <span className={`num drop-after ${v.risk_after < v.risk_before ? "good" : "bad"}`}>{shown.toFixed(1)}</span>
-          <span className="muted">{dropped > 0 ? `down ${dropped.toFixed(1)} points` : dropped < 0 ? `up ${(-dropped).toFixed(1)} points` : "unchanged"}</span>
-        </div>
-        <div className="drop-track" role="img" aria-label={`Risk before ${v.risk_before}, after ${v.risk_after}`}>
-          <span className="drop-ghost" style={{ width: `${v.risk_before}%` }} />
-          <span className="drop-fill" style={{ width: `${now}%` }} />
-        </div>
-        <div className="drop-scale mono">
-          <span>0</span>
-          <span>40</span>
-          <span>60</span>
-          <span>80</span>
-          <span>100</span>
-        </div>
+    <Section title="Risk score before and after">
+      <div className="drop-nums">
+        <span className="num drop-before">{v.risk_before.toFixed(0)}</span>
+        <span aria-hidden className="faint">to</span>
+        <span className={`num drop-after ${dropped > 0 ? "good" : "bad"}`}>{shown.toFixed(0)}</span>
+        <span className="muted">{dropped > 0 ? `down ${dropped.toFixed(0)} points` : dropped < 0 ? `up ${(-dropped).toFixed(0)} points` : "no change"}</span>
       </div>
+      <div className="drop-track" role="img" aria-label={`Risk before ${v.risk_before}, after ${v.risk_after}`}>
+        <span className="drop-ghost" style={{ width: `${v.risk_before}%` }} />
+        <span className="drop-fill" style={{ width: `${now}%` }} />
+      </div>
+      <div className="drop-scale mono"><span>0</span><span>50</span><span>100</span></div>
     </Section>
   );
 }
 
-function tests(t: Record<string, number>): string {
+const tests = (t: Record<string, number>) => {
   const e = Object.entries(t);
   return e.length ? e.map(([k, n]) => `${n} ${k}`).join(", ") : "not run";
-}
+};
 
 function Checks({ v }: { v: ValidationResult }) {
-  const row = (k: string, val: string, cls?: string) => (
+  const row = (k: string, val: string, ok?: boolean | null) => (
     <div>
       <dt>{k}</dt>
-      <dd className={cls}>{val}</dd>
+      <dd className={ok === true ? "good" : ok === false ? "bad" : ""}>
+        {ok === true && <Check size={14} aria-hidden />}
+        {ok === false && <AlertTriangle size={14} aria-hidden />} {val}
+      </dd>
     </div>
   );
   return (
-    <Section title="Checks">
+    <Section title="What was checked">
       <dl className="facts">
-        {row("Build", v.build_ok == null ? "not run" : v.build_ok ? "passed" : "failed", v.build_ok === false ? "bad" : v.build_ok ? "good" : "")}
-        {row("Unit tests", tests(v.unit_tests), "mono")}
-        {row("Integration tests", tests(v.integration_tests), "mono")}
-        {row("Target finding resolved", v.target_finding_resolved ? "yes" : "no", v.target_finding_resolved ? "good" : "bad")}
-        {row("New findings", v.new_findings.length ? String(v.new_findings.length) : "none", v.new_findings.length ? "bad" : "")}
-        {row("Final confidence", v.final_confidence)}
-        {v.artifact_rescanned && row("Artifact rescanned", v.artifact_rescanned, "mono")}
+        {row("Build", v.build_ok == null ? "Not run" : v.build_ok ? "Passed" : "Failed", v.build_ok)}
+        {row("Unit tests", tests(v.unit_tests), Object.keys(v.unit_tests).length ? !(v.unit_tests.failed > 0) : null)}
+        {row("Integration tests", tests(v.integration_tests), Object.keys(v.integration_tests).length ? !(v.integration_tests.failed > 0) : null)}
+        {row("Vulnerability gone after re-scan", v.target_finding_resolved ? "Yes" : "No", v.target_finding_resolved)}
+        {row("New findings introduced", v.new_findings.length ? String(v.new_findings.length) : "None", v.new_findings.length === 0)}
+        {row("Guardian's confidence", v.final_confidence)}
       </dl>
-      {v.detector_evidence_ids.length > 0 && (
-        <p className="muted detectors">
-          Detector re-runs:{" "}
-          {v.detector_evidence_ids.slice(0, 4).map((e) => (
-            <EvChip key={e} id={e} />
-          ))}
-          {v.detector_evidence_ids.length > 4 && ` +${v.detector_evidence_ids.length - 4}`}
-        </p>
-      )}
     </Section>
   );
 }
@@ -204,16 +224,23 @@ interface SbomFacts {
 
 function SbomDiff({ id }: { id: string | null }) {
   const st = useEvidence(id);
+  const head = "Packages before and after";
   if (!id)
     return (
-      <Section title="SBOM before and after">
-        <p className="muted">No SBOM diff recorded for this attempt (build and rescan were not run).</p>
+      <Section title={head}>
+        <p className="muted">No comparison was recorded, because the build or re-scan did not run.</p>
+      </Section>
+    );
+  if (st.status === "loading")
+    return (
+      <Section title={head}>
+        <Skeleton h={120} />
       </Section>
     );
   if (st.status !== "ok")
     return (
-      <Section title="SBOM before and after">
-        <p className="muted">{st.status === "loading" ? "Loading" : "SBOM diff evidence is not available."}</p>
+      <Section title={head}>
+        <p className="muted">The comparison record is not available.</p>
       </Section>
     );
   const f = st.ev.facts as SbomFacts;
@@ -232,32 +259,24 @@ function SbomDiff({ id }: { id: string | null }) {
     const [n, ver] = split(p);
     rows.push({ kind: "added", name: n, from: "", to: ver });
   }
+  const WORD: Record<string, string> = { changed: "Updated", removed: "Removed", added: "Added" };
   return (
-    <Section title="SBOM before and after" aside={<EvChip id={st.ev.evidence_id} />}>
+    <Section title={head}>
       <p className="muted sbom-count">
-        Components <span className="num">{f.components_before ?? "?"}</span> to <span className="num">{f.components_after ?? "?"}</span>
+        <span className="num">{f.components_before ?? "?"}</span> packages before, <span className="num">{f.components_after ?? "?"}</span> after.
       </p>
       <div className="sbom-scroll">
         <table className="sbom">
           <thead>
-            <tr>
-              <th>Change</th>
-              <th>Package</th>
-              <th>Before</th>
-              <th>After</th>
-            </tr>
+            <tr><th>Change</th><th>Package</th><th>Before</th><th>After</th></tr>
           </thead>
           <tbody>
             {rows.length === 0 && (
-              <tr>
-                <td colSpan={4} className="muted">
-                  No component changes.
-                </td>
-              </tr>
+              <tr><td colSpan={4} className="muted">No packages changed.</td></tr>
             )}
             {rows.slice(0, 300).map((r, i) => (
               <tr key={`${r.kind}-${r.name}-${i}`} className={`sb-${r.kind}`}>
-                <td>{r.kind}</td>
+                <td>{WORD[r.kind]}</td>
                 <td className="mono">{r.name}</td>
                 <td className="mono">{r.from}</td>
                 <td className="mono">{r.to}</td>
@@ -273,40 +292,59 @@ function SbomDiff({ id }: { id: string | null }) {
 function LogViewer({ ids }: { ids: string[] }) {
   const ev = useEvidenceMany(ids);
   const logs = ev.items.filter((e) => e.kind === "build_log" || e.kind === "test_result" || e.excerpt);
+  const [open, setOpen] = useState(false);
   const [tab, setTab] = useState(0);
+  const [q, setQ] = useState("");
   const cur: Evidence | undefined = logs[Math.min(tab, logs.length - 1)];
+  const lines = useMemo(() => (cur?.excerpt ?? "").replace(/\r/g, "").split("\n"), [cur]);
+  const t = q.trim().toLowerCase();
+  const hits = t ? lines.filter((l) => l.toLowerCase().includes(t)).length : 0;
   return (
-    <Section title="Build and test logs">
-      {!ev.loaded ? (
-        <p className="muted">Loading</p>
-      ) : !cur ? (
-        <p className="muted">No log evidence for this attempt.</p>
-      ) : (
-        <>
-          <div className="seg-tabs" role="tablist" aria-label="Log">
-            {logs.map((l, i) => (
-              <button key={l.evidence_id} role="tab" type="button" aria-selected={i === tab} className={i === tab ? "on" : ""} onClick={() => setTab(i)}>
-                {l.kind}
-              </button>
-            ))}
-          </div>
-          {cur.excerpt ? (
-            <pre className="log" tabIndex={0}>
-              {cur.excerpt.replace(/\r/g, "").split("\n").map((ln, i) => (
-                <span key={i} className={`ll${/\b(error|fail(ed|ure)?|fatal)\b/i.test(ln) ? " err" : /\b(warn(ing)?)\b/i.test(ln) ? " warn" : /\b(pass(ed)?|ok|success)\b/i.test(ln) ? " pass" : ""}`}>
-                  <span className="ln num">{i + 1}</span>
-                  {ln || " "}
-                </span>
-              ))}
-            </pre>
-          ) : (
-            <Json value={cur.facts} collapsedLines={14} />
-          )}
-          <p className="muted mono">
-            {cur.source_tool} · <EvChip id={cur.evidence_id} />
-          </p>
-        </>
-      )}
-    </Section>
+    <section className="sec logs">
+      <button type="button" className="logs-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
+        {open ? <ChevronDown size={16} aria-hidden /> : <ChevronRight size={16} aria-hidden />}
+        <h3>Build and test logs</h3>
+        <span className="faint">{ev.loaded ? `${logs.length} ${logs.length === 1 ? "log" : "logs"}` : "loading"}. For engineers: open to read the raw output.</span>
+      </button>
+      {open &&
+        (!ev.loaded ? (
+          <Skeleton h={160} />
+        ) : !cur ? (
+          <p className="muted">No logs were recorded for this attempt.</p>
+        ) : (
+          <>
+            <div className="log-tools">
+              <div className="seg-tabs" role="tablist" aria-label="Log">
+                {logs.map((l, i) => (
+                  <button key={l.evidence_id} role="tab" type="button" aria-selected={i === tab} className={i === tab ? "on" : ""} onClick={() => setTab(i)}>
+                    {evidenceTitle(l)}
+                  </button>
+                ))}
+              </div>
+              <span className="searchbox">
+                <Search size={16} aria-hidden />
+                <input type="search" placeholder="Search this log" aria-label="Search this log" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 220 }} />
+              </span>
+              {t && <span className="muted">{hits} matching {hits === 1 ? "line" : "lines"}</span>}
+            </div>
+            {cur.excerpt ? (
+              <pre className="log" tabIndex={0}>
+                {lines.map((ln, i) => {
+                  const hit = t && ln.toLowerCase().includes(t);
+                  return (
+                    <span key={i} className={`ll${hit ? " hit" : ""}${/\b(error|fail(ed|ure)?|fatal)\b/i.test(ln) ? " err" : /\bwarn(ing)?\b/i.test(ln) ? " warn" : ""}`}>
+                      <span className="ln num">{i + 1}</span>
+                      {ln || " "}
+                    </span>
+                  );
+                })}
+              </pre>
+            ) : (
+              <Json value={cur.facts} collapsedLines={14} />
+            )}
+            <p className="faint mono">Produced by {cur.source_tool}</p>
+          </>
+        ))}
+    </section>
   );
 }

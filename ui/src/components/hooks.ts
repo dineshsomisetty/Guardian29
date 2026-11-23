@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { loadEvidence } from "../api/client";
+import { useEffect, useRef, useState } from "react";
+import { firstAvailable, loadEvidence, reportCandidates } from "../api/client";
 import type { Evidence } from "../api/types";
 import { useStore } from "../store";
 
@@ -89,3 +89,59 @@ export function useCountTween(target: number, ms = 240): number {
 
 /** React 18 types do not know `inert`; spread this on an element that must be unfocusable while hidden. */
 export const inertProps = { inert: "" } as Record<string, string>;
+
+/** Close a popover on outside click or Escape. */
+export function useDismiss(open: boolean, close: () => void) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const off = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) close();
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        close();
+      }
+    };
+    document.addEventListener("mousedown", off);
+    document.addEventListener("keydown", esc, true);
+    return () => {
+      document.removeEventListener("mousedown", off);
+      document.removeEventListener("keydown", esc, true);
+    };
+  }, [open, close]);
+  return ref;
+}
+
+export type ReportLinks = { json: string | null; html: string | null } | "pending" | "not_yet";
+
+/**
+ * Where the exported reports are. The API only has them once the run is done, so for a live run
+ * nothing is requested (a probe would be a guaranteed 404).
+ */
+export function useReportLinks(src: { kind: string; runId: string }, status: string, enabled = true): ReportLinks {
+  const [links, setLinks] = useState<ReportLinks>("pending");
+  const mayHave = src.kind !== "api" || status === "done";
+  useEffect(() => {
+    let dead = false;
+    if (!enabled) return;
+    if (!mayHave) {
+      setLinks("not_yet");
+      return;
+    }
+    setLinks("pending");
+    const s = src as Parameters<typeof reportCandidates>[0];
+    Promise.all([firstAvailable(reportCandidates(s, "json")), firstAvailable(reportCandidates(s, "html"))]).then(
+      ([json, html]) => !dead && setLinks({ json, html }),
+    );
+    return () => {
+      dead = true;
+    };
+  }, [src.kind, src.runId, mayHave, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  return links;
+}
+
+export function typingTarget(t: EventTarget | null): boolean {
+  return t instanceof HTMLElement && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable);
+}

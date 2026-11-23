@@ -1,11 +1,12 @@
-import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { useEffect, useRef, type ReactNode } from "react";
+import { ChevronDown, ChevronUp, MapPin, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Finding } from "../api/types";
-import { bandOf, purlLabel } from "../lib/format";
+import { bandOf, purlLabel, purlName, purlVersion } from "../lib/format";
+import { BAND_COPY, CATEGORY_WHY, categoryLabel, evidenceTitle, findingRef, plainTitle } from "../lib/labels";
 import { useStore } from "../store";
-import { inertProps } from "./hooks";
-import RiskTable from "./RiskTable";
-import { CatPill, ClaimList, ClaimMark, EvidenceById, Section, SevPill } from "./ui";
+import { inertProps, typingTarget, useEvidence } from "./hooks";
+import { FactorTable } from "./RiskTable";
+import { ClaimList, EmptyState, EvidenceById, Section, SevPill, Tip } from "./ui";
 
 export default function Inspector() {
   const { inspector, closeInspector, stepFinding } = useStore();
@@ -15,11 +16,10 @@ export default function Inspector() {
 
   useEffect(() => {
     if (!open) return;
-    const typing = (t: EventTarget | null) => t instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         closeInspector();
-      } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !typing(e.target) && inspector?.kind === "finding") {
+      } else if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !typingTarget(e.target) && inspector?.kind === "finding") {
         e.preventDefault();
         e.stopPropagation();
         stepFinding(e.key === "ArrowDown" ? 1 : -1);
@@ -50,13 +50,13 @@ export default function Inspector() {
         ref={panel}
         tabIndex={-1}
         className={`insp${open ? " open" : ""}`}
-        aria-label="Forensic Inspector"
+        aria-label="Finding details"
         aria-hidden={!open}
         {...(open ? {} : inertProps)}
       >
-        {inspector?.kind === "finding" && <FindingPane id={inspector.id} />}
-        {inspector?.kind === "evidence" && <EvidencePane id={inspector.id} />}
-        {inspector?.kind === "node" && <NodePane id={inspector.id} />}
+        {inspector?.kind === "finding" && <FindingPane key={inspector.id} id={inspector.id} />}
+        {inspector?.kind === "evidence" && <EvidencePane key={inspector.id} id={inspector.id} />}
+        {inspector?.kind === "node" && <NodePane key={inspector.id} id={inspector.id} />}
       </aside>
     </>
   );
@@ -70,200 +70,300 @@ function Head({ children, onPrev, onNext }: { children: ReactNode; onPrev?: () =
       <div className="insp-actions">
         {onPrev && (
           <>
-            <button type="button" className="btn ghost icon" onClick={onPrev} aria-label="Previous finding" title="Previous (ArrowUp)">
-              <ChevronUp size={16} aria-hidden />
-            </button>
-            <button type="button" className="btn ghost icon" onClick={onNext} aria-label="Next finding" title="Next (ArrowDown)">
-              <ChevronDown size={16} aria-hidden />
-            </button>
+            <Tip text="Previous finding (Up arrow)" side="bottom">
+              <button type="button" className="btn ghost icon" onClick={onPrev} aria-label="Previous finding">
+                <ChevronUp size={16} aria-hidden />
+              </button>
+            </Tip>
+            <Tip text="Next finding (Down arrow)" side="bottom">
+              <button type="button" className="btn ghost icon" onClick={onNext} aria-label="Next finding">
+                <ChevronDown size={16} aria-hidden />
+              </button>
+            </Tip>
           </>
         )}
-        <button type="button" className="btn ghost icon" onClick={closeInspector} aria-label="Close inspector" title="Close (Esc)">
-          <X size={16} aria-hidden />
-        </button>
+        <Tip text="Close (Esc)" side="bottom">
+          <button type="button" className="btn ghost icon" onClick={closeInspector} aria-label="Close details">
+            <X size={16} aria-hidden />
+          </button>
+        </Tip>
       </div>
     </header>
   );
 }
 
-function Breadcrumb({ paths, finding }: { paths: string[][]; finding: Finding }) {
-  const { selectNodeOnly, nodesById, setView } = useStore();
+function HowItGetsIn({ finding }: { finding: Finding }) {
+  const { selectNodeOnly, nodesById, showInGraph, closeInspector } = useStore();
+  const paths = finding.dependency_paths;
+  const [all, setAll] = useState(false);
   if (!paths.length)
     return (
       <p className="muted">
-        No dependency path.{" "}
+        This is not a package dependency.{" "}
         {finding.file_path && (
-          <span className="mono">
-            {finding.file_path}
-            {finding.line ? `:${finding.line}` : ""}
-          </span>
+          <>
+            It was found in <span className="mono">{finding.file_path}{finding.line ? `:${finding.line}` : ""}</span>.
+          </>
         )}
       </p>
     );
-  const p = paths[0];
+  const shown = all ? paths : paths.slice(0, 1);
+  const last = paths[0][paths[0].length - 1];
   return (
-    <div className="crumbs">
-      <ol aria-label="Dependency path">
-        {p.map((id, i) => (
-          <li key={`${id}-${i}`}>
-            <button
-              type="button"
-              className={i === p.length - 1 ? "crumb last" : "crumb"}
-              title={id}
-              onClick={() => {
-                selectNodeOnly(id);
-                if (nodesById.has(id)) setView("graph");
-              }}
-            >
-              {purlLabel(id)}
-            </button>
-          </li>
-        ))}
-      </ol>
-      {paths.length > 1 && <p className="muted">{paths.length - 1} more path{paths.length > 2 ? "s" : ""} to this component.</p>}
+    <div className="howin">
+      <p className="sec-lead">
+        {paths[0].length > 2
+          ? "Your project does not use this package directly. It arrives through other packages, in this order:"
+          : "Your project depends on this package directly:"}
+      </p>
+      {shown.map((p, k) => (
+        <ol key={k} className="crumbs" aria-label="Dependency path">
+          {p.map((id, i) => (
+            <li key={`${id}-${i}`}>
+              <button
+                type="button"
+                className={i === p.length - 1 ? "crumb last" : "crumb"}
+                title={id}
+                onClick={() => {
+                  selectNodeOnly(id);
+                  if (nodesById.has(id)) {
+                    closeInspector();
+                    showInGraph(id);
+                  }
+                }}
+              >
+                {i === 0 ? <span className="faint">project </span> : null}
+                {purlName(id) === id ? purlLabel(id) : `${purlName(id)} ${purlVersion(id)}`}
+              </button>
+            </li>
+          ))}
+        </ol>
+      ))}
+      {paths.length > 1 && (
+        <button type="button" className="btn ghost sm" onClick={() => setAll(!all)}>
+          {all ? "Show only the first route" : `${paths.length - 1} more route${paths.length > 2 ? "s" : ""} to this package`}
+        </button>
+      )}
+      <button
+        type="button"
+        className="btn sm"
+        onClick={() => {
+          closeInspector();
+          showInGraph(last);
+        }}
+      >
+        <MapPin size={14} aria-hidden /> Show in dependency map
+      </button>
     </div>
   );
 }
 
 function FindingPane({ id }: { id: string }) {
-  const { findingsById, riskById, stepFinding, data, setView, openFinding, nodesById, order } = useStore();
+  const { findingsById, riskById, stepFinding, data, setView, openFinding, nodesById, order, closeInspector } = useStore();
   const f = findingsById.get(id);
-  if (!f) return <Head>Finding not found</Head>;
   const risk = riskById.get(id);
+  const [openEv, setOpenEv] = useState<Set<string>>(new Set());
+  const [showAllEv, setShowAllEv] = useState(false);
+
+  const evidenceIds = useMemo(() => {
+    if (!f) return [];
+    const ids = new Set<string>(f.evidence_ids);
+    if (risk) {
+      for (const k of ["S", "E", "R", "P", "X"] as const) risk.factors[k].evidence_ids.forEach((e) => ids.add(e));
+      risk.factors.provenance_evidence_ids.forEach((e) => ids.add(e));
+      risk.claims.forEach((c) => c.evidence_ids.forEach((e) => ids.add(e)));
+    }
+    f.claims.forEach((c) => c.evidence_ids.forEach((e) => ids.add(e)));
+    return [...ids];
+  }, [f, risk]);
+
+  const cite = useCallback(
+    (evId: string) => {
+      setShowAllEv(true);
+      setOpenEv((p) => new Set(p).add(evId));
+      window.setTimeout(() => document.getElementById(`evw-${evId}`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 80);
+    },
+    [],
+  );
+
+  if (!f)
+    return (
+      <>
+        <Head>
+          <h2>Finding not found</h2>
+        </Head>
+        <div className="insp-body"><EmptyState title="This finding is no longer in the scan">Close this panel and pick another one.</EmptyState></div>
+      </>
+    );
+
   const band = bandOf(f, riskById);
   const node = f.component_purl ? nodesById.get(f.component_purl) : undefined;
   const siblings = (node?.finding_ids ?? []).filter((x) => x !== id && findingsById.has(x));
   const plans = data.plans.filter((p) => p.finding_id === id);
   const pos = order.indexOf(id);
+  const name = f.component_purl ? purlName(f.component_purl) : "";
+  const ver = f.component_purl ? purlVersion(f.component_purl) : "";
+  const lead =
+    f.explanation ??
+    risk?.summary ??
+    (f.category === "cve" && name
+      ? `${name} ${ver} is affected by ${f.vuln_id ?? "a known advisory"}.${f.fixed_versions.length ? ` A fixed version exists: ${f.fixed_versions.join(", ")}.` : " No fixed version is listed yet."}`
+      : (CATEGORY_WHY[f.category] ?? f.title));
+  const claims = f.claims.length ? f.claims : (risk?.claims ?? []);
+  const shownEv = showAllEv ? evidenceIds : evidenceIds.slice(0, 5);
+
   return (
     <>
       <Head onPrev={() => stepFinding(-1)} onNext={() => stepFinding(1)}>
         <div className="insp-pills">
           <SevPill risk={band} />
-          <CatPill cat={f.category} />
-          <span className={`pill scope-${f.scope}`}>{f.scope}</span>
-          {pos >= 0 && (
-            <span className="muted num">
-              {pos + 1} / {order.length}
-            </span>
-          )}
+          <span className="pill">{categoryLabel(f.category)}</span>
+          <span className={`pill${f.scope === "dev" ? " dashed" : ""}`}>{f.scope === "prod" ? "Production" : f.scope === "dev" ? "Dev only" : "Scope unknown"}</span>
+          {pos >= 0 && <span className="faint num">{pos + 1} of {order.length}</span>}
         </div>
-        <h2>{f.title}</h2>
-        <p className="mono muted">{f.finding_id}</p>
+        <h2>{plainTitle(f, band)}</h2>
+        <p className="mono faint insp-ref">{findingRef(f)}</p>
       </Head>
       <div className="insp-body">
-        <Section title="Dependency path">
-          <Breadcrumb paths={f.dependency_paths} finding={f} />
-        </Section>
-
-        <Section title="Facts">
+        <Section title="What this means">
+          <p className="prose">{lead}</p>
+          {band && risk && <p className="band-note"><b>{BAND_COPY[band].name}:</b> {BAND_COPY[band].line}</p>}
           <dl className="facts">
-            {f.component_purl && <Fact k="Component" v={purlLabel(f.component_purl)} mono />}
-            {f.vuln_id && <Fact k="Advisory" v={[f.vuln_id, ...f.aliases].join(", ")} mono />}
-            {f.cvss != null && <Fact k="CVSS" v={`${f.cvss.toFixed(1)}${f.severity ? ` (${f.severity})` : ""}`} mono />}
-            {f.affected_range && <Fact k="Affected" v={f.affected_range} mono />}
-            {f.fixed_versions.length > 0 && <Fact k="Fixed in" v={f.fixed_versions.join(", ")} mono />}
-            {f.file_path && <Fact k="Location" v={`${f.file_path}${f.line ? `:${f.line}` : ""}`} mono />}
-            <Fact k="Detector" v={f.detector} mono />
-            <Fact k="Status" v={f.status.replace("_", " ")} />
+            {f.component_purl && <Fact k="Package" v={`${name} ${ver}`.trim()} mono />}
+            {f.affected_range && <Fact k="Affected versions" v={f.affected_range} mono />}
+            {f.fixed_versions.length > 0 && <Fact k="Fixed in" v={f.fixed_versions.join(", ")} mono good />}
+            {f.cvss != null && <Fact k="Advisory severity" v={`CVSS ${f.cvss.toFixed(1)}${f.severity ? ` (${f.severity})` : ""}`} mono />}
+            {f.aliases.length > 0 && <Fact k="Also known as" v={f.aliases.join(", ")} mono />}
+            {f.file_path && <Fact k="Found in" v={`${f.file_path}${f.line ? `:${f.line}` : ""}`} mono />}
           </dl>
+          {claims.length > 0 && (
+            <div className="claimsblock">
+              <h4 className="mini-h">What Guardian concluded</h4>
+              <ClaimList claims={claims} onCite={cite} />
+            </div>
+          )}
         </Section>
-
-        {f.explanation && (
-          <Section title="Analyst explanation" aside={<ClaimMark label="inferred" />}>
-            <p className="prose">{f.explanation}</p>
-          </Section>
-        )}
 
         {risk && (
-          <Section title={`Risk ${risk.score.toFixed(1)} / 100`} aside={<SevPill risk={risk.band} />}>
-            <RiskTable risk={risk} />
+          <Section
+            title={`Why it scored ${risk.score.toFixed(0)}`}
+            lead={risk.summary ? undefined : "Five factors are added up, each weighted by how much it matters."}
+            aside={<SevPill risk={risk.band} />}
+          >
+            {risk.summary && <p className="prose">{risk.summary}</p>}
+            <FactorTable risk={risk} onCite={cite} />
           </Section>
         )}
 
-        <Section title="Claims">
-          <ClaimList claims={f.claims} />
+        <Section title="How it gets in">
+          <HowItGetsIn finding={f} />
         </Section>
 
-        <Section title={`Evidence (${f.evidence_ids.length})`} aside={<ClaimMark label="verified" />}>
+        <Section title={`Evidence (${evidenceIds.length})`} lead="The records behind every statement above. Open one to read the source.">
+          {evidenceIds.length === 0 && <p className="muted">No evidence records are attached to this finding.</p>}
           <div className="evstack">
-            {f.evidence_ids.map((e) => (
-              <EvidenceById key={e} id={e} />
+            {shownEv.map((e) => (
+              <div key={e} id={`evw-${e}`}>
+                <EvidenceById
+                  id={e}
+                  open={openEv.has(e)}
+                  onToggle={(o) =>
+                    setOpenEv((p) => {
+                      const n = new Set(p);
+                      if (o) n.add(e);
+                      else n.delete(e);
+                      return n;
+                    })
+                  }
+                />
+              </div>
             ))}
           </div>
+          {evidenceIds.length > 5 && (
+            <button type="button" className="btn ghost sm" onClick={() => setShowAllEv(!showAllEv)}>
+              {showAllEv ? "Show fewer" : `Show all ${evidenceIds.length} records`}
+            </button>
+          )}
         </Section>
 
-        {plans.length > 0 && (
-          <Section title="Remediation">
-            <ul className="plain">
-              {plans.map((p) => (
-                <li key={p.plan_id}>
-                  Attempt {p.attempt}: <b>{p.action}</b>
-                  {p.target_version ? <span className="mono"> to {p.target_version}</span> : null}{" "}
-                  <button type="button" className="btn ghost sm" onClick={() => setView("gate")}>
-                    Approval gate
-                  </button>
-                  <button type="button" className="btn ghost sm" onClick={() => setView("validation")}>
-                    Validation
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </Section>
-        )}
-
-        {siblings.length > 0 && (
-          <Section title={`Other findings on this component (${siblings.length})`}>
-            <ul className="plain">
-              {siblings.slice(0, 12).map((s) => {
-                const g = findingsById.get(s)!;
-                return (
-                  <li key={s}>
-                    <button type="button" className="linkish" onClick={() => openFinding(s)}>
-                      <SevPill risk={bandOf(g, riskById)} /> <span className="mono">{g.vuln_id ?? g.title}</span>
-                    </button>
+        <Section title="More">
+          <details className="more">
+            <summary>Technical details</summary>
+            <dl className="facts">
+              <Fact k="Finding id" v={f.finding_id} mono />
+              <Fact k="Found by" v={f.detector} mono />
+              {f.component_purl && <Fact k="Package URL" v={f.component_purl} mono />}
+              <Fact k="Status" v={f.status.replace(/_/g, " ")} />
+              {f.initial_risk && <Fact k="First rating" v={`${f.initial_risk} (${f.initial_risk_source === "llm" ? "AI" : "rule"})`} />}
+            </dl>
+          </details>
+          {plans.length > 0 && (
+            <div className="plans-note">
+              <h4 className="mini-h">Proposed fix</h4>
+              <ul className="plain">
+                {plans.map((p) => (
+                  <li key={p.plan_id}>
+                    Attempt {p.attempt}: {p.action}{p.target_version ? <> to <span className="mono">{p.target_version}</span></> : null}{" "}
+                    <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("gate"); }}>Open approval</button>
+                    <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("validation"); }}>Open validation</button>
                   </li>
-                );
-              })}
-            </ul>
-          </Section>
-        )}
+                ))}
+              </ul>
+            </div>
+          )}
+          {siblings.length > 0 && (
+            <div className="plans-note">
+              <h4 className="mini-h">Other findings on this package ({siblings.length})</h4>
+              <ul className="plain">
+                {siblings.slice(0, 12).map((s) => {
+                  const g = findingsById.get(s)!;
+                  return (
+                    <li key={s}>
+                      <button type="button" className="linkish" onClick={() => openFinding(s)}>
+                        <SevPill risk={bandOf(g, riskById)} /> {plainTitle(g, bandOf(g, riskById))}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </Section>
       </div>
     </>
   );
 }
 
-function Fact({ k, v, mono }: { k: string; v: string; mono?: boolean }) {
+function Fact({ k, v, mono, good }: { k: string; v: string; mono?: boolean; good?: boolean }) {
   return (
     <div>
       <dt>{k}</dt>
-      <dd className={mono ? "mono" : undefined}>{v}</dd>
+      <dd className={`${mono ? "mono" : ""}${good ? " good" : ""}`}>{v}</dd>
     </div>
   );
 }
 
 function EvidencePane({ id }: { id: string }) {
-  const { data } = useStore();
-  const refs = data.findings.filter((f) => f.evidence_ids.includes(id));
-  const { openFinding } = useStore();
+  const { data, openFinding, riskById } = useStore();
+  const st = useEvidence(id);
+  const refs = data.findings.filter((f) => f.evidence_ids.includes(id) || f.claims.some((c) => c.evidence_ids.includes(id)));
+  const title = st.status === "ok" ? evidenceTitle(st.ev) : "Evidence";
   return (
     <>
       <Head>
-        <div className="insp-pills">
-          <span className="fact-tag">Fact</span>
-        </div>
-        <h2>Evidence</h2>
-        <p className="mono muted">{id}</p>
+        <div className="insp-pills"><span className="claim-tag v">Source record</span></div>
+        <h2>{title}</h2>
+        <p className="muted">The original record behind a statement Guardian made.</p>
       </Head>
       <div className="insp-body">
         <EvidenceById id={id} startOpen />
         {refs.length > 0 && (
-          <Section title="Cited by">
+          <Section title="Used by these findings">
             <ul className="plain">
               {refs.slice(0, 20).map((f) => (
                 <li key={f.finding_id}>
                   <button type="button" className="linkish" onClick={() => openFinding(f.finding_id)}>
-                    {f.vuln_id ?? f.title}
+                    <SevPill risk={bandOf(f, riskById)} /> {plainTitle(f, bandOf(f, riskById))}
                   </button>
                 </li>
               ))}
@@ -275,32 +375,43 @@ function EvidencePane({ id }: { id: string }) {
   );
 }
 
+const NODE_KIND: Record<string, string> = { package: "Package", project: "Project", ci: "CI workflow", image: "Container image", config: "Config file" };
+
 function NodePane({ id }: { id: string }) {
-  const { nodesById } = useStore();
+  const { nodesById, closeInspector } = useStore();
   const n = nodesById.get(id);
   return (
     <>
       <Head>
         <div className="insp-pills">
-          <span className="pill">{n?.kind ?? "node"}</span>
-          {n?.scope && <span className={`pill scope-${n.scope}`}>{n.scope}</span>}
+          <span className="pill">{n ? (NODE_KIND[n.kind] ?? n.kind) : "Item"}</span>
+          {n?.scope && <span className={`pill${n.scope === "dev" ? " dashed" : ""}`}>{n.scope === "prod" ? "Production" : n.scope === "dev" ? "Dev only" : "Scope unknown"}</span>}
         </div>
-        <h2>{n ? n.label : id}</h2>
-        {n?.version && <p className="mono muted">{n.version}</p>}
+        <h2>{n ? `${n.label}${n.version ? ` ${n.version}` : ""}` : id}</h2>
       </Head>
       <div className="insp-body">
-        <Section title="Component">
+        <Section title="What this is">
+          <p className="prose">
+            {n?.kind === "project"
+              ? "A project in the repository. Its dependencies are drawn to the right of it in the map."
+              : "This item has no findings. It is shown so you can see how the rest of the map connects."}
+          </p>
           <dl className="facts">
-            <Fact k="Id" v={id} mono />
             {n?.ecosystem && <Fact k="Ecosystem" v={n.ecosystem} />}
             {n?.project && <Fact k="Project" v={n.project} />}
+            {n?.direct != null && n.kind === "package" && <Fact k="How it is used" v={n.direct ? "Chosen directly by the project" : "Pulled in by another package"} />}
+            {n?.has_install_script && <Fact k="Install script" v="Runs code when installed" />}
+            {n?.deprecated && <Fact k="Deprecated" v="Yes, the maintainers recommend not using it" />}
             {n?.origin && <Fact k="Origin" v={n.origin} mono />}
-            {n?.integrity && <Fact k="Integrity" v={n.integrity} mono />}
-            {n?.has_install_script && <Fact k="Install script" v="declared" />}
-            {n?.deprecated && <Fact k="Deprecated" v="yes" />}
+          </dl>
+          <button type="button" className="btn ghost sm" onClick={closeInspector}>Close</button>
+        </Section>
+        <Section title="Technical details">
+          <dl className="facts">
+            <Fact k="Id" v={id} mono />
+            {n?.integrity && <Fact k="Integrity hash" v={n.integrity} mono />}
           </dl>
         </Section>
-        <p className="muted">No findings reference this component.</p>
       </div>
     </>
   );

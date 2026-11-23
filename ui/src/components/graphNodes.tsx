@@ -16,8 +16,12 @@ const ProjectNode = memo(function ProjectNode({ data }: NodeProps<GNode>) {
   return (
     <div className="gnode g-project">
       <Ports />
+      <span className="g-project-kind">Project</span>
       <span className="g-project-name">{data.label}</span>
-      <span className="g-project-count mono">{data.packages.toLocaleString()} pkgs</span>
+      <span className="g-project-count mono">
+        {data.packages.toLocaleString()} packages
+        {data.hidden > 0 && <span className="g-more num" title="Direct dependencies that are not drawn because they have no findings"> +{data.hidden} more</span>}
+      </span>
     </div>
   );
 });
@@ -39,11 +43,11 @@ const PackageNode = memo(function PackageNode({ data }: NodeProps<GNode>) {
       </span>
       <span className="g-row g-meta">
         <span className="mono g-ver">{data.version ?? ""}</span>
-        <span className={`g-scope ${data.dev ? "dev" : "prod"}`}>{data.dev ? "dev" : "prod"}</span>
         {data.direct && <span className="g-tag">direct</span>}
+        {data.dev && <span className="g-scope dev">dev</span>}
         {data.hidden > 0 && (
-          <span className="g-tag" title={`${data.hidden} collapsed direct dependencies`}>
-            +{data.hidden}
+          <span className="g-more num" title={`${data.hidden} more direct dependencies are not drawn. Turn off "Risk paths only" to see them.`}>
+            +{data.hidden} more
           </span>
         )}
       </span>
@@ -76,7 +80,7 @@ const TrayNode = memo(function TrayNode({ data }: NodeProps<GNode>) {
     <div className="gnode g-tray">
       <Handle type="target" position={Position.Left} isConnectable={false} className="gport" />
       <span>
-        {data.packages} other direct dependencies of <b>{data.label}</b>
+        <b>+{data.packages} more</b> direct dependencies of {data.label}, with no findings
       </span>
     </div>
   );

@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { clock } from "../lib/format";
-import { AGENTS } from "../lib/pipeline";
+import { AGENTS, AGENT_LABEL, type AgentId } from "../lib/pipeline";
 import { useStore } from "../store";
 import { inertProps } from "./hooks";
 import { EvChip } from "./ui";
@@ -34,14 +34,14 @@ export default function EventDrawer() {
       {...(drawerOpen ? {} : inertProps)}
     >
       <header className="drawer-head">
-        <h2>Events</h2>
+        <h2>Activity log</h2>
         <span className="num muted">
           {rows.length}
           {drawerAgent ? ` of ${events.length}` : ""}
         </span>
         <div className="drawer-filters" role="group" aria-label="Filter by agent">
           <button type="button" className={`chip${!drawerAgent ? " on" : ""}`} onClick={() => setDrawerAgent(null)}>
-            all
+            Everything
           </button>
           {[...AGENTS, "supervisor", "guardrail"].map((a) => (
             <button
@@ -50,13 +50,13 @@ export default function EventDrawer() {
               className={`chip${drawerAgent === a ? " on" : ""}`}
               onClick={() => setDrawerAgent(drawerAgent === a ? null : a)}
             >
-              {a.replace("_", " ")}
+              {AGENT_LABEL[a as AgentId] ?? a}
             </button>
           ))}
         </div>
         <div className="drawer-rules" aria-label="Guardrail counters">
           {pipeline.guardrails.length === 0 ? (
-            <span className="muted">no guardrail hits</span>
+            <span className="muted">No safety rules triggered</span>
           ) : (
             pipeline.guardrails.map(([r, n]) => (
               <span key={r} className="pill gate mono">
@@ -65,7 +65,7 @@ export default function EventDrawer() {
             ))
           )}
         </div>
-        <button type="button" className="btn ghost icon" onClick={() => setDrawerOpen(false)} aria-label="Close events">
+        <button type="button" className="btn ghost icon" onClick={() => setDrawerOpen(false)} aria-label="Close activity log">
           <X size={16} aria-hidden />
         </button>
       </header>
@@ -82,14 +82,14 @@ export default function EventDrawer() {
             Show {rows.length - shown.length} earlier events
           </button>
         )}
-        {shown.length === 0 && <p className="empty">No events yet.</p>}
+        {shown.length === 0 && <p className="empty">Nothing has happened yet. Steps appear here as Guardian works.</p>}
         <ol className="evlist">
           {shown.map(({ e, i }) => {
             const d = pipeline.decisions.get(i);
             return (
               <li key={i} className={`ev ty-${e.type}${d ? " is-decision" : ""}`}>
                 <span className="ev-t mono">{clock(e.ts)}</span>
-                <span className="ev-a">{e.agent.replace("_", " ")}</span>
+                <span className="ev-a">{AGENT_LABEL[e.agent as AgentId] ?? e.agent}</span>
                 <span className="ev-ty mono">{e.type}</span>
                 <span className="ev-s">
                   {d && <span className="dmark mono">D{d}</span>}

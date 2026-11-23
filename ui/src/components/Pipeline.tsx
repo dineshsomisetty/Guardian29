@@ -1,61 +1,60 @@
+import { AlertTriangle, Check, Circle, Hourglass, Loader2, type LucideIcon } from "lucide-react";
 import { Fragment } from "react";
-import { AGENT_LABEL } from "../lib/pipeline";
+import { AGENT_LABEL, STATE_WORD, type NodeState } from "../lib/pipeline";
+import { STEP_DOING } from "../lib/labels";
 import { useStore } from "../store";
+import { Tip } from "./ui";
+
+const ICON: Record<NodeState, LucideIcon> = {
+  idle: Circle,
+  active: Loader2,
+  done: Check,
+  waiting: Hourglass,
+  error: AlertTriangle,
+};
 
 export default function Pipeline() {
-  const { pipeline, events, live, drawerOpen, setDrawerOpen, setDrawerAgent } = useStore();
-  const rules = pipeline.guardrails.reduce((a, [, n]) => a + n, 0);
+  const { pipeline, setDrawerAgent, setDrawerOpen, setView } = useStore();
   return (
-    <section className="pipe" aria-label="Agent pipeline">
+    <nav className="pipe" aria-label="What Guardian has done so far">
       <ol className="pipe-nodes">
-        {pipeline.nodes.map((n, i) => (
-          <Fragment key={n.id}>
-            {i > 0 && (
-              <li
-                aria-hidden
-                className={`pe${pipeline.beamTo === i ? " beam" : ""}${n.id === "human_gate" ? " to-gate" : ""}`}
-              />
-            )}
-            <li className="pn-li">
-              <button
-                type="button"
-                className={`pn st-${n.state}`}
-                onClick={() => {
-                  setDrawerAgent(n.id);
-                  setDrawerOpen(true);
-                }}
-                title={n.last || AGENT_LABEL[n.id]}
-              >
-                <span className="pn-dot" aria-hidden />
-                <span className="pn-name">{AGENT_LABEL[n.id]}</span>
-                <span className="pn-sub">
-                  {n.state === "waiting"
-                    ? "awaiting human"
-                    : n.state === "idle" || n.state === "error"
-                      ? n.state
-                      : n.runs > 1
-                        ? `${n.runs} runs`
-                        : n.state}
-                </span>
-              </button>
-            </li>
-          </Fragment>
-        ))}
+        {pipeline.nodes.map((n, i) => {
+          const Icon = ICON[n.state];
+          const label = AGENT_LABEL[n.id];
+          const tip = (
+            <>
+              <b>{label}</b> · {STATE_WORD[n.state]}
+              <br />
+              {n.last || STEP_DOING[n.id]}
+              {n.runs > 1 ? ` (ran ${n.runs} times)` : ""}
+            </>
+          );
+          return (
+            <Fragment key={n.id}>
+              {i > 0 && <li aria-hidden className={`pe${pipeline.beamTo === i ? " beam" : ""}${n.state !== "idle" ? " lit" : ""}`} />}
+              <li className="pn-li">
+                <Tip text={tip} side="bottom" block>
+                  <button
+                    type="button"
+                    className={`pn st-${n.state}`}
+                    aria-label={`${label}: ${STATE_WORD[n.state]}`}
+                    onClick={() => {
+                      if (n.id === "human_gate") return setView("gate");
+                      if (n.id === "validator") return setView("validation");
+                      if (n.id === "reporter") return setView("report");
+                      setDrawerAgent(n.id);
+                      setDrawerOpen(true);
+                    }}
+                  >
+                    <Icon size={16} aria-hidden className={n.state === "active" ? "spin" : ""} />
+                    <span className="pn-name">{label}</span>
+                  </button>
+                </Tip>
+              </li>
+            </Fragment>
+          );
+        })}
       </ol>
-      <button
-        type="button"
-        className="pipe-ev btn"
-        aria-expanded={drawerOpen}
-        onClick={() => {
-          setDrawerAgent(null);
-          setDrawerOpen(!drawerOpen);
-        }}
-      >
-        <span className={`live-dot ${live}`} aria-hidden />
-        <span>Events</span>
-        <span className="num">{events.length}</span>
-        {rules > 0 && <span className="pill gate mono">{rules} guard</span>}
-      </button>
-    </section>
+    </nav>
   );
 }

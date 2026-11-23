@@ -8,7 +8,8 @@
   --line-strong: rgba(255, 255, 255, 0.16);
   --text: #f4f4f5;
   --text-2: #a1a1aa;
-  --text-3: #8a8a94;
+  /* tertiary: 5.9:1 on the canvas, 5.3:1 on surface (WCAG AA for body text) */
+  --text-3: #8b8b95;
 
   --critical: #ef4444;
   --high: #f59e0b;
@@ -21,22 +22,45 @@
   --medium-bg: rgba(59, 130, 246, 0.14);
   --verified-bg: rgba(16, 185, 129, 0.12);
   --low-bg: rgba(161, 161, 170, 0.1);
+  /* readable tints of the accents for small text on dark surfaces */
+  --critical-text: #f87171;
+  --high-text: #fbbf24;
+  --medium-text: #60a5fa;
+  --verified-text: #34d399;
+
+  /* one neutral hue, five steps: used wherever colour must NOT imply severity (score factors) */
+  --n1: #3f3f46;
+  --n2: #52525b;
+  --n3: #71717a;
+  --n4: #9a9aa4;
+  --n5: #c4c4cc;
 
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
 
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-md: 13px;
-  --fs-lg: 15px;
-  --fs-xl: 19px;
+  --fs-2xs: 11px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
 
-  --r: 4px;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+
+  --r: 6px;
+  --r-sm: 4px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --t: 200ms;
 
-  --rail-w: 188px;
-  --rail-w-collapsed: 52px;
-  --top-h: 48px;
-  --inspector-w: 560px;
+  --rail-w: 196px;
+  --rail-w-collapsed: 56px;
+  --top-h: 56px;
+  --inspector-w: 600px;
 }
