@@ -16,10 +16,12 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Protocol
+from urllib.parse import urlsplit
 
 import httpx
 
 from guardian.core.config import PROVIDER_DEFAULTS, Settings
+from guardian.guardrails.network import NetworkBlocked, check_url
 
 
 class LLMError(Exception):
@@ -91,8 +93,9 @@ class OpenAICompatBackend:
     """
 
     def __init__(self, model: str, base_url: str, key_env: str = "LLM_API_KEY", json_mode: str = "json_schema",
-                 timeout: float = 180.0, max_tokens: int = 8000):
+                 timeout: float = 180.0, max_tokens: int = 8000, allowed_host: str | None = None):
         self.model = model
+        self._allowed_host = allowed_host or urlsplit(base_url).hostname
         self._url = base_url.rstrip("/") + "/chat/completions"
         self._key = os.environ.get(key_env, "")
         self._key_env = key_env
@@ -118,7 +121,10 @@ class OpenAICompatBackend:
             "temperature": 0,
         }
         try:
+            check_url(self._url, extra_hosts=[self._allowed_host])  # G3.5: only the configured LLM host
             r = httpx.post(self._url, json=body, headers=headers, timeout=self._timeout)
+        except NetworkBlocked as exc:
+            raise LLMError(str(exc)) from exc
         except httpx.HTTPError as exc:
             raise LLMError(f"endpoint unreachable: {type(exc).__name__}") from exc
         if r.status_code >= 400:
@@ -156,7 +162,8 @@ class LLMProvider:
                 raise LLMError(f"GUARDIAN_LLM_PROVIDER={s.llm_provider} needs LLM_BASE_URL")
             key_env = PROVIDER_DEFAULTS.get(s.llm_provider, {}).get("key_env", "LLM_API_KEY")
             mode = "json_object" if s.llm_provider == "deepseek" else "json_schema"
-            return OpenAICompatBackend(s.llm_model, s.llm_base_url, key_env=key_env, json_mode=mode)
+            return OpenAICompatBackend(s.llm_model, s.llm_base_url, key_env=key_env, json_mode=mode,
+                                       allowed_host=urlsplit(s.llm_base_url).hostname)
 
         return cls(s.llm_mode, s.llm_cache_dir, s.llm_model, backend_factory=factory)
 

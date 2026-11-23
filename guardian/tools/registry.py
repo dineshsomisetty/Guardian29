@@ -102,6 +102,11 @@ def _tool_specs() -> dict[str, ToolSpec]:
               "guardian.tools.patching:ActionRefArgs"),
         _spec("plan_preview", "guardian.tools.patching:plan_preview", {"remediation"},
               "guardian.tools.patching:PlanArgs"),
+        _spec("registry_metadata", "guardian.tools.investigate:registry_metadata", {"investigator"},
+              "guardian.tools.investigate:RegistryMetadataArgs"),
+        _spec("file_excerpt", "guardian.tools.investigate:file_excerpt", {"investigator"},
+              "guardian.tools.investigate:FileExcerptArgs"),
+        _spec("manifest_diff", "guardian.tools.investigate:manifest_diff", {"investigator"}),
         _spec("apply_plan", "guardian.tools.patching:apply_plan", {"validator"},
               "guardian.tools.patching:PlanArgs", writes=True),
     ]

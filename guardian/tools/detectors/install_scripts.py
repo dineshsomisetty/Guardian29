@@ -19,6 +19,7 @@ import httpx
 from guardian.adapters.npm import find_projects, purl
 from guardian.core.config import REPO_ROOT
 from guardian.core.models import Evidence, Finding, FindingCategory, Scope
+from guardian.guardrails.network import check_url
 from guardian.tools.registry import ToolContext, ToolOutput
 
 CACHE = REPO_ROOT / "data" / "cache" / "intel" / "npm"
@@ -27,14 +28,15 @@ HOOKS = ("preinstall", "install", "postinstall")
 _THROTTLE_S = 0.2
 
 
-def _registry_scripts(name: str, version: str, offline: bool) -> dict | None:
+def _registry_scripts(name: str, version: str, offline: bool, ctx: ToolContext | None = None) -> dict | None:
     path = CACHE / f"{name.replace('/', '__')}@{version}.json"
     if path.exists():
         return json.loads(path.read_text(encoding="utf-8"))
     if offline:
         return None
+    url = check_url(f"{REGISTRY}/{quote(name, safe='@')}/{quote(version)}", ctx=ctx, agent="detection")  # G3.5
     try:
-        r = httpx.get(f"{REGISTRY}/{quote(name, safe='@')}/{quote(version)}", timeout=10,
+        r = httpx.get(url, timeout=10,
                       headers={"Accept": "application/json"})
         time.sleep(_THROTTLE_S)
     except httpx.HTTPError:
@@ -70,7 +72,7 @@ def detect(ctx: ToolContext) -> ToolOutput:
             p = purl(name, version)
             if p in seen:  # same package in root and frontend: one finding, both projects in the evidence
                 continue
-            scripts = _registry_scripts(name, version, ctx.settings.offline)
+            scripts = _registry_scripts(name, version, ctx.settings.offline, ctx)
             facts = {"package": name, "version": version, "purl": p, "has_install_script": True,
                      "lockfile_key": key, "project": proj.name, "dev": dev,
                      "hooks": sorted(scripts) if scripts else None,

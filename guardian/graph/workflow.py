@@ -1,8 +1,8 @@
 """LangGraph orchestration + run driver. Owner: Dev1.
 
-Day-1 graph (§2.2; investigator = D1-08 and the full §7 risk analyst = D1-06 come on Day 2):
+Graph (§2.2; the investigator is D1-08, the full §7 risk analyst D1-06 is still the Day-1 form):
 
-    START -> discovery -> detection -> evidence_analyst -> risk_analyst
+    START -> discovery -> detection -> evidence_analyst -> investigator -> risk_analyst
           -> [ remediation -> human_gate -> record_decision -> validator ]*  -> reporter -> END
                  ^  reject / failed validation: re-plan (different plan)  |
                  |________________________________________________________|
@@ -30,6 +30,7 @@ from guardian.agents.detection import detection_node
 from guardian.agents.discovery import discovery_node
 from guardian.agents.evidence_analyst import evidence_analyst_node
 from guardian.agents.human_gate import human_gate_node, record_decision_node
+from guardian.agents.investigator import investigator_node
 from guardian.agents.remediation import remediation_node
 from guardian.agents.reporter import remediation_outcomes, reporter_node
 from guardian.agents.risk_analyst import risk_analyst_node
@@ -117,7 +118,8 @@ def route_after_risk(state: GraphState) -> str:
 def build_graph(checkpointer=None):
     g = StateGraph(GraphState)
     for name, fn in [("discovery", discovery_node), ("detection", detection_node),
-                     ("evidence_analyst", evidence_analyst_node), ("risk_analyst", risk_analyst_node),
+                     ("evidence_analyst", evidence_analyst_node), ("investigator", investigator_node),
+                     ("risk_analyst", risk_analyst_node),
                      ("remediation", remediation_node), ("human_gate", human_gate_node),
                      ("record_decision", record_decision_node), ("validator", validator_node),
                      ("reporter", reporter_node)]:
@@ -125,7 +127,8 @@ def build_graph(checkpointer=None):
     g.add_edge(START, "discovery")
     g.add_conditional_edges("discovery", route_after_discovery, ["detection"])
     g.add_conditional_edges("detection", route_after_detection, ["evidence_analyst", END])
-    g.add_edge("evidence_analyst", "risk_analyst")
+    g.add_edge("evidence_analyst", "investigator")
+    g.add_edge("investigator", "risk_analyst")
     g.add_conditional_edges("risk_analyst", route_after_risk, ["remediation", "reporter"])
     g.add_conditional_edges("remediation", route_after_remediation, ["human_gate", "remediation", "reporter"])
     g.add_edge("human_gate", "record_decision")

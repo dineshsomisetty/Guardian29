@@ -30,6 +30,7 @@ from pydantic import BaseModel, Field, field_validator
 from guardian.core.config import REPO_ROOT
 from guardian.core.models import Evidence, PatchOp
 from guardian.core.workspace import IGNORE
+from guardian.guardrails.network import check_url
 from guardian.tools.binaries import run
 from guardian.tools.registry import ToolContext, ToolOutput
 
@@ -274,6 +275,7 @@ def resolve_action_sha(ctx: ToolContext, args: ActionRefArgs) -> ToolOutput:
     elif ctx.settings.offline:
         raise PatchError(f"{key} not in cache and GUARDIAN_OFFLINE=1")
     else:
+        check_url(f"https://github.com/{'/'.join(args.action.split('/')[:2])}.git", ctx=ctx, agent="remediation")  # G3.5
         sha, kind = ls_remote(args.action, args.ref)
         source = "git ls-remote github.com"
         cache[key] = {"sha": sha, "ref_type": kind}
