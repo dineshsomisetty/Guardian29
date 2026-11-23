@@ -1,12 +1,20 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import {
+  Activity,
+  AlertCircle,
+  CheckCircle2,
+  Layers,
+  Radio,
+  ShieldAlert,
+  ShieldCheck,
+} from "lucide-react";
+import {
   fetchEvidence,
   fetchLatestRun,
   fetchRunFindings,
   fetchRunHistory,
   fetchRun,
   getEventsUrl,
-  reportUrl,
   startRun,
   submitDecision,
   type RunData,
@@ -23,7 +31,18 @@ import {
   validationMock,
 } from "./mocks/guardianMocks";
 
+import Header from "./components/Header";
+import MetricCards from "./components/MetricCards";
+import NodeDetailPanel from "./components/NodeDetailPanel";
+import FindingsView from "./components/FindingsView";
+import TraceView from "./components/TraceView";
+import ApprovalView from "./components/ApprovalView";
+import ValidationView from "./components/ValidationView";
+import MonitoringView from "./components/MonitoringView";
+import EvidenceDrawer from "./components/EvidenceDrawer";
+
 const GraphView = lazy(() => import("./components/GraphView"));
+
 const demoData: RunData = {
   summary: summaryMock,
   graph: graphMock,
@@ -46,12 +65,14 @@ function findingIdentity(finding: Finding): string {
   ].join("|");
 }
 
+type TabType = "graph" | "findings" | "trace" | "approval" | "validation" | "monitoring";
+
 export default function App() {
   const [data, setData] = useState<RunData>(demoData);
   const [events, setEvents] = useState<AgentEvent[]>(traceMock);
   const [selected, setSelected] = useState<GraphNode | null>(null);
   const [selectedEvidence, setSelectedEvidence] = useState<Evidence | null>(null);
-  const [activeTab, setActiveTab] = useState<"graph" | "findings" | "trace" | "approval" | "validation" | "monitoring">("graph");
+  const [activeTab, setActiveTab] = useState<TabType>("graph");
   const [source, setSource] = useState<"demo" | "live">("demo");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -104,9 +125,10 @@ export default function App() {
     setError("");
     setSelectedEvidence(null);
     try {
-      const evidence = source === "live"
-        ? await fetchEvidence(data.summary.run_id, evidenceId)
-        : evidenceMock[evidenceId];
+      const evidence =
+        source === "live"
+          ? await fetchEvidence(data.summary.run_id, evidenceId)
+          : evidenceMock[evidenceId];
       if (!evidence) {
         throw new Error(`Evidence ${evidenceId} is not present in the demo fixtures.`);
       }
@@ -123,7 +145,7 @@ export default function App() {
     setError("");
     setDecisionMessage("");
     if (source !== "live") {
-      setDecisionMessage("Demo mode: no decision was sent or recorded.");
+      setDecisionMessage("Demo mode: no decision was sent or recorded to backend API.");
       return;
     }
     if (decision !== "approve" && !decisionComment.trim()) {
@@ -133,10 +155,18 @@ export default function App() {
 
     setLoading(true);
     try {
-      const result = await submitDecision(data.summary.run_id, plan, decision, decisionComment.trim());
-      setDecisionMessage(result.detail ?? (result.gate_resumed
-        ? "Decision recorded and the human gate resumed."
-        : "Decision recorded, but the human gate has not resumed."));
+      const result = await submitDecision(
+        data.summary.run_id,
+        plan,
+        decision,
+        decisionComment.trim(),
+      );
+      setDecisionMessage(
+        result.detail ??
+          (result.gate_resumed
+            ? "Decision recorded and the human gate resumed."
+            : "Decision recorded, but the human gate has not resumed."),
+      );
     } catch (decisionError) {
       setError(`Decision was not accepted. ${describeError(decisionError)}`);
     } finally {
@@ -176,7 +206,7 @@ export default function App() {
       setRunHistory([]);
       setNewFindings([]);
       setPreviousRunId("");
-      setHistoryError("Load a live run to compare saved runs and repositories.");
+      setHistoryError("Load a live run to compare saved runs and target repositories.");
       return;
     }
 
@@ -187,9 +217,10 @@ export default function App() {
       try {
         const history = await fetchRunHistory();
         const currentIndex = history.findIndex((run) => run.run_id === data.summary.run_id);
-        const priorRuns = currentIndex >= 0
-          ? history.slice(currentIndex + 1)
-          : history.filter((run) => run.run_id !== data.summary.run_id);
+        const priorRuns =
+          currentIndex >= 0
+            ? history.slice(currentIndex + 1)
+            : history.filter((run) => run.run_id !== data.summary.run_id);
         const previous = priorRuns.find((run) => run.target === data.summary.target);
         let added: Finding[] = [];
         if (previous) {
@@ -218,36 +249,17 @@ export default function App() {
     };
   }, [activeTab, data.findings, data.summary.run_id, data.summary.target, source]);
 
-  const repositorySummaries = new Map<string, RunSummary>();
-  for (const run of runHistory) {
-    if (!repositorySummaries.has(run.target)) {
-      repositorySummaries.set(run.target, run);
-    }
-  }
-
   return (
-    <main className="dashboard">
-      <header>
-        <div>
-          <p className="eyebrow">GUARDIAN / SUPPLY CHAIN</p>
-          <h1>Inventory &amp; risk overview</h1>
-        </div>
-        <div className="run-status">
-          <span className={data.summary.status === "failed" ? "failed" : ""} />
-          {data.summary.status.replaceAll("_", " ")}
-          <b>{data.summary.run_id}</b>
-          <span className={`source-badge ${source}`}>{source === "demo" ? "Demo data" : "Live run"}</span>
-        </div>
-      </header>
-
-      <section className="run-toolbar" aria-label="Run controls">
-        <label>
-          Target path
-          <input value={repo} onChange={(event) => setRepo(event.target.value)} />
-        </label>
-        <button disabled={loading} onClick={createRun}>{loading ? "Working..." : "Start run"}</button>
-        <button className="secondary-button" disabled={loading} onClick={loadLatest}>Load latest run</button>
-        <button className="secondary-button" onClick={() => {
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+      <Header
+        summary={data.summary}
+        source={source}
+        loading={loading}
+        repo={repo}
+        onRepoChange={setRepo}
+        onCreateRun={createRun}
+        onLoadLatest={loadLatest}
+        onUseDemo={() => {
           setData(demoData);
           setEvents(traceMock);
           setSelected(null);
@@ -256,247 +268,217 @@ export default function App() {
           setDecisionMessage("");
           setSource("demo");
           setError("");
-        }}>Use demo data</button>
-        {source === "live" && data.report.json_available && (
-          <a className="report-link" href={reportUrl(data.summary.run_id)} target="_blank" rel="noreferrer">
-            JSON report
-          </a>
-        )}
-      </section>
-      {error && <div className="error-banner" role="alert">{error}</div>}
+        }}
+        reportJsonAvailable={data.report.json_available}
+      />
 
-      <section className="header-strip">
-        <div><span>Components</span><strong>{data.summary.sbom.components.toLocaleString()}</strong></div>
-        <div><span>Direct</span><strong>{data.summary.sbom.direct}</strong></div>
-        <div><span>Transitive</span><strong>{data.summary.sbom.transitive.toLocaleString()}</strong></div>
-        <div><span>Findings</span><strong>{data.summary.findings.total}</strong></div>
-        <div><span>Critical</span><strong className="critical">{data.summary.findings.by_risk.critical}</strong></div>
-      </section>
-
-      <nav className="tabs">
-        <button className={activeTab === "graph" ? "active" : ""} onClick={() => setActiveTab("graph")}>Dependency graph</button>
-        <button className={activeTab === "findings" ? "active" : ""} onClick={() => setActiveTab("findings")}>Findings</button>
-        <button className={activeTab === "trace" ? "active" : ""} onClick={() => setActiveTab("trace")}>Agent trace</button>
-        <button className={activeTab === "approval" ? "active" : ""} onClick={() => setActiveTab("approval")}>Approval</button>
-        <button className={activeTab === "validation" ? "active" : ""} onClick={() => setActiveTab("validation")}>Validation</button>
-        <button className={activeTab === "monitoring" ? "active" : ""} onClick={() => setActiveTab("monitoring")}>Monitoring</button>
-      </nav>
-
-      {activeTab === "graph" && (
-        <section className="workspace">
-          <div className="graph-panel">
-            <Suspense fallback={<div className="muted" style={{ padding: 24 }}>Loading dependency graph...</div>}>
-              <GraphView graph={data.graph} selectedNodeId={selected?.id ?? null} onSelect={setSelected} />
-            </Suspense>
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5 flex flex-col gap-4">
+        {error && (
+          <div
+            role="alert"
+            className="flex items-center gap-3 p-3.5 rounded-xl bg-red-950/80 border border-red-800 text-red-200 text-xs shadow-lg"
+          >
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+            <span className="flex-1">{error}</span>
+            <button
+              onClick={() => setError("")}
+              className="text-red-400 hover:text-red-200 font-bold px-1.5"
+            >
+              ×
+            </button>
           </div>
-          <aside className="side-panel">
-            {selected ? (
-              <>
-                <p className="eyebrow">{selected.kind}</p>
-                <h2>{selected.label}</h2>
-                {selected.version && <p>Version <b>{selected.version}</b></p>}
-                <p>Scope <b>{selected.scope ?? "unknown"}</b></p>
-                <p>Project <b>{selected.project ?? "n/a"}</b></p>
-                <p>Origin <code>{selected.origin ?? "unknown"}</code></p>
-                <p>Integrity <code>{selected.integrity ?? "unknown"}</code></p>
-                <p>Findings <b>{selected.finding_ids.join(", ") || "none"}</b></p>
-              </>
-            ) : <p className="muted">Select a node to inspect provenance and dependency paths.</p>}
-          </aside>
-        </section>
-      )}
+        )}
 
-      {activeTab === "findings" && (
-        <section className="panel-list">
-          {data.findings.map((finding) => (
-            <article className="finding" key={finding.finding_id}>
-              <div>
-                {finding.initial_risk && <span className={`badge ${finding.initial_risk}`}>{finding.initial_risk} initial risk</span>}
-                <span className="badge status">{finding.status}</span>
-                {finding.provenance && (
-                  <>
-                    <span className={`badge ${finding.provenance.signature_verified === true ? "verified" : "status"}`}>
-                      Signature {finding.provenance.signature_verified === true ? "verified" : finding.provenance.signature_verified === false ? "not verified" : "unknown"}
-                    </span>
-                    <span className={`badge ${finding.provenance.attestation_present === true ? "verified" : "status"}`}>
-                      Attestation {finding.provenance.attestation_present === true ? "present" : finding.provenance.attestation_present === false ? "absent" : "unknown"}
-                    </span>
-                  </>
-                )}
-              </div>
-              <h2>{finding.title}</h2>
-              <p>{finding.component_purl ?? finding.file_path ?? finding.category}</p>
-              {finding.dependency_paths.map((path, index) => <code key={index}>{path.join(" → ")}</code>)}
-              <div className="evidence-links">
-                <small>Evidence</small>
-                {finding.evidence_ids.map((evidenceId) => (
-                  <button key={evidenceId} onClick={() => openEvidence(evidenceId)}>{evidenceId}</button>
-                ))}
-              </div>
-            </article>
-          ))}
-          <article className="finding">
-            <h2>What changed</h2>
-            <p><b>Base:</b> {data.changes.base} <b>Head:</b> {data.changes.head}</p>
-            <p>Added: {data.changes.added.join(", ") || "none"}</p>
-            <p>Removed: {data.changes.removed.join(", ") || "none"}</p>
-            {data.changes.changed.map((change) => (
-              <p key={change.name}>{change.name}: {change.from} → {change.to}</p>
-            ))}
-            {data.changes.integrity_changed.map((change) => (
-              <p key={change.purl}>Integrity changed: {change.purl}</p>
-            ))}
-          </article>
-        </section>
-      )}
+        <MetricCards summary={data.summary} />
 
-      {activeTab === "trace" && (
-        <section className="trace">
-          {events.length === 0 && <p className="muted">Waiting for agent events...</p>}
-          {events.map((event, index) => (
-            <article key={`${event.agent}-${event.ts}-${index}`}>
-              <div className={`agent-dot ${event.agent}`} />
-              <div>
-                <span>{event.agent}</span><b>{event.type}</b>
-                <p>{event.summary}</p>
-                {event.evidence_ids.map((id) => (
-                  <button className="trace-evidence" key={id} onClick={() => openEvidence(id)}>{id}</button>
-                ))}
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
+        <nav className="flex items-center gap-1.5 p-1 bg-slate-900/90 rounded-xl border border-slate-800 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab("graph")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === "graph"
+                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>Dependency Graph</span>
+          </button>
 
-      {activeTab === "approval" && (
-        <section className="panel-list">
-          {data.plans.length === 0 && <p className="empty-state">No remediation plans are available for this run.</p>}
-          {data.plans.map((plan) => (
-            <article className="finding approval-card" key={plan.plan_id}>
-              <p className="eyebrow">Plan attempt {plan.attempt} · {plan.plan_id}</p>
-              <h2>{plan.action}{plan.target_version ? ` → ${plan.target_version}` : ""}</h2>
-              <p>Finding <b>{plan.finding_id}</b></p>
-              <p>Expected risk reduction: {plan.expected_risk_reduction}</p>
-              <p>Rollback: {plan.rollback}</p>
-              {plan.compatibility_impact && (
-                <p>
-                  Compatibility: {plan.compatibility_impact.from_version} → {plan.compatibility_impact.to_version}
-                  {" · "}{plan.compatibility_impact.semver_delta} change
-                  {" · "}{plan.compatibility_impact.level} impact
-                </p>
-              )}
-              <h3>Rationale claims</h3>
-              {plan.rationale.map((claim, index) => (
-                <p key={`${plan.plan_id}-${index}`}>
-                  <span className={`badge ${claim.label}`}>{claim.label}</span>
-                  {claim.text}
-                  {claim.evidence_ids.map((id) => (
-                    <button className="trace-evidence" key={id} onClick={() => openEvidence(id)}>{id}</button>
-                  ))}
-                </p>
-              ))}
-              <div className="evidence-links">
-                <b>Plan evidence</b>
-                {plan.evidence_ids.map((id) => (
-                  <button key={id} onClick={() => openEvidence(id)}>{id}</button>
-                ))}
-              </div>
-              <label className="comment-field">
-                Decision comment
-                <textarea value={decisionComment} onChange={(event) => setDecisionComment(event.target.value)} />
-              </label>
-              <div className="decision-actions">
-                <button disabled={loading} onClick={() => makeDecision(plan, "approve")}>Approve</button>
-                <button disabled={loading || !decisionComment.trim()} onClick={() => makeDecision(plan, "reject")}>Reject</button>
-                <button disabled={loading || !decisionComment.trim()} onClick={() => makeDecision(plan, "accept_risk")}>Accept risk</button>
-              </div>
-            </article>
-          ))}
-          {decisionMessage && <p className="decision-message" role="status">{decisionMessage}</p>}
-        </section>
-      )}
+          <button
+            onClick={() => setActiveTab("findings")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === "findings"
+                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            }`}
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>Findings &amp; Changes</span>
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                activeTab === "findings" ? "bg-cyan-900 text-white" : "bg-slate-800 text-slate-300"
+              }`}
+            >
+              {data.findings.length}
+            </span>
+          </button>
 
-      {activeTab === "validation" && (
-        <section className="validation-list">
-          {data.validation.length === 0 && <p className="empty-state">No validation attempts are available for this run.</p>}
-          {data.validation.map((attempt) => (
-            <article className="validation-card" key={attempt.attempt_id}>
-              <div className="validation-heading">
-                <div><p className="eyebrow">Attempt {attempt.attempt_id}</p><h2>{attempt.verdict.replaceAll("_", " ")}</h2></div>
-                <span className={`badge ${attempt.verdict === "verified" ? "verified" : "high"}`}>{attempt.final_confidence} confidence</span>
-              </div>
-              <div className="validation-metrics">
-                <p>Build <b>{attempt.build_ok ? "passed" : "failed"}</b></p>
-                <p>Unit tests <b>{attempt.unit_tests.passed ?? 0} passed / {attempt.unit_tests.failed ?? 0} failed</b></p>
-                <p>Integration tests <b>{attempt.integration_tests.passed ?? 0} passed / {attempt.integration_tests.failed ?? 0} failed</b></p>
-                <p>Risk <b>{attempt.risk_before} → {attempt.risk_after}</b></p>
-                <p>Finding resolved <b>{attempt.target_finding_resolved ? "yes" : "no"}</b></p>
-                {attempt.artifact_rescanned && <p>Rescanned artifact <b>{attempt.artifact_rescanned}</b></p>}
-              </div>
-              {attempt.new_findings.length > 0 && <p>New findings: {attempt.new_findings.join(", ")}</p>}
-              <div className="evidence-links">
-                {attempt.log_evidence_ids.map((id) => (
-                  <button key={id} onClick={() => openEvidence(id)}>Log {id}</button>
-                ))}
-                {attempt.detector_evidence_ids.map((id) => (
-                  <button key={id} onClick={() => openEvidence(id)}>Detector {id}</button>
-                ))}
-              </div>
-            </article>
-          ))}
-        </section>
-      )}
+          <button
+            onClick={() => setActiveTab("trace")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === "trace"
+                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            }`}
+          >
+            <Radio className="w-3.5 h-3.5" />
+            <span>Agent Trace</span>
+            <span
+              className={`px-1.5 py-0.2 rounded text-[10px] font-mono font-bold ${
+                activeTab === "trace" ? "bg-cyan-900 text-white" : "bg-slate-800 text-slate-300"
+              }`}
+            >
+              {events.length}
+            </span>
+          </button>
 
-      {activeTab === "monitoring" && (
-        <section className="monitoring-layout">
-          <article className="finding">
-            <p className="eyebrow">Saved-run comparison</p>
-            <h2>New findings since previous run</h2>
-            {historyLoading && <p className="muted">Loading saved runs...</p>}
-            {historyError && <p className="muted">{historyError}</p>}
-            {!historyLoading && !historyError && (
-              <>
-                <p>{previousRunId ? `Compared with ${previousRunId}` : "No earlier run for this target is available."}</p>
-                {newFindings.length === 0
-                  ? <p>No new findings in the saved-run comparison.</p>
-                  : newFindings.map((finding) => (
-                    <p className="new-finding" key={finding.finding_id}>
-                      <span className={`badge ${finding.initial_risk ?? "status"}`}>{finding.initial_risk ?? "unrated"}</span>
-                      {finding.title}
-                    </p>
-                  ))}
-              </>
+          <button
+            onClick={() => setActiveTab("approval")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === "approval"
+                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Approval Gate</span>
+            {data.plans.length > 0 && (
+              <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-500 text-slate-950">
+                {data.plans.length}
+              </span>
             )}
-            <small>This compares stored results; it does not trigger a fresh intelligence scan.</small>
-          </article>
-          <article className="finding">
-            <p className="eyebrow">Repository overview</p>
-            <h2>Latest saved run per target</h2>
-            {repositorySummaries.size === 0 && !historyLoading && <p className="muted">No saved runs are available.</p>}
-            {Array.from(repositorySummaries.values()).map((run) => (
-              <div className="repository-row" key={run.target}>
-                <b>{run.target}</b>
-                <span>{run.findings.total} findings</span>
-                <span>{run.findings.by_risk.critical} critical · {run.findings.by_risk.high} high</span>
-                <code>{run.run_id}</code>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("validation")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === "validation"
+                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            }`}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            <span>Validation &amp; Re-Scan</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("monitoring")}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+              activeTab === "monitoring"
+                ? "bg-cyan-600 text-white shadow-md shadow-cyan-600/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+            }`}
+          >
+            <Activity className="w-3.5 h-3.5" />
+            <span>Continuous Monitoring</span>
+          </button>
+        </nav>
+
+        <div className="flex-1 min-h-[580px]">
+          {activeTab === "graph" && (
+            <div className="h-[650px] rounded-xl overflow-hidden border border-slate-800 bg-slate-950 flex relative shadow-xl">
+              <div className="flex-1 h-full">
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center h-full text-slate-500 text-xs">
+                      Loading interactive graph engine...
+                    </div>
+                  }
+                >
+                  <GraphView
+                    graph={data.graph}
+                    selectedNodeId={selected?.id ?? null}
+                    onSelect={setSelected}
+                  />
+                </Suspense>
               </div>
-            ))}
-          </article>
-        </section>
-      )}
+
+              {selected && (
+                <NodeDetailPanel
+                  node={selected}
+                  graph={data.graph}
+                  onSelectNode={setSelected}
+                  onOpenFinding={(fid) => {
+                    const found = data.findings.find((f) => f.finding_id === fid);
+                    if (found && found.evidence_ids.length > 0) {
+                      openEvidence(found.evidence_ids[0]);
+                    }
+                  }}
+                />
+              )}
+            </div>
+          )}
+
+          {activeTab === "findings" && (
+            <FindingsView
+              findings={data.findings}
+              changes={data.changes}
+              onOpenEvidence={openEvidence}
+            />
+          )}
+
+          {activeTab === "trace" && (
+            <TraceView
+              events={events}
+              source={source}
+              onOpenEvidence={openEvidence}
+            />
+          )}
+
+          {activeTab === "approval" && (
+            <ApprovalView
+              plans={data.plans}
+              loading={loading}
+              decisionComment={decisionComment}
+              onCommentChange={setDecisionComment}
+              onMakeDecision={makeDecision}
+              decisionMessage={decisionMessage}
+              onOpenEvidence={openEvidence}
+            />
+          )}
+
+          {activeTab === "validation" && (
+            <ValidationView
+              validation={data.validation}
+              onOpenEvidence={openEvidence}
+            />
+          )}
+
+          {activeTab === "monitoring" && (
+            <MonitoringView
+              source={source}
+              historyLoading={historyLoading}
+              historyError={historyError}
+              previousRunId={previousRunId}
+              newFindings={newFindings}
+              runHistory={runHistory}
+              onOpenFinding={(fid) => {
+                const found = data.findings.find((f) => f.finding_id === fid);
+                if (found && found.evidence_ids.length > 0) {
+                  openEvidence(found.evidence_ids[0]);
+                }
+              }}
+            />
+          )}
+        </div>
+      </main>
 
       {selectedEvidence && (
-        <aside className="evidence-drawer" aria-label="Evidence details">
-          <button className="close-button" onClick={() => setSelectedEvidence(null)} aria-label="Close evidence">×</button>
-          <p className="eyebrow">{selectedEvidence.kind}</p>
-          <h2>{selectedEvidence.evidence_id}</h2>
-          <p>Source <b>{selectedEvidence.source_tool}</b></p>
-          {selectedEvidence.file_path && <p>File <code>{selectedEvidence.file_path}{selectedEvidence.line ? `:${selectedEvidence.line}` : ""}</code></p>}
-          {selectedEvidence.excerpt && <blockquote>{selectedEvidence.excerpt}</blockquote>}
-          <h3>Verified facts</h3>
-          <pre>{JSON.stringify(selectedEvidence.facts, null, 2)}</pre>
-        </aside>
+        <EvidenceDrawer
+          evidence={selectedEvidence}
+          onClose={() => setSelectedEvidence(null)}
+        />
       )}
-    </main>
+    </div>
   );
 }
