@@ -1,0 +1,4 @@
+# Local demo targets and generated Guardian runs are reproducible, but too large
+# and environment-specific to commit.
+/targets/
+/runs/
