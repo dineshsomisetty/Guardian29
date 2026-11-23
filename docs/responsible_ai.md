@@ -48,7 +48,9 @@ content stays wrapped.
 * LLM keys come only from the environment (`.env`, gitignored), are never logged or sent to the UI (G1.3).
 * Dependency resolution runs `--ignore-scripts`, so no install script executes on the host. Inside the sandbox,
   packages are installed with scripts off too; only native addons (packages shipping a `binding.gyp`, such as
-  `sqlite3`) are rebuilt, inside the container, with telemetry postinstalls disabled.
+  `sqlite3`) are rebuilt, inside the container, with telemetry postinstalls disabled. A subproject the
+  root build builds (Juice Shop's Angular frontend, whose production build fetches web fonts) is built in that
+  same install step; every validation build and test then runs with `--network none`.
 * The sandbox runs as a non-root user with CPU, memory, process and time limits, `--cap-drop ALL`,
   `no-new-privileges`, read-only root, only the patched copy mounted, no secrets passed, `--network none` for
   build and test, and is removed after each attempt (G6).
