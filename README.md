@@ -109,8 +109,10 @@ Golden tests check the newest real Juice Shop run against `tests/golden/juice_sh
 - The built-image rescan (G6.7) is opt-in (`GUARDIAN_IMAGE_BUILD=1`): it runs the target's Dockerfile with network on.
 - CVE upgrades are planned for npm and pip; Maven is scanned (SBOM, CVEs) but not patched.
 - Sandbox tests are judged against the unpatched project: failures that already happen without the fix are
-  disclosed, not blamed on it. Juice Shop's API suite needs its built Angular frontend, so it is reported as
-  not runnable in the sandbox (its unit suite runs: 439/441, the same 2 failures as the unmodified app).
+  disclosed, not blamed on it (Juice Shop: unit 439/441 and API 559/580 on the unmodified app; the 21 API
+  failures need the internet, which the sandbox never gives tests).
+- Web builds that fetch resources (Juice Shop's Angular build inlines web fonts) run while the dependency
+  image is built, inside the container; validation builds and tests always run with `--network none`.
 - Rego policies are mirrored by a native Python evaluator; `conftest`/`opa` is used only if installed.
 - LLM explanations need a provider key or a recorded replay cache; without one the rule-based risk is used.
 
