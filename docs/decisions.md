@@ -35,9 +35,9 @@ mentor and recorded below before the relevant work is treated as approved.
 
 | ID | Question | Status / answer |
 |---|---|---|
-| M-01 | What must CP1 at 16:30 show: graph only, or CVEs and anomalies too? How is it evaluated? | Pending mentor response |
-| M-02 | When is the Day-1 milestone; when do Day 2 and the final demo begin? | Pending mentor response |
-| M-03 | Are public read-only APIs (npm, OSV, EPSS, CISA KEV, GitHub) and the LLM API allowed? | Pending mentor response |
-| M-04 | Is a local clone/branch acceptable for the remediation-branch stretch goal? | Pending mentor response |
-| M-05 | Is there an LLM/API cost limit, or a preferred local/open model? | Pending mentor response |
-| M-06 | Is sandboxed `docker build`, which executes the target Dockerfile's install step, allowed? | Pending mentor response |
+| M-01 | What must CP1 at 16:30 show: graph only, or CVEs and anomalies too? How is it evaluated? | Approved: show the full planned CP1 slice (graph, CVEs, anomalies, evidence, and trace) per §3.2. Evaluation method was not further specified. |
+| M-02 | When is the Day-1 milestone; when do Day 2 and the final demo begin? | Still open: approval does not provide the exact times. Use the plan's assumed times until organisers confirm them. |
+| M-03 | Are public read-only APIs (npm, OSV, EPSS, CISA KEV, GitHub) and the LLM API allowed? | Approved. Keep calls read-only, cached, and throttled as required by §§0 and 14. |
+| M-04 | Is a local clone/branch acceptable for the remediation-branch stretch goal? | Approved. No remote push or merge is permitted. |
+| M-05 | Is there an LLM/API cost limit, or a preferred local/open model? | Approved to use the planned provider options. No specific cost limit or model preference was supplied; retain record/replay as the demo fallback. |
+| M-06 | Is sandboxed `docker build`, which executes the target Dockerfile's install step, allowed? | Approved, subject to the G6.7 limits and disclosure in the Responsible AI note. |
