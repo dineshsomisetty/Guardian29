@@ -116,12 +116,11 @@ class SandboxResult:
     tests_ran: bool = False
     failed_names: dict[str, list[str]] = field(default_factory=dict)  # phase -> failing tests
     baseline: dict | None = None  # the unpatched copy's test result, when compared
-    notes: list[str] = field(default_factory=list)  # disclosed limitations of this validation
     image: str | None = None
     artifact_image: str | None = None  # G6.7: tag of the built + rescanned image (removed afterwards)
     image_vulns: set[tuple[str, str]] = field(default_factory=set)  # (vuln id, package) found in that image
     extra_evidence: list[Evidence] = field(default_factory=list)
-    notes: list[str] = field(default_factory=list)  # e.g. "image build failed"
+    notes: list[str] = field(default_factory=list)  # disclosed limitations, e.g. "image build failed"
 
 
 # ---------------------------------------------------------------- helpers
