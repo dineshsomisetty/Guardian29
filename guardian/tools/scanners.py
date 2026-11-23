@@ -86,6 +86,22 @@ def _osv_fixed(vuln: dict, name: str) -> list[str]:
     return sorted(set(out))
 
 
+def _osv_cache_path(work, locks):
+    """OSV-Scanner output cached by the content of the scanned lockfiles (G7.4), so an offline run sees the
+    same advisories as the recorded online run (and therefore the same LLM prompts in replay)."""
+    import hashlib
+    import os
+    from pathlib import Path
+
+    from guardian.core.config import REPO_ROOT
+
+    h = hashlib.sha256()
+    for lf in sorted(locks, key=lambda p: p.relative_to(work).as_posix()):
+        h.update(lf.relative_to(work).as_posix().encode() + b"\0" + lf.read_bytes() + b"\0")
+    root = Path(os.environ.get("GUARDIAN_INTEL_CACHE") or REPO_ROOT / "data" / "cache" / "intel")
+    return root / "osv-scanner" / f"{h.hexdigest()[:32]}.json"
+
+
 def osv_scan(ctx: ToolContext) -> ToolOutput:
     work = ctx.work_dir or ctx.repo
     locks = [p.lockfile for p in find_projects(work) if p.lockfile.exists()]
@@ -95,13 +111,22 @@ def osv_scan(ctx: ToolContext) -> ToolOutput:
     locks += [r for proj in pypi.find_projects(work) for r in proj.requirements]
     if not locks:
         raise RuntimeError("no lockfiles or requirements files for OSV")
-    args = [find("osv-scanner"), "scan", "source", "--format", "json"]
-    for lf in locks:
-        args += ["-L", str(lf)]
-    proc = run(args, timeout=600, ok_codes=(0, 1))
+    cache = _osv_cache_path(work, locks)
+    if cache.is_file():
+        stdout = cache.read_text(encoding="utf-8")
+    elif ctx.settings.offline:
+        # OSV-Scanner always queries api.osv.dev: offline with no cached result, skip (Grype stays primary)
+        raise RuntimeError("offline (GUARDIAN_OFFLINE=1) and no cached OSV result for these lockfiles: skipped")
+    else:
+        args = [find("osv-scanner"), "scan", "source", "--format", "json"]
+        for lf in locks:
+            args += ["-L", str(lf)]
+        stdout = run(args, timeout=600, ok_codes=(0, 1)).stdout
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(stdout, encoding="utf-8")
     raw_path = ctx.run_dir / "osv.json"
-    raw_path.write_text(proc.stdout, encoding="utf-8")
-    data = json.loads(proc.stdout or "{}")
+    raw_path.write_text(stdout, encoding="utf-8")
+    data = json.loads(stdout or "{}")
     tool = "osv-scanner@2.7.1"
     evidence = [Evidence(run_id=ctx.run_id, kind="osv", source_tool=tool, facts={"results": len(data.get("results", []))},
                          artifact_path="osv.json", sha256=sha256_file(raw_path))]

@@ -105,3 +105,57 @@ def test_mini_diff(tmp_path):
     assert ch["added"] == ["pkg:npm/mocha@1", "pkg:npm/ngy-cookie@6.0.0"]
     assert ch["removed"] == ["pkg:npm/colors@1.1", "pkg:npm/epilogue-js@0.7"]
     assert ch["changed"][0]["name"] == "express-jwt" and ch["evidence_ids"]
+
+
+def test_scanner_env_is_offline_safe(monkeypatch):
+    """G7.3: scanners never self-update; offline, Grype never refreshes its vulnerability DB."""
+    from guardian.tools.binaries import scanner_env
+
+    on = scanner_env({"PATH": "x"})
+    assert on["SYFT_CHECK_FOR_APP_UPDATE"] == on["GRYPE_CHECK_FOR_APP_UPDATE"] == "false"
+    assert "GRYPE_DB_AUTO_UPDATE" not in on
+    off = scanner_env({"PATH": "x", "GUARDIAN_OFFLINE": "1"})
+    assert off["GRYPE_DB_AUTO_UPDATE"] == "false" and off["GRYPE_DB_VALIDATE_AGE"] == "false"
+
+
+def test_osv_scan_is_cached_and_offline_safe(tmp_path, settings, monkeypatch):
+    """G7.3/G7.4: online, OSV-Scanner output is cached by lockfile content; offline, the cache is reused and
+    the binary is never started; offline without a cache the cross-check is skipped (Grype stays primary)."""
+    from dataclasses import replace
+
+    import pytest
+
+    from guardian.tools import scanners
+    from guardian.tools.registry import ToolContext
+
+    monkeypatch.setenv("GUARDIAN_INTEL_CACHE", str(tmp_path / "intel"))
+    repo = tmp_path / "app"
+    repo.mkdir()
+    (repo / "package.json").write_text('{"name": "app", "dependencies": {"a": "1.0.0"}}', encoding="utf-8")
+    (repo / "package-lock.json").write_text('{"lockfileVersion": 3, "packages": {}}', encoding="utf-8")
+    calls = []
+
+    class Proc:
+        stdout = '{"results": []}'
+
+    def fake_run(args, **kw):
+        calls.append(args)
+        return Proc()
+
+    monkeypatch.setattr(scanners, "run", fake_run)
+    monkeypatch.setattr(scanners, "find", lambda name: name)
+
+    def ctx(offline):
+        run_dir = tmp_path / f"run_{offline}"
+        run_dir.mkdir(exist_ok=True)
+        return ToolContext(run_id="r", run_dir=run_dir, repo=repo, settings=replace(settings, offline=offline),
+                           work_dir=repo)
+
+    scanners.osv_scan(ctx(False))
+    assert len(calls) == 1
+    scanners.osv_scan(ctx(True))  # same lockfiles: served from the cache
+    assert len(calls) == 1
+    (repo / "package-lock.json").write_text('{"lockfileVersion": 3, "packages": {"x": {}}}', encoding="utf-8")
+    with pytest.raises(RuntimeError, match="offline"):
+        scanners.osv_scan(ctx(True))  # changed lockfile, no cache, offline: skipped, binary not started
+    assert len(calls) == 1
