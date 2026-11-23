@@ -167,13 +167,13 @@ function Canvas({
   const focusRisk = useCallback(
     (duration: number) => {
       if (focusNodes.length)
-        void rf.fitView({ nodes: focusNodes, padding: 0.25, minZoom: READABLE_ZOOM, maxZoom: 1, duration });
-      else void rf.fitView({ nodes: overviewNodes, padding: 0.1, minZoom: MIN_ZOOM, maxZoom: 1, duration });
+        void rf.fitView({ nodes: focusNodes, padding: FIT_PAD, minZoom: READABLE_ZOOM, maxZoom: 1, duration });
+      else void rf.fitView({ nodes: overviewNodes, padding: FIT_PAD, minZoom: MIN_ZOOM, maxZoom: 1, duration });
     },
     [rf, focusNodes, overviewNodes],
   );
   const fitAll = useCallback(
-    () => void rf.fitView({ nodes: overviewNodes, padding: 0.08, minZoom: MIN_ZOOM, maxZoom: 1, duration: ANIM }),
+    () => void rf.fitView({ nodes: overviewNodes, padding: FIT_PAD, minZoom: MIN_ZOOM, maxZoom: 1, duration: ANIM }),
     [rf, overviewNodes],
   );
 
@@ -333,12 +333,16 @@ function ZoomReadout() {
   return <span className="gzoom num" aria-live="off">{Math.round(z * 100)}%</span>;
 }
 
+// keep fitted nodes clear of the search/toggle bar on top and the hint line + controls at the bottom
+const FIT_PAD = { top: "76px", right: "48px", bottom: "64px", left: "72px" } as const;
+
 function Legend() {
+  // collapsed by default so it never covers nodes on first look; a reader who opens it keeps it open
   const [open, setOpen] = useState(() => {
     try {
-      return localStorage.getItem("guardian.legend") !== "closed";
+      return localStorage.getItem("guardian.legend") === "open";
     } catch {
-      return true;
+      return false;
     }
   });
   const toggle = () => {
