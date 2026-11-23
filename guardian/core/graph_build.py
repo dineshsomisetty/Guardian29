@@ -8,9 +8,9 @@ If the SBOM has no usable `dependencies` for a project, edges are rebuilt from t
 from __future__ import annotations
 
 import json
-import re
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import networkx as nx
 

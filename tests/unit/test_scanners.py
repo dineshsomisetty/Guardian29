@@ -12,7 +12,6 @@ FX = Path(__file__).resolve().parents[1] / "fixtures" / "juice-shop" / "grype_sa
 def graph_for(doc):
     G = nx.DiGraph(roots=["root"])
     G.add_node("root", kind="project")
-    prev = "root"
     for m in doc["matches"]:
         p = m["artifact"]["purl"].split("?")[0]
         G.add_node(p, kind="package", scope="prod", project="root")

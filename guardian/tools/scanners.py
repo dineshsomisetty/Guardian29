@@ -10,9 +10,8 @@ import hashlib
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import networkx as nx
 
@@ -58,7 +57,7 @@ def parse_grype(doc: dict, G: nx.DiGraph | None, run_id: str, raw_file: Path | N
     G = getattr(G, "G", G)  # accept DependencyGraph or a raw networkx graph
     version = (doc.get("descriptor") or {}).get("version", "unknown")
     sha = hashlib.sha256(Path(raw_file).read_bytes()).hexdigest() if raw_file and Path(raw_file).is_file() else None
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     seen: dict[tuple[str, str], dict] = {}
     findings: list[dict] = []
     evidence: list[dict] = []
@@ -161,7 +160,7 @@ def parse_osv(doc: dict, G: nx.DiGraph | None, run_id: str, raw_file: Path | Non
     """OSV-Scanner JSON -> (findings, evidence). One finding per (purl, alias group)."""
     G = getattr(G, "G", G)
     sha = hashlib.sha256(Path(raw_file).read_bytes()).hexdigest() if raw_file and Path(raw_file).is_file() else None
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     findings, evidence, seen = [], [], set()
     for res in doc.get("results", []):
         src = (res.get("source") or {}).get("path", "").replace("\\", "/")

@@ -37,7 +37,7 @@ def run_syft(source: str, out_file: Path, timeout: int = 600) -> dict:
     data = json.loads(out_file.read_text(encoding="utf-8"))
     comps = data.get("components", [])
     version = subprocess.run([find_tool("syft"), "version"], capture_output=True, text=True).stdout
-    ver = next((l.split()[-1] for l in version.splitlines() if l.startswith("Version:")), "unknown")
+    ver = next((ln.split()[-1] for ln in version.splitlines() if ln.startswith("Version:")), "unknown")
     return {
         "source_tool": f"syft@{ver}",
         "artifact_path": str(out_file),
