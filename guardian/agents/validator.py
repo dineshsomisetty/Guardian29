@@ -184,6 +184,7 @@ def validator_node(state: GraphState) -> dict:
             # The attempt is a fresh copy of the target, which may ship without lockfiles (Juice Shop:
             # .npmrc package-lock=false). Resolve them for the *patched* manifests before the rescan, else the
             # SBOM diff compares a full tree with a manifest-only one and the upgrade is never actually seen.
+            actx.artifacts["baseline_lock_root"] = ctx.run_dir / "work"  # minimal update from discovery's locks
             rl = call_tool(AGENT, "resolve_lockfiles", "guardian.tools.resolve:resolve_lockfiles", actx, store, audit)
             if rl is not None:
                 log_ev += [e.evidence_id for e in rl.evidence]

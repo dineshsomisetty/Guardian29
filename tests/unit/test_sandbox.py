@@ -335,3 +335,24 @@ def test_subproject_built_by_the_root_build_is_prebuilt_in_the_deps_image(tmp_pa
     assert "RUN cd /deps/frontend && NG_CLI_ANALYTICS=false npm run build" in seen["dockerfile"] and seen["src_copied"]
     build = next(a[-1] for a in fake.calls if a[1] == "run" and "npm run build" in a[-1])
     assert "cp -r /deps/frontend/dist /work/frontend/dist" in build and build.endswith("npm run build:server")
+
+
+def test_validator_lockfiles_start_from_discoverys_resolution(tmp_path, monkeypatch):
+    """Juice Shop ships no lockfile: resolving the patched copy from scratch let unrelated packages drift (25
+    'new' dependencies). The copy is seeded with discovery's lockfile and npm only updates it."""
+    from types import SimpleNamespace
+
+    from guardian.tools import resolve
+
+    base, w = tmp_path / "base", tmp_path / "attempt"
+    for d in (base, w):
+        d.mkdir()
+        (d / "package.json").write_text('{"dependencies": {"a": "1"}}', encoding="utf-8")
+    (base / "package-lock.json").write_text('{"packages": {"": {}, "node_modules/a": {"version": "1.0.0"}}}')
+    calls = []
+    monkeypatch.setattr(resolve, "run", lambda args, cwd, timeout: calls.append((args, cwd)))
+    ctx = SimpleNamespace(work_dir=w, repo=w, run_id="r", artifacts={"target_name": "x", "baseline_lock_root": base})
+    out = resolve.resolve_lockfiles(ctx)
+    assert (w / "package-lock.json").read_text() == (base / "package-lock.json").read_text()  # seeded first
+    assert calls and "--package-lock-only" in calls[0][0] and "--ignore-scripts" in calls[0][0]
+    assert out.evidence[0].facts["source"].startswith("discovery's lockfile")

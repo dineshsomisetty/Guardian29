@@ -10,6 +10,7 @@ scripts run, C2). The frontend needs `--legacy-peer-deps` (verified on Juice Sho
 from __future__ import annotations
 
 import shutil
+from pathlib import Path
 
 from guardian.adapters import pypi
 from guardian.adapters.npm import find_projects
@@ -28,10 +29,27 @@ def resolve_lockfiles(ctx: ToolContext) -> ToolOutput:
     evidence, projects = [], []
     # a patched attempt copy lives in runs/<id>/attempts/<at>/work: the validator passes the target's name
     fixtures = REPO_ROOT / "tests" / "fixtures" / (ctx.artifacts.get("target_name") or ctx.repo.name)
+    # validator: start from the lockfiles discovery resolved (runs/<id>/work), so npm only changes what the
+    # patch requires; resolving from scratch let unrelated packages drift and show up as "new" in the diff
+    base = ctx.artifacts.get("baseline_lock_root")
     for proj in find_projects(work):
         fixture_dir = fixtures / ("root" if proj.name == "root" else proj.name)
+        seeded = None
+        if base is not None and not proj.lockfile.exists():
+            src = Path(base) / proj.lockfile.relative_to(work)
+            if src.is_file():
+                shutil.copyfile(src, proj.lockfile)
+                seeded = src
         had_lock = proj.lockfile.exists()
-        if had_lock:
+        if seeded is not None:
+            args = [_npm(), "install", "--package-lock-only", "--ignore-scripts", "--package-lock=true",
+                    "--no-audit", "--no-fund"]
+            if proj.name != "root":
+                args.append("--legacy-peer-deps")
+            run(args, cwd=proj.dir, timeout=900)  # updates the seeded lock minimally to the patched manifest
+            source = "discovery's lockfile, updated with npm install --package-lock-only --ignore-scripts"
+            had_lock = False
+        elif had_lock:
             source = "committed in target"
         elif (fixture_dir / "package-lock.json").exists() and (fixture_dir / "package.json").exists() and \
                 sha256_file(fixture_dir / "package.json") == sha256_file(proj.manifest):
