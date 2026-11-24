@@ -15,6 +15,7 @@ Every fact is stored as Evidence; every AI statement is labelled **verified fact
 | [docs/architecture.md](docs/architecture.md) | diagram of agents, tools, data sources, AI interactions, approval points, evidence storage |
 | [docs/responsible_ai.md](docs/responsible_ai.md) | where AI is used, hallucination control, approvals, secrets protection, limitations |
 | [docs/requirements_coverage.md](docs/requirements_coverage.md) | the problem statement, line by line, with proof for each item |
+| [docs/generality_and_scale.md](docs/generality_and_scale.md) | six real repositories (npm, pip, Maven; GitHub and GitLab CI): results, time, memory, what they exposed |
 | [GUARDIAN_PLAN.md](GUARDIAN_PLAN.md) | the full execution plan and guardrails G1–G7 |
 
 ## Setup (Windows, PowerShell)
@@ -102,6 +103,8 @@ Golden tests check the newest real Juice Shop run against `tests/golden/juice_sh
 | PyGoat | pip (Django), Docker | second ecosystem, old Django with many advisories |
 | OWASP NodeGoat | npm | older dependencies (optional extra) |
 | OWASP WebGoat | Maven (Java) | `pom.xml` parsing, Java dependency findings (optional extra) |
+| vulnerable-rest-api | npm (Node + React) | no root package: `client/` + `server/` projects |
+| vuln_django_play | pip (Django), GitLab CI | GitLab pipelines as a supply-chain source |
 
 ## Known limitations
 
