@@ -28,7 +28,7 @@ from guardian.tools.registry import ToolContext
 from tests.integration.test_human_gate import _decide, _summary, _trace, target  # noqa: F401
 
 NODES = {"discovery", "detection", "evidence_analyst", "investigator", "risk_analyst", "remediation",
-         "human_gate", "record_decision", "validator", "reporter"}
+         "sandbox_preview", "human_gate", "record_decision", "validator", "reporter"}
 
 
 @pytest.fixture(autouse=True)
@@ -89,6 +89,8 @@ def test_graph_has_exactly_the_contract_nodes():
     assert ("evidence_analyst", "investigator") in edges and ("investigator", "risk_analyst") in edges
     assert ("evidence_analyst", "risk_analyst") not in edges
     assert {e.source for e in g.edges if e.target == "validator"} == {"record_decision"}
+    # demo pre-approval sandbox run only ever leads to the human gate, never straight to the validator
+    assert {e.target for e in g.edges if e.source == "sandbox_preview"} == {"human_gate"}
 
 
 def test_human_gate_contains_only_interrupt():
