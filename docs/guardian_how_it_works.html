@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardian: how it works</title>
+<style>
+@page { size: A4; margin: 14mm 15mm; }
+:root {
+  --ink: #1c2128; --mute: #5b6470; --line: #d8dde3; --soft: #f5f7f9;
+  --blue: #2457a6; --blue-bg: #e8f0fb; --green: #1d6b40; --green-bg: #e4f4ea;
+  --amber: #8a5a00; --amber-bg: #fdf1d8; --red: #9b2a1f; --red-bg: #fbe7e4; --violet: #5b3fa0; --violet-bg: #efeafb;
+}
+* { box-sizing: border-box; }
+html { background: #e9ecef; }
+body { margin: 0; color: var(--ink); font: 10.5pt/1.5 "Segoe UI", Inter, Roboto, Arial, sans-serif; }
+.page { width: 210mm; min-height: 297mm; margin: 10mm auto; padding: 14mm 15mm; background: #fff;
+        box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+@media print {
+  html { background: #fff; }
+  .page { width: auto; min-height: 0; margin: 0; padding: 0; box-shadow: none; break-after: page; }
+  .page:last-child { break-after: auto; }
+}
+header.top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid var(--ink);
+             padding-bottom: 4px; margin-bottom: 12px; }
+header.top b { font-size: 11pt; letter-spacing: .02em; }
+header.top span { color: var(--mute); font-size: 9pt; }
+h1 { font-size: 21pt; margin: 4px 0 2px; letter-spacing: -.01em; }
+h2 { font-size: 13.5pt; margin: 18px 0 6px; }
+h3 { font-size: 11pt; margin: 14px 0 4px; }
+p { margin: 0 0 8px; }
+.lead { font-size: 11.5pt; color: #333a44; margin-bottom: 12px; }
+.mute { color: var(--mute); }
+.small { font-size: 9pt; }
+code { font: 9pt Consolas, "JetBrains Mono", monospace; background: var(--soft); border: 1px solid var(--line);
+       border-radius: 3px; padding: 0 4px; }
+.rule { border-left: 4px solid var(--blue); background: var(--blue-bg); padding: 8px 12px; margin: 10px 0 14px; }
+.rule b { color: var(--blue); }
+figure { margin: 8px 0 6px; }
+figcaption { font-size: 9pt; color: var(--mute); margin-top: 2px; }
+svg { width: 100%; height: auto; display: block; }
+svg text { font-family: "Segoe UI", Inter, Roboto, Arial, sans-serif; }
+table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin: 4px 0 8px; }
+th, td { text-align: left; padding: 4px 7px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: var(--mute); border-bottom: 1.5px solid #b9c0c8; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 8px 11px; }
+.card h3 { margin-top: 0; }
+ul { margin: 2px 0 8px; padding-left: 18px; }
+li { margin: 2px 0; }
+.tag { display: inline-block; font-size: 8pt; font-weight: 600; padding: 0 6px; border-radius: 3px; }
+.t-ok { color: var(--green); background: var(--green-bg); } .t-bad { color: var(--red); background: var(--red-bg); }
+.t-gate { color: var(--amber); background: var(--amber-bg); } .t-ai { color: var(--violet); background: var(--violet-bg); }
+.foot { margin-top: 10px; padding-top: 6px; border-top: 1px solid var(--line); font-size: 8.5pt; color: var(--mute); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ PAGE 1: what it is + architecture -->
+<section class="page">
+  <header class="top"><b>GUARDIAN · how it works</b><span>Page 1 of 3 · Architecture</span></header>
+
+  <h1>Guardian</h1>
+  <p class="lead">An agentic software-supply-chain guardian. It looks at a repository, finds the risky parts of what the
+  application is built from, ranks them, suggests a fix, waits for a person to approve it, proves the fix in a
+  sandbox, and writes an evidence-backed report.</p>
+
+  <div class="rule"><b>The one rule:</b> tools produce facts, agents reason about them, humans approve changes.
+  Every fact is stored as evidence; every AI sentence is labelled <b>verified</b> (matches evidence) or
+  <b>inferred</b> by code, and unsupported sentences are removed.</div>
+
+  <h2>Architecture at a glance</h2>
+  <figure>
+    <svg style="width:90%;margin:0 auto" viewBox="0 0 720 330" role="img" aria-label="Guardian architecture: inputs, agents, tools, AI, human gate, storage, outputs">
+      <defs>
+        <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#5b6470"/></marker>
+      </defs>
+      <!-- input -->
+      <rect x="6" y="120" width="104" height="86" rx="8" fill="#f5f7f9" stroke="#b9c0c8"/>
+      <text x="58" y="142" text-anchor="middle" font-size="12" font-weight="700">Target repo</text>
+      <text x="58" y="160" text-anchor="middle" font-size="9.5" fill="#5b6470">manifests, lockfiles</text>
+      <text x="58" y="174" text-anchor="middle" font-size="9.5" fill="#5b6470">Dockerfiles, CI</text>
+      <text x="58" y="194" text-anchor="middle" font-size="9" fill="#5b6470">(read-only)</text>
+      <line x1="110" y1="163" x2="138" y2="163" stroke="#5b6470" stroke-width="1.4" marker-end="url(#a)"/>
+
+      <!-- engine -->
+      <rect x="140" y="58" width="350" height="210" rx="10" fill="#fff" stroke="#2457a6" stroke-width="1.6"/>
+      <text x="315" y="78" text-anchor="middle" font-size="12" font-weight="700" fill="#2457a6">Workflow engine (LangGraph, 9 agents)</text>
+      <text x="315" y="93" text-anchor="middle" font-size="9" fill="#5b6470">state checkpointed to SQLite, so a paused run can resume later</text>
+      <!-- three bands -->
+      <rect x="154" y="104" width="100" height="62" rx="6" fill="#f5f7f9" stroke="#d8dde3"/>
+      <text x="204" y="124" text-anchor="middle" font-size="10.5" font-weight="700">Find</text>
+      <text x="204" y="140" text-anchor="middle" font-size="9" fill="#5b6470">Discovery</text>
+      <text x="204" y="153" text-anchor="middle" font-size="9" fill="#5b6470">Detection</text>
+      <rect x="265" y="104" width="100" height="62" rx="6" fill="#efeafb" stroke="#d6cdf0"/>
+      <text x="315" y="124" text-anchor="middle" font-size="10.5" font-weight="700" fill="#5b3fa0">Understand</text>
+      <text x="315" y="140" text-anchor="middle" font-size="9" fill="#5b6470">Evidence analyst</text>
+      <text x="315" y="153" text-anchor="middle" font-size="9" fill="#5b6470">Investigator · Risk</text>
+      <rect x="376" y="104" width="100" height="62" rx="6" fill="#f5f7f9" stroke="#d8dde3"/>
+      <text x="426" y="124" text-anchor="middle" font-size="10.5" font-weight="700">Fix</text>
+      <text x="426" y="140" text-anchor="middle" font-size="9" fill="#5b6470">Remediation</text>
+      <text x="426" y="153" text-anchor="middle" font-size="9" fill="#5b6470">plan + diff + hash</text>
+      <!-- gate + validate + report -->
+      <rect x="154" y="184" width="100" height="62" rx="6" fill="#fdf1d8" stroke="#ecd29a"/>
+      <text x="204" y="206" text-anchor="middle" font-size="10.5" font-weight="700" fill="#8a5a00">Human gate</text>
+      <text x="204" y="222" text-anchor="middle" font-size="9" fill="#5b6470">run pauses here</text>
+      <text x="204" y="235" text-anchor="middle" font-size="9" fill="#5b6470">until a decision</text>
+      <rect x="265" y="184" width="100" height="62" rx="6" fill="#e4f4ea" stroke="#b8dcc5"/>
+      <text x="315" y="206" text-anchor="middle" font-size="10.5" font-weight="700" fill="#1d6b40">Validator</text>
+      <text x="315" y="222" text-anchor="middle" font-size="9" fill="#5b6470">Docker sandbox</text>
+      <text x="315" y="235" text-anchor="middle" font-size="9" fill="#5b6470">build · test · rescan</text>
+      <rect x="376" y="184" width="100" height="62" rx="6" fill="#f5f7f9" stroke="#d8dde3"/>
+      <text x="426" y="206" text-anchor="middle" font-size="10.5" font-weight="700">Reporter</text>
+      <text x="426" y="222" text-anchor="middle" font-size="9" fill="#5b6470">report.json</text>
+      <text x="426" y="235" text-anchor="middle" font-size="9" fill="#5b6470">report.html</text>
+      <line x1="426" y1="166" x2="426" y2="174" stroke="#5b6470" stroke-width="1.2"/>
+      <path d="M426,174 L204,174 L204,182" fill="none" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+      <line x1="254" y1="215" x2="263" y2="215" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+      <line x1="365" y1="215" x2="374" y2="215" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+      <line x1="254" y1="135" x2="263" y2="135" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+      <line x1="365" y1="135" x2="374" y2="135" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+
+      <!-- tools (top) -->
+      <rect x="140" y="6" width="350" height="40" rx="8" fill="#f5f7f9" stroke="#b9c0c8"/>
+      <text x="315" y="23" text-anchor="middle" font-size="10.5" font-weight="700">Tools (allow-listed per agent, typed, budgeted)</text>
+      <text x="315" y="38" text-anchor="middle" font-size="9" fill="#5b6470">Syft · Grype · OSV-Scanner · detectors · EPSS / KEV / registries · patch ops · sandbox</text>
+      <line x1="315" y1="46" x2="315" y2="56" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+
+      <!-- AI (right top) -->
+      <rect x="522" y="58" width="190" height="62" rx="8" fill="#efeafb" stroke="#d6cdf0"/>
+      <text x="617" y="80" text-anchor="middle" font-size="10.5" font-weight="700" fill="#5b3fa0">LLM provider</text>
+      <text x="617" y="96" text-anchor="middle" font-size="9" fill="#5b6470">DeepSeek / Anthropic / OpenAI-compat.</text>
+      <text x="617" y="110" text-anchor="middle" font-size="9" fill="#5b6470">record / replay cache (offline runs)</text>
+      <line x1="367" y1="112" x2="520" y2="90" stroke="#5b3fa0" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#a)" marker-start="url(#a)"/>
+
+      <!-- Human (right middle) -->
+      <rect x="522" y="140" width="190" height="56" rx="28" fill="#fdf1d8" stroke="#ecd29a"/>
+      <text x="617" y="164" text-anchor="middle" font-size="10.5" font-weight="700" fill="#8a5a00">Human approver</text>
+      <text x="617" y="180" text-anchor="middle" font-size="9" fill="#5b6470">UI or CLI · decision bound to plan hash</text>
+      <path d="M522,186 L502,186 L502,256 L204,256 L204,250" fill="none" stroke="#8a5a00" stroke-width="1.3" marker-end="url(#a)"/>
+
+      <!-- storage (bottom) -->
+      <rect x="140" y="284" width="572" height="40" rx="8" fill="#f5f7f9" stroke="#b9c0c8"/>
+      <text x="426" y="301" text-anchor="middle" font-size="10.5" font-weight="700">Evidence store: runs/&lt;run_id&gt;/</text>
+      <text x="426" y="316" text-anchor="middle" font-size="9" fill="#5b6470">SBOM · graph · findings · evidence/ · risk · plans/ · approvals · validation/ · trace + audit · report</text>
+      <line x1="315" y1="268" x2="315" y2="282" stroke="#5b6470" stroke-width="1.2" marker-end="url(#a)"/>
+
+      <!-- UI/API (right bottom) -->
+      <rect x="522" y="212" width="190" height="56" rx="8" fill="#e8f0fb" stroke="#b9cdea"/>
+      <text x="617" y="234" text-anchor="middle" font-size="10.5" font-weight="700" fill="#2457a6">API + Web UI</text>
+      <text x="617" y="250" text-anchor="middle" font-size="9" fill="#5b6470">reads the store · live trace (SSE)</text>
+      <line x1="617" y1="268" x2="617" y2="282" stroke="#2457a6" stroke-width="1.2" marker-start="url(#a)"/>
+    </svg>
+    <figcaption>The engine never writes to the real repository. It works on copies, stores every fact in the run folder,
+    and only a recorded human decision can move a fix into the sandbox.</figcaption>
+  </figure>
+
+  <h2>The four layers</h2>
+  <table>
+    <tr><th style="width:22%">Layer</th><th>What it is</th><th style="width:30%">Why it matters</th></tr>
+    <tr><td><b>Tools</b></td><td>Scanners (Syft, Grype, OSV), detectors (typosquat, install scripts, unpinned CI, tag-only images, missing lockfile, policy), intel lookups (EPSS, CISA KEV, registries), patch operations, the sandbox.</td><td>Facts come only from tools, so they can be checked.</td></tr>
+    <tr><td><b>Agents</b> <span class="tag t-ai">3 use AI</span></td><td>Nine steps in a fixed graph. Only the Evidence analyst, the Investigator and the Risk summary call the LLM; scoring, planning and validation are plain code.</td><td>AI explains and investigates; it never decides a score or a change.</td></tr>
+    <tr><td><b>Human gate</b> <span class="tag t-gate">approval</span></td><td>The run pauses before any change. A decision is tied to the plan's SHA-256 hash; reject and accept-risk need a reason.</td><td>If the plan changes after you saw it, your approval no longer applies.</td></tr>
+    <tr><td><b>Store + UI</b></td><td>One folder per run with every artefact, an append-only audit log, and a web UI / API that reads it.</td><td>Anything in the report can be traced to a file.</td></tr>
+  </table>
+
+  <div class="foot">Code: <code>guardian/agents/</code> (agents) · <code>guardian/tools/</code> (tools, sandbox) · <code>guardian/graph/workflow.py</code> (graph) · <code>guardian/reporting/</code> (report) · <code>ui/</code> (web app)</div>
+</section>
+
+<!-- ============================================================ PAGE 2: workflow -->
+<section class="page">
+  <header class="top"><b>GUARDIAN · how it works</b><span>Page 2 of 3 · Workflow</span></header>
+
+  <h2 style="margin-top:4px">1 · From repository to ranked risks</h2>
+  <figure>
+    <svg viewBox="0 0 720 118" role="img" aria-label="Pipeline: discovery, detection, evidence analyst, investigator, risk analyst">
+      <defs>
+        <marker id="b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6470"/></marker>
+      </defs>
+      <g font-size="9" fill="#5b6470" text-anchor="middle">
+        <rect x="4" y="8" width="128" height="70" rx="7" fill="#f5f7f9" stroke="#b9c0c8"/>
+        <text x="68" y="28" font-size="11" font-weight="700" fill="#1c2128">1 Discovery</text>
+        <text x="68" y="45">copy repo, resolve lockfiles</text><text x="68" y="58">(no install scripts)</text><text x="68" y="71">SBOM + dependency graph</text>
+        <rect x="150" y="8" width="128" height="70" rx="7" fill="#f5f7f9" stroke="#b9c0c8"/>
+        <text x="214" y="28" font-size="11" font-weight="700" fill="#1c2128">2 Detection</text>
+        <text x="214" y="45">CVEs: Grype + OSV</text><text x="214" y="58">typosquats, CI pins,</text><text x="214" y="71">images, lockfile, policy</text>
+        <rect x="296" y="8" width="128" height="70" rx="7" fill="#efeafb" stroke="#d6cdf0"/>
+        <text x="360" y="28" font-size="11" font-weight="700" fill="#5b3fa0">3 Evidence analyst</text>
+        <text x="360" y="45">AI explains each finding</text><text x="360" y="58">claims checked against</text><text x="360" y="71">evidence by code</text>
+        <rect x="442" y="8" width="128" height="70" rx="7" fill="#efeafb" stroke="#d6cdf0"/>
+        <text x="506" y="28" font-size="11" font-weight="700" fill="#5b3fa0">4 Investigator</text>
+        <text x="506" y="45">AI digs into suspicious</text><text x="506" y="58">non-CVE findings</text><text x="506" y="71">(max 8 read-only calls)</text>
+        <rect x="588" y="8" width="128" height="70" rx="7" fill="#f5f7f9" stroke="#b9c0c8"/>
+        <text x="652" y="28" font-size="11" font-weight="700" fill="#1c2128">5 Risk analyst</text>
+        <text x="652" y="45">score 0-100 in code</text><text x="652" y="58">level + confidence</text><text x="652" y="71">AI writes the summary</text>
+      </g>
+      <g stroke="#5b6470" stroke-width="1.3"><line x1="132" y1="43" x2="148" y2="43" marker-end="url(#b)"/><line x1="278" y1="43" x2="294" y2="43" marker-end="url(#b)"/><line x1="424" y1="43" x2="440" y2="43" marker-end="url(#b)"/><line x1="570" y1="43" x2="586" y2="43" marker-end="url(#b)"/></g>
+      <text x="360" y="104" text-anchor="middle" font-size="9.5" fill="#5b6470">Output: findings.json with evidence, risk.json with a score table per finding, the dependency graph. No change has been made yet.</text>
+    </svg>
+  </figure>
+
+  <h3>How a score is built</h3>
+  <p><code>score = 100 × (0.40·Severity + 0.15·Exploitability + 0.20·Reachability + 0.15·Production + 0.10·Exposure)</code>
+  plus 5 points if provenance fails. Each factor is 0 to 1 and backed by evidence (CVSS, EPSS / KEV, whether your code
+  calls the package, prod vs dev, network exposure). Levels: Critical ≥ 80, High ≥ 60, Medium ≥ 40, Low below.
+  It is a ranking aid, not a probability of attack.</p>
+
+  <h2>2 · From ranked risk to an approved fix</h2>
+  <figure>
+    <svg viewBox="0 0 720 184" role="img" aria-label="Decision loop: remediation proposes, human decides, approve to validator, reject replans, accept risk to report">
+      <defs>
+        <marker id="c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#5b6470"/></marker>
+      </defs>
+      <g transform="translate(0,16)">
+      <rect x="10" y="40" width="150" height="66" rx="8" fill="#f5f7f9" stroke="#b9c0c8"/>
+      <text x="85" y="62" text-anchor="middle" font-size="11" font-weight="700">6 Remediation</text>
+      <text x="85" y="78" text-anchor="middle" font-size="9" fill="#5b6470">one plan per finding group:</text>
+      <text x="85" y="91" text-anchor="middle" font-size="9" fill="#5b6470">ops, diff, rollback, hash</text>
+      <line x1="160" y1="73" x2="226" y2="73" stroke="#5b6470" stroke-width="1.3" marker-end="url(#c)"/>
+      <polygon points="300,22 372,73 300,124 228,73" fill="#fdf1d8" stroke="#ecd29a"/>
+      <text x="300" y="70" text-anchor="middle" font-size="11" font-weight="700" fill="#8a5a00">7 Human</text>
+      <text x="300" y="84" text-anchor="middle" font-size="11" font-weight="700" fill="#8a5a00">gate</text>
+      <!-- approve -->
+      <line x1="372" y1="73" x2="474" y2="73" stroke="#1d6b40" stroke-width="1.5" marker-end="url(#c)"/>
+      <text x="423" y="66" text-anchor="middle" font-size="9.5" font-weight="700" fill="#1d6b40">approve</text>
+      <rect x="476" y="40" width="112" height="66" rx="8" fill="#e4f4ea" stroke="#b8dcc5"/>
+      <text x="532" y="66" text-anchor="middle" font-size="11" font-weight="700" fill="#1d6b40">8 Validator</text>
+      <text x="532" y="82" text-anchor="middle" font-size="9" fill="#5b6470">sandbox (page 3)</text>
+      <line x1="588" y1="73" x2="612" y2="73" stroke="#5b6470" stroke-width="1.3" marker-end="url(#c)"/>
+      <rect x="614" y="40" width="98" height="66" rx="8" fill="#f5f7f9" stroke="#b9c0c8"/>
+      <text x="663" y="66" text-anchor="middle" font-size="11" font-weight="700">9 Reporter</text>
+      <text x="663" y="82" text-anchor="middle" font-size="9" fill="#5b6470">report</text>
+      <!-- reject loop -->
+      <path d="M300,124 C300,146 85,146 85,108" fill="none" stroke="#9b2a1f" stroke-width="1.4" marker-end="url(#c)"/>
+      <text x="190" y="160" text-anchor="middle" font-size="9.5" font-weight="700" fill="#9b2a1f">reject (with reason) → next alternative</text>
+      <!-- failed loop -->
+      <path d="M532,40 C532,4 85,4 85,38" fill="none" stroke="#9b2a1f" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#c)"/>
+      <text x="310" y="-6" text-anchor="middle" font-size="9.5" font-weight="700" fill="#9b2a1f">validation failed → re-plan (max 3 attempts, then "needs a person")</text>
+      <!-- accept risk -->
+      <path d="M340,102 C420,132 600,140 650,108" fill="none" stroke="#8a5a00" stroke-width="1.3" marker-end="url(#c)"/>
+      <text x="520" y="152" text-anchor="middle" font-size="9.5" font-weight="700" fill="#8a5a00">accept risk (with reason)</text>
+          </g>
+    </svg>
+  </figure>
+
+  <div class="cols">
+    <div class="card">
+      <h3>What a plan contains</h3>
+      <ul>
+        <li>the operations (upgrade, replace, remove, pin a CI action to a commit, pin an image to a digest, block, generate a lockfile)</li>
+        <li>a unified diff of exactly what would change</li>
+        <li>the target version and why it is safe (evidence)</li>
+        <li>expected risk reduction and a rollback note</li>
+        <li>a <b>plan hash</b>: the approval is bound to it</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Two ways to decide</h3>
+      <ul>
+        <li><b>Decide all together:</b> every suggested fix gets a decision, then all approved fixes are tested in one sandbox copy, the way they would be merged.</li>
+        <li><b>One at a time:</b> submit each decision from its row; <b>Validate now</b> tests the approved ones straight away while the rest keep waiting.</li>
+        <li>Earlier verified fixes are applied underneath new ones, so the combination is what gets tested.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="small mute" style="margin-top:8px">If a combined test fails, each fix is re-tested on its own to find the one that broke it, so a
+  fix is never blamed for something another fix did. After three failed or rejected attempts a finding is handed to a
+  person instead of being re-planned again.</p>
+
+  <div class="foot">Decisions: Remediation page in the UI, or <code>guardian decide-batch</code> / <code>guardian validate-held</code> on the CLI. Every decision is stored in <code>approvals.jsonl</code> with who, when and why.</div>
+</section>
+
+<!-- ============================================================ PAGE 3: validation + report -->
+<section class="page">
+  <header class="top"><b>GUARDIAN · how it works</b><span>Page 3 of 3 · Validation and report</span></header>
+
+  <h2 style="margin-top:4px">3 · Proving a fix in the sandbox</h2>
+  <p>The validator applies the approved plan to a fresh copy of the project and asks four questions: <b>is the problem
+  gone, does it still build, do the tests still pass, and did anything new appear?</b></p>
+  <figure>
+    <svg viewBox="0 0 720 150" role="img" aria-label="Validation timeline with typical times on Juice Shop">
+      <g font-size="9" fill="#5b6470">
+        <text x="0" y="12" font-size="9" font-weight="700" fill="#1c2128">Typical timing on Juice Shop (about 5 minutes end to end)</text>
+        <!-- axis -->
+        <line x1="120" y1="132" x2="712" y2="132" stroke="#d8dde3"/>
+        <text x="120" y="146">0</text><text x="238" y="146">1 min</text><text x="356" y="146">2 min</text><text x="474" y="146">3 min</text><text x="592" y="146">4 min</text><text x="700" y="146">5 min</text>
+        <!-- rows: 1 min = 118 px -->
+        <text x="0" y="34">Apply + re-scan</text>
+        <rect x="120" y="24" width="45" height="14" rx="3" fill="#cfdcf0"/><text x="170" y="35">patch, detectors, policy, SBOM diff (~20 s)</text>
+        <text x="0" y="54">Install deps image</text>
+        <rect x="165" y="44" width="134" height="14" rx="3" fill="#cfdcf0"/><text x="304" y="55">0-70 s (cached by lockfile hash)</text>
+        <text x="0" y="74">Build</text>
+        <rect x="299" y="64" width="34" height="14" rx="3" fill="#cfdcf0"/><text x="338" y="75">~17 s</text>
+        <text x="0" y="94">Unit tests</text>
+        <rect x="333" y="84" width="112" height="14" rx="3" fill="#b8dcc5"/><text x="450" y="95">~57 s</text>
+        <text x="0" y="114">Integration ×3 shards</text>
+        <rect x="333" y="104" width="346" height="7" rx="2" fill="#b8dcc5"/>
+        <rect x="333" y="112" width="350" height="7" rx="2" fill="#b8dcc5"/>
+        <rect x="333" y="120" width="344" height="7" rx="2" fill="#b8dcc5"/>
+        <text x="520" y="95" fill="#1d6b40" font-weight="700">integration: 3 × ~175 s at once (was 435 s)</text>
+      </g>
+    </svg>
+    <figcaption>Every container runs with no network, as non-root, with CPU / memory / time limits, and is removed afterwards.
+    The header's <b>Running now</b> button shows these steps live with timers.</figcaption>
+  </figure>
+
+  <div class="cols">
+    <div class="card">
+      <h3>How the verdict is decided</h3>
+      <ul>
+        <li>Tests are compared, by name, with the <b>unchanged project</b> (the baseline, cached). A test that already failed before is not blamed on the fix.</li>
+        <li>A newly failing test that checks an attack still works (deliberately vulnerable apps have these) is expected once the hole is closed: flagged, not counted.</li>
+        <li>Confidence is <b>high</b> only with build + tests + a clean re-scan.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Possible verdicts</h3>
+      <p class="small" style="margin:0">
+        <span class="tag t-ok">verified</span> problem gone, build and tests fine, nothing new<br>
+        <span class="tag t-bad">failed_build</span> the patched project does not build<br>
+        <span class="tag t-bad">failed_tests</span> tests that passed before now fail<br>
+        <span class="tag t-bad">still_imported</span> stopped before the sandbox: code still uses it<br>
+        <span class="tag t-bad">regressed</span> the re-scan found something new<br>
+        <span class="tag t-gate">mitigated</span> risk reduced, vulnerable code stays</p>
+      <p class="small mute" style="margin:6px 0 0">A verified fix becomes a local branch with a <code>PR.md</code>. Nothing is pushed or merged.</p>
+    </div>
+  </div>
+
+  <h2>4 · The report</h2>
+  <p><code>report.json</code> (for tools) and <code>report.html</code> (for people) are built only from stored files, so the
+  report cannot say more than the evidence. An <b>interim report</b> is written every time the run pauses for decisions
+  after a fix was validated; the final one replaces it at the end.</p>
+  <table>
+    <tr><th style="width:34%">Read this first</th><th>It answers</th></tr>
+    <tr><td>1 Summary</td><td>How many issues, how many fixed and verified, what still waits for a decision.</td></tr>
+    <tr><td>5 Fixes verified</td><td>Which fixes passed and which findings each one removes.</td></tr>
+    <tr><td>7 Build and tests</td><td>Every attempt, passed or failed; "Tests that ran" shows each container, its command, failing tests and output.</td></tr>
+    <tr><td>8 Still open · 9 Needs a person</td><td>What is left and the next step for each, or why Guardian cannot settle it.</td></tr>
+  </table>
+  <p class="small mute">"Highest score" in the before / after table is the worst finding still open: it only drops when that
+  particular finding is fixed.</p>
+
+  <div class="foot">Run folder: <code>runs/&lt;run_id&gt;/</code> · live activity <code>activity.json</code> · per-phase logs
+  <code>attempts/&lt;attempt&gt;/logs/</code> · start the UI with <code>guardian api</code> + <code>npm run dev</code> in <code>ui/</code>.</div>
+</section>
+
+</body>
+</html>
