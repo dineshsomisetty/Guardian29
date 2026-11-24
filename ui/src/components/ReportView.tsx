@@ -4,6 +4,7 @@ import { loadReport } from "../api/client";
 import type { ReportJson } from "../api/types";
 import { bandOf, fmtDate, purlLabel } from "../lib/format";
 import { plainTitle, verdictFail } from "../lib/labels";
+import { planSummary } from "../lib/plan";
 import { useStore } from "../store";
 import { useReportLinks } from "./hooks";
 import { EmptyState, Section, SevPill, Skeleton } from "./ui";
@@ -20,7 +21,7 @@ const STATUS_WORD: Record<string, string> = {
 const DEC_WORD: Record<string, string> = { approve: "Approved", reject: "Rejected", accept_risk: "Risk accepted" };
 
 export default function ReportView() {
-  const { src, status, findingsById, openFinding, riskById, data } = useStore();
+  const { src, status, findingsById, openFinding, riskById, data, setView } = useStore();
   const links = useReportLinks(src, status);
   const [rep, setRep] = useState<ReportJson | null | "loading">("loading");
   useEffect(() => {
@@ -97,12 +98,16 @@ export default function ReportView() {
               <ul className="plain">
                 {rep.actions.map((a) => (
                   <li key={a.plan.plan_id} className="action-row">
-                    <span>{a.plan.action} {a.plan.ops[0] && typeof a.plan.ops[0].args?.name === "string" ? (a.plan.ops[0].args.name as string) : ""}{a.plan.target_version ? ` to ${a.plan.target_version}` : ""}</span>
-                    <span className={`pill ${a.approval?.decision === "approve" ? "ok" : ""}`}>{a.approval ? DEC_WORD[a.approval.decision] ?? a.approval.decision : "No decision"}</span>
+                    <button type="button" className="linkish inline" title="Open the finding this fixes, with its risk assessment" onClick={() => openFinding(a.plan.finding_id)}>
+                      {planSummary(a.plan, undefined, null).change}
+                    </button>
+                    <button type="button" className={`pill pill-btn ${a.approval?.decision === "approve" ? "ok" : ""}`} title="Open on the Approval page" onClick={() => setView("gate")}>
+                      {a.approval ? DEC_WORD[a.approval.decision] ?? a.approval.decision : "No decision"}
+                    </button>
                     {a.validations.map((v) => (
-                      <span key={v.attempt_id} className={`pill ${v.verdict === "verified" ? "ok" : "bad"}`}>
+                      <button key={v.attempt_id} type="button" className={`pill pill-btn ${v.verdict === "verified" ? "ok" : "bad"}`} title="Open on the Validation page" onClick={() => setView("validation")}>
                         {v.verdict === "verified" ? "Validated" : `Failed: ${verdictFail(v.verdict)}`}
-                      </span>
+                      </button>
                     ))}
                   </li>
                 ))}

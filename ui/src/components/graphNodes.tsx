@@ -2,6 +2,19 @@ import { memo } from "react";
 import { Handle, Position, type Node, type NodeProps } from "@xyflow/react";
 import { Container, FileCog, Workflow } from "lucide-react";
 import type { VisNodeData } from "../lib/layout";
+import { RISK_LABEL } from "../lib/format";
+import type { Risk } from "../api/types";
+
+/** Level word plus the highest score on the item, e.g. "High 72": colour is never the only signal. */
+function RiskChip({ risk, score, count }: { risk: Risk; score: unknown; count: number }) {
+  const s = typeof score === "number" ? score.toFixed(0) : null;
+  return (
+    <span className={`g-chip r-${risk}`} title={`${RISK_LABEL[risk]} risk${s ? `, highest score ${s} of 100` : ""}, ${count} finding${count === 1 ? "" : "s"}`}>
+      {RISK_LABEL[risk]}
+      {s && <b className="num">{s}</b>}
+    </span>
+  );
+}
 
 export type GNode = Node<VisNodeData>;
 
@@ -35,11 +48,7 @@ const PackageNode = memo(function PackageNode({ data }: NodeProps<GNode>) {
         <span className="g-name" title={data.label}>
           {data.label}
         </span>
-        {risk && (
-          <span className={`g-badge r-${risk} num`} title={`${data.findings} finding${data.findings === 1 ? "" : "s"}`}>
-            {data.findings}
-          </span>
-        )}
+        {risk && <RiskChip risk={risk} score={data.score} count={data.findings} />}
       </span>
       <span className="g-row g-meta">
         <span className="mono g-ver">{data.version ?? ""}</span>
@@ -70,7 +79,7 @@ const PseudoNode = memo(function PseudoNode({ data }: NodeProps<GNode>) {
         {data.label}
       </span>
       <span className="g-tag">{KIND[k] ?? k}</span>
-      {risk && <span className={`g-badge r-${risk} num`}>{data.findings}</span>}
+      {risk && <RiskChip risk={risk} score={data.score} count={data.findings} />}
     </div>
   );
 });

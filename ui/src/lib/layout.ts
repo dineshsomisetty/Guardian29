@@ -53,8 +53,9 @@ export const SIZE: Record<NodeKind, { w: number; h: number }> = {
 const isPseudo = (k: NodeKind) => k === "ci" || k === "image" || k === "config";
 
 /** Which node ids survive the collapse rule. */
-export function visibleIds(graph: GraphData, findings: Finding[], onlyRisk: boolean): Set<string> {
+export function visibleIds(graph: GraphData, findings: Finding[], onlyRisk: boolean, allowed: Set<string> | null = null): Set<string> {
   const roots = new Set(graph.roots);
+  const counts = (n: GraphNode) => (n.finding_ids ?? []).some((id) => !allowed || allowed.has(id));
   const onPath = new Set<string>();
   for (const f of findings) for (const p of f.dependency_paths) for (const id of p) onPath.add(id);
 
@@ -63,17 +64,25 @@ export function visibleIds(graph: GraphData, findings: Finding[], onlyRisk: bool
 
   const keep = new Set<string>();
   for (const n of graph.nodes) {
-    const hasFindings = (n.finding_ids?.length ?? 0) > 0;
+    const hasFindings = counts(n);
     if (n.kind === "project" || roots.has(n.id)) keep.add(n.id);
-    else if (isPseudo(n.kind)) keep.add(n.id);
+    else if (isPseudo(n.kind)) {
+      // a level filter hides CI/image/config items whose findings are all below it
+      if (!allowed || hasFindings || !(n.finding_ids?.length)) keep.add(n.id);
+    }
     else if (onPath.has(n.id) || hasFindings) keep.add(n.id);
     else if (!onlyRisk && (n.direct || directOf.has(n.id))) keep.add(n.id);
   }
   return keep;
 }
 
-export function buildVisible(graph: GraphData, findings: Finding[], onlyRisk: boolean): VisibleGraph {
-  const keep = visibleIds(graph, findings, onlyRisk);
+/**
+ * `findings` are the findings whose routes are drawn; pass `allowed` (their ids) when they are a filtered subset,
+ * so packages whose findings are all filtered out drop back to plain dependencies.
+ */
+export function buildVisible(graph: GraphData, findings: Finding[], onlyRisk: boolean, allowed: Set<string> | null = null): VisibleGraph {
+  const keep = visibleIds(graph, findings, onlyRisk, allowed);
+  const counts = (n: GraphNode) => (n.finding_ids ?? []).some((id) => !allowed || allowed.has(id));
   const byId = new Map<string, GraphNode>(graph.nodes.map((n) => [n.id, n]));
   const roots = new Set(graph.roots);
 
@@ -117,7 +126,7 @@ export function buildVisible(graph: GraphData, findings: Finding[], onlyRisk: bo
   for (const id of keep) {
     const n = byId.get(id);
     if (!n) continue;
-    if (roots.has(id) || n.kind !== "package" || onPath.has(id) || (n.finding_ids?.length ?? 0) > 0) stack.push(id);
+    if (roots.has(id) || n.kind !== "package" || onPath.has(id) || counts(n)) stack.push(id);
   }
   while (stack.length) {
     const id = stack.pop()!;

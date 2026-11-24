@@ -16,6 +16,8 @@ export const VIEWS: View[] = ["overview", "graph", "findings", "gate", "validati
 export interface FindingFilter {
   risk: Risk | null;
   cat: string | null;
+  /** search text to start the Findings page with, e.g. a package name picked in the map */
+  q?: string;
 }
 
 export type InspectorTarget = { kind: "finding" | "evidence" | "node"; id: string } | null;

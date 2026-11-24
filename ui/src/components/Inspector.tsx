@@ -2,10 +2,11 @@ import { ChevronDown, ChevronUp, MapPin, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { Finding } from "../api/types";
 import { bandOf, purlLabel, purlName, purlVersion } from "../lib/format";
-import { BAND_COPY, CATEGORY_WHY, categoryLabel, evidenceTitle, findingRef, plainTitle, statusText } from "../lib/labels";
+import { BAND_COPY, CATEGORY_WHY, categoryLabel, evidenceTitle, findingRef, isMachineSummary, plainTitle, scoreExplainer, statusText } from "../lib/labels";
+import { planSummary } from "../lib/plan";
 import { useStore } from "../store";
 import { inertProps, typingTarget, useEvidence } from "./hooks";
-import { FactorTable } from "./RiskTable";
+import { BandScale, FactorTable } from "./RiskTable";
 import { ClaimList, EmptyState, EvidenceById, Section, SevPill, Tip } from "./ui";
 
 export default function Inspector() {
@@ -205,18 +206,27 @@ function FindingPane({ id }: { id: string }) {
   const ver = f.component_purl ? purlVersion(f.component_purl) : "";
   const lead =
     f.explanation ??
-    risk?.summary ??
+    (risk?.summary && !isMachineSummary(risk.summary) ? risk.summary : null) ??
     (f.category === "cve" && name
       ? `${name} ${ver} is affected by ${f.vuln_id ?? "a known advisory"}.${f.fixed_versions.length ? ` A fixed version exists: ${f.fixed_versions.join(", ")}.` : " No fixed version is listed yet."}`
       : (CATEGORY_WHY[f.category] ?? f.title));
   const claims = f.claims.length ? f.claims : (risk?.claims ?? []);
   const shownEv = showAllEv ? evidenceIds : evidenceIds.slice(0, 5);
+  const fromInvestigator = !!f.explanation;
 
   return (
     <>
       <Head onPrev={() => stepFinding(-1)} onNext={() => stepFinding(1)}>
         <div className="insp-pills">
-          <SevPill risk={band} />
+          {risk ? (
+            <Tip text="Guardian's risk level and its 0 to 100 score for your project" side="bottom">
+              <span className={`pill sev-${risk.band}`}>
+                {BAND_COPY[risk.band].name} risk <span className="num">· {risk.score.toFixed(0)}</span>
+              </span>
+            </Tip>
+          ) : (
+            <SevPill risk={band} />
+          )}
           <span className="pill">{categoryLabel(f.category)}</span>
           <span className={`pill${f.scope === "dev" ? " dashed" : ""}`}>{f.scope === "prod" ? "Production" : f.scope === "dev" ? "Dev only" : "Scope unknown"}</span>
           {pos >= 0 && <span className="faint num">{pos + 1} of {order.length}</span>}
@@ -225,14 +235,21 @@ function FindingPane({ id }: { id: string }) {
         <p className="mono faint insp-ref">{findingRef(f)}</p>
       </Head>
       <div className="insp-body">
+        {risk && <RiskVerdict finding={f} />}
         <Section title="What this means">
+          {fromInvestigator && <p className="lead-src faint">The investigator's notes</p>}
           <p className="prose">{lead}</p>
-          {band && risk && <p className="band-note"><b>{BAND_COPY[band].name}:</b> {BAND_COPY[band].line}</p>}
           <dl className="facts">
             {f.component_purl && <Fact k="Package" v={`${name} ${ver}`.trim()} mono />}
             {f.affected_range && <Fact k="Affected versions" v={f.affected_range} mono />}
             {f.fixed_versions.length > 0 && <Fact k="Fixed in" v={f.fixed_versions.join(", ")} mono good />}
-            {f.cvss != null && <Fact k="Advisory severity" v={`CVSS ${f.cvss.toFixed(1)}${f.severity ? ` (${f.severity})` : ""}`} mono />}
+            {f.cvss != null && (
+              <Fact
+                k="Advisory rating"
+                v={`CVSS ${f.cvss.toFixed(1)}${f.severity ? ` (${f.severity})` : ""}, before your project's context`}
+                mono
+              />
+            )}
             {f.aliases.length > 0 && <Fact k="Also known as" v={f.aliases.join(", ")} mono />}
             {f.file_path && <Fact k="Found in" v={`${f.file_path}${f.line ? `:${f.line}` : ""}`} mono />}
           </dl>
@@ -246,12 +263,11 @@ function FindingPane({ id }: { id: string }) {
 
         {risk && (
           <Section
-            title={`Why it scored ${risk.score.toFixed(0)}`}
-            lead={risk.summary ? undefined : "Five factors are added up, each weighted by how much it matters."}
-            aside={<SevPill risk={risk.band} />}
+            id="score-detail"
+            title={`How the score of ${risk.score.toFixed(0)} adds up`}
+            lead="Each factor earns points up to its own maximum. The points add up to the score out of 100."
           >
-            {risk.summary && <p className="prose">{risk.summary}</p>}
-            <FactorTable risk={risk} onCite={cite} />
+            <FactorTable risk={risk} finding={f} onCite={cite} />
           </Section>
         )}
 
@@ -303,7 +319,7 @@ function FindingPane({ id }: { id: string }) {
               <ul className="plain">
                 {plans.map((p) => (
                   <li key={p.plan_id}>
-                    Attempt {p.attempt}: {p.action}{p.target_version ? <> to <span className="mono">{p.target_version}</span></> : null}{" "}
+                    Attempt {p.attempt}: {planSummary(p, undefined, null).change}{" "}
                     <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("gate"); }}>Open approval</button>
                     <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("validation"); }}>Open validation</button>
                   </li>
@@ -331,6 +347,42 @@ function FindingPane({ id }: { id: string }) {
         </Section>
       </div>
     </>
+  );
+}
+
+/** The risk level up front: score, where it sits on the scale, and why it differs from the advisory's rating. */
+function RiskVerdict({ finding }: { finding: Finding }) {
+  const { riskById } = useStore();
+  const risk = riskById.get(finding.finding_id);
+  if (!risk) return null;
+  const first = finding.initial_risk;
+  const firstDiffers = first && first !== risk.band;
+  return (
+    <section className="sec verdict" aria-label="Risk level">
+      <div className="verdict-top">
+        <span className={`verdict-score num t-${risk.band}`}>{risk.score.toFixed(0)}</span>
+        <span className="verdict-of faint">/ 100</span>
+        <span className="verdict-words">
+          <b className={`t-${risk.band}`}>{BAND_COPY[risk.band].name} risk</b>
+          <span className="muted">{BAND_COPY[risk.band].line}</span>
+        </span>
+      </div>
+      <BandScale score={risk.score} band={risk.band} />
+      <p className="prose verdict-why">{scoreExplainer(finding, risk)}</p>
+      {firstDiffers && (
+        <p className="verdict-note faint">
+          The investigator's first read was {BAND_COPY[first].name}, before Guardian checked how your code uses the package. This
+          score replaces it.
+        </p>
+      )}
+      <button
+        type="button"
+        className="linkish verdict-link"
+        onClick={() => document.getElementById("score-detail")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+      >
+        See how the score adds up
+      </button>
+    </section>
   );
 }
 

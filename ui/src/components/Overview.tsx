@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2, ChevronRight, FileText, Loader2, ShieldAlert,
 import { useMemo } from "react";
 import type { Finding, Risk } from "../api/types";
 import { RISKS, bandOf, fmtDate, groupKey, plural, shortCommit } from "../lib/format";
-import { BAND_COPY, CATEGORY_WHY, STEP_DOING, categoryLabel, findingRef, plainTitle, whyItMatters } from "../lib/labels";
+import { BAND_COPY, BAND_RANGE, CATEGORY_WHY, STEP_DOING, categoryLabel, findingRef, plainTitle, whyItMatters } from "../lib/labels";
 import { planSummary } from "../lib/plan";
 import { AGENTS } from "../lib/pipeline";
 import { useStore } from "../store";
@@ -164,7 +164,11 @@ export default function Overview() {
         {/* ---- severity */}
         <section aria-label="How risky is it">
           <h2 className="h2">How risky is it?</h2>
-          <p className="sec-lead">{plural(data.findings.length, "finding")} in total, grouped by how urgent they are.</p>
+          <p className="sec-lead">
+            {plural(data.findings.length, "finding")} in total. Each gets a risk score from 0 to 100: the advisory's severity, adjusted for
+            how likely it is to be exploited, whether your code uses it, whether it ships to production and whether the service is exposed.
+            The score sets the level, so a level can be higher or lower than the advisory's own rating.
+          </p>
           <div className="bands">
             {RISKS.map((r) => (
               <button
@@ -175,7 +179,9 @@ export default function Overview() {
                 onClick={() => gotoFindings(r, null)}
               >
                 <span className="band-top">
-                  <span className="band-name">{BAND_COPY[r].name}</span>
+                  <span className="band-name">
+                    {BAND_COPY[r].name} <span className="band-range num faint">{BAND_RANGE[r][0]}–{BAND_RANGE[r][1]}</span>
+                  </span>
                   <span className="band-n num">{counts[r]}</span>
                 </span>
                 <span className="band-line">{BAND_COPY[r].line}</span>

@@ -32,7 +32,7 @@ export default function FindingsTable() {
     data, order, findingsById, riskById, anomaliesFirst, setAnomaliesFirst, openFinding, inspector, selectedFindingId,
     findingFilter, setFindingFilter, helpOpen,
   } = useStore();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(findingFilter.q ?? "");
   const [group, setGroup] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState(0);
@@ -172,7 +172,7 @@ export default function FindingsTable() {
 
   const filtersOn = !!(fRisk || fCat || q);
   const clear = () => {
-    setFindingFilter({ risk: null, cat: null });
+    setFindingFilter({ risk: null, cat: null, q: "" });
     setQ("");
   };
 
@@ -205,9 +205,9 @@ export default function FindingsTable() {
               </button>
             )}
           </span>
-          <div className="chips" role="group" aria-label="Filter by severity">
+          <div className="chips" role="group" aria-label="Filter by risk level">
             <button type="button" className={`chip${!fRisk ? " on" : ""}`} onClick={() => setFindingFilter({ risk: null })}>
-              All severities
+              All levels
             </button>
             {RISKS.map((r) => (
               <button key={r} type="button" className={`chip${fRisk === r ? " on" : ""}`} aria-pressed={fRisk === r} disabled={!riskCounts[r] && fRisk !== r} onClick={() => setFindingFilter({ risk: fRisk === r ? null : r })}>
@@ -247,7 +247,7 @@ export default function FindingsTable() {
       </header>
 
       <div className="trow thead" role="row">
-        <span>Severity</span>
+        <Tip text="Guardian's risk level for your project, set by the score: Critical 80+, High 60+, Medium 40+, Low under 40. It can differ from the advisory's own rating." side="top"><span>Risk level</span></Tip>
         <span>Finding</span>
         <span>Type</span>
         <Tip text="Risk score from 0 to 100. Open a finding to see how it was calculated." side="top"><span className="r">Risk score</span></Tip>
@@ -256,7 +256,7 @@ export default function FindingsTable() {
 
       {rows.length === 0 ? (
         <EmptyState title="No findings match these filters" center action={<button type="button" className="btn" onClick={clear}>Clear filters</button>}>
-          Try a different word, or remove a severity or type filter.
+          Try a different word, or remove a level or type filter.
         </EmptyState>
       ) : (
         <div className="tbody" ref={body} role="listbox" aria-label="Findings, most urgent first" tabIndex={0}

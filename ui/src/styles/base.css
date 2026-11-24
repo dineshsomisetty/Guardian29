@@ -180,3 +180,4 @@ a.menu-item:hover { background: var(--hover); }
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }
 .signin { display: grid; gap: var(--s3); width: min(360px, 100%); text-align: left; margin-top: var(--s2); }
+.pill-btn { cursor: pointer; font: inherit; font-size: var(--fs-xs); } .pill-btn:hover { filter: brightness(1.25); }

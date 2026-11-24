@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Evidence, Finding, RemediationPlan, ValidationResult } from "../api/types";
 import { bandOf } from "../lib/format";
 import { evidenceTitle, plainTitle, verdictFail } from "../lib/labels";
-import { planSummary } from "../lib/plan";
+import { decisionOf, planSummary } from "../lib/plan";
 import { useStore } from "../store";
 import { useCountTween, useEvidence, useEvidenceMany } from "./hooks";
 import { Callout, EmptyState, Json, Section, Skeleton } from "./ui";
@@ -64,20 +64,38 @@ export default function ValidationView() {
 }
 
 function Verdict({ attempts, title, finding }: { attempts: Attempt[]; title: string; finding: Finding | undefined }) {
-  const { riskById } = useStore();
+  const { riskById, data } = useStore();
   const last = attempts[attempts.length - 1];
   const failed = attempts.filter((a) => a.val && a.val.verdict !== "verified");
+  const turnedDown = attempts.filter((a) => !a.val && decisionOf(a.plan.plan_id, data.approvals) === "reject");
   const ok = attempts.find((a) => a.val?.verdict === "verified");
   if (ok?.val) {
     const sm = planSummary(ok.plan, finding, finding ? bandOf(finding, riskById) : null);
+    const earlier = [
+      failed.length ? `${failed.length} did not work` : "",
+      turnedDown.length ? `${turnedDown.length} ${turnedDown.length === 1 ? "was" : "were"} rejected` : "",
+    ].filter(Boolean);
     return (
       <Callout tone="ok" title="Verified: the vulnerability is gone, and the build and tests passed in the sandbox" icon={<CheckCircle2 size={20} aria-hidden />}>
-        To {sm.verb} {sm.pkg}
-        {sm.to ? ` to ${sm.to}` : ""} fixes: {title}.
-        {failed.length ? ` It took ${attempts.length} attempts; ${failed.length} earlier ${failed.length === 1 ? "attempt" : "attempts"} did not work and Guardian re-planned.` : ""}
+        The fix that worked: {sm.change}. It resolves: {title}.
+        {earlier.length ? ` It took ${attempts.length} attempts; of the earlier ones, ${earlier.join(" and ")}, and Guardian re-planned.` : ""}
       </Callout>
     );
   }
+  const lastDecision = last && !last.val ? decisionOf(last.plan.plan_id, data.approvals) : null;
+  if (lastDecision === "reject")
+    return (
+      <Callout tone="bad" title={`Fix rejected: attempt ${last.plan.attempt} was not tried in the sandbox`} icon={<XCircle size={20} aria-hidden />}>
+        {failed.length ? `${failed.length} earlier ${failed.length === 1 ? "attempt" : "attempts"} failed validation, and ` : ""}
+        the last proposed fix was rejected, so this finding is still open and needs a person to decide how to handle it. Nothing was changed in your repository.
+      </Callout>
+    );
+  if (lastDecision === "accept_risk")
+    return (
+      <Callout tone="info" title="Risk accepted: no fix was applied" icon={<Circle size={20} aria-hidden />}>
+        The risk was accepted instead of fixing it, so nothing ran in the sandbox. The decision and its reason are in the audit trail.
+      </Callout>
+    );
   if (last && !last.val)
     return (
       <Callout tone="gate" title="Waiting for validation" icon={<Circle size={20} aria-hidden />}>
@@ -94,18 +112,26 @@ function Verdict({ attempts, title, finding }: { attempts: Attempt[]; title: str
 }
 
 function Timeline({ attempts }: { attempts: Attempt[] }) {
+  const { data } = useStore();
   const steps: { key: string; title: string; sub: string; cls: string }[] = [];
   attempts.forEach((a, i) => {
-    const sm = planSummary(a.plan, undefined, null);
-    const what = `${sm.verb} ${sm.pkg}${sm.to ? ` to ${sm.to}` : ""}`;
-    const s = !a.val
-      ? { cls: "gate", label: "Waiting for validation" }
-      : a.val.verdict === "verified"
+    const what = planSummary(a.plan, undefined, null).change;
+    const decision = decisionOf(a.plan.plan_id, data.approvals);
+    const s = a.val
+      ? a.val.verdict === "verified"
         ? { cls: "ok", label: "Verified" }
-        : { cls: "bad", label: `Failed: ${failWord(a.val.verdict)}` };
+        : { cls: "bad", label: `Failed: ${failWord(a.val.verdict)}` }
+      : decision === "reject"
+        ? { cls: "bad", label: "Rejected, so not tried in the sandbox" }
+        : decision === "accept_risk"
+          ? { cls: "", label: "Risk accepted, so not tried in the sandbox" }
+          : decision === "approve"
+            ? { cls: "gate", label: "Approved, waiting for validation" }
+            : { cls: "gate", label: "Waiting for a decision" };
     steps.push({ key: a.plan.plan_id, title: `Attempt ${a.plan.attempt}: ${what}`, sub: s.label, cls: s.cls });
     const next = attempts[i + 1];
-    if (next && a.val && a.val.verdict !== "verified") steps.push({ key: `re-${i}`, title: "Guardian re-plans", sub: "Tries a different version", cls: "" });
+    const didNotStick = (a.val && a.val.verdict !== "verified") || decision === "reject";
+    if (next && didNotStick) steps.push({ key: `re-${i}`, title: "Guardian re-plans", sub: "Tries a different fix", cls: "" });
   });
   return (
     <ol className="timeline" aria-label="Attempts in order">

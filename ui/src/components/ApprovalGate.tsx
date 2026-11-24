@@ -59,7 +59,7 @@ export default function ApprovalGate() {
                       <span className={`pill ${st.cls}`}>{st.label}</span>
                     </span>
                     <span className="plan-item-title">
-                      {sm.verb} {sm.pkg}{sm.to ? ` to ${sm.to}` : ""}
+                      {sm.change}
                     </span>
                     <span className="muted plan-item-sub">{f ? plainTitle(f, bandOf(f, riskById)) : ""}</span>
                   </button>

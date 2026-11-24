@@ -66,10 +66,10 @@ export const categoryLabel = (c: string) => CATEGORY_LABEL[c] ?? humanize(c);
 export const categoryShort = (c: string) => CATEGORY_SHORT[c] ?? humanize(c);
 
 export const BAND_COPY: Record<Risk, { name: string; line: string; adj: string }> = {
-  critical: { name: "Critical", adj: "critical", line: "Fix first. Likely to be exploited and used in production." },
-  high: { name: "High", adj: "high-severity", line: "Fix soon. Serious flaws that reach real code paths." },
-  medium: { name: "Medium", adj: "medium-severity", line: "Fix in normal maintenance. Real, but harder to exploit." },
-  low: { name: "Low", adj: "low-severity", line: "Track it. Little practical impact today." },
+  critical: { name: "Critical", adj: "critical", line: "Fix first: severe and exposed in your project." },
+  high: { name: "High", adj: "high-risk", line: "Fix soon: serious, but less exposed or less likely to be exploited than Critical." },
+  medium: { name: "Medium", adj: "medium-risk", line: "Fix in normal maintenance: real, but harder to exploit here." },
+  low: { name: "Low", adj: "low-risk", line: "Track it: little practical impact today." },
 };
 
 // ------------------------------------------------------------------ plain titles
@@ -161,6 +161,94 @@ const TIER: Record<string, string> = {
   heuristic: "Estimated from available signals",
 };
 export const tierLabel = (t: string) => TIER[t] ?? humanize(t);
+
+/** Score ranges per level; mirrors guardian/core/scoring.py band(). */
+export const BAND_RANGE: Record<Risk, [number, number]> = { low: [0, 39], medium: [40, 59], high: [60, 79], critical: [80, 100] };
+export const BAND_ORDER: Risk[] = ["low", "medium", "high", "critical"];
+
+/** The weights the backend actually used: findings with no code to reach (CI, lockfile, image) move Reachability's weight onto Severity. */
+export function weightsFor(risk: RiskAssessment): Record<FactorKey, number> {
+  const w = Object.fromEntries(FACTOR_KEYS.map((k) => [k, FACTOR_INFO[k].weight])) as Record<FactorKey, number>;
+  if (risk.factors.R.tier === "not_applicable") {
+    w.S += w.R;
+    w.R = 0;
+  }
+  return w;
+}
+
+/** What Guardian found for one factor, in plain words. */
+export function factorFinding(key: FactorKey, risk: RiskAssessment, f: Finding | undefined): string {
+  const v = risk.factors[key];
+  if (v.tier === "not_applicable") return "Does not apply: there is no package code to reach";
+  if (v.unknown) return "Could not be checked, so the middle value was used";
+  const pct = Math.round(v.value * 100);
+  switch (key) {
+    case "S":
+      if (v.tier === "cvss" && f?.cvss != null) return `CVSS ${f.cvss.toFixed(1)} from the published advisory`;
+      if (f && f.category !== "cve") return `Fixed weight for this kind of issue (${categoryShort(f.category)})`;
+      return tierLabel(v.tier);
+    case "E":
+      if (v.tier === "kev") return "On the list of flaws attackers are actively using (CISA KEV)";
+      if (v.tier === "epss") return `More likely to be exploited than ${pct}% of known flaws (EPSS)`;
+      return tierLabel(v.tier);
+    case "R":
+      if (v.tier === "not_imported") return "Your code never imports this package";
+      if (v.tier === "imported") return "Your code imports it, but the vulnerable function was not seen being called";
+      if (v.tier === "called") return "Your code calls the vulnerable function";
+      return tierLabel(v.tier);
+    case "P":
+      return v.tier === "dev" ? "Only used while developing, not shipped" : v.tier === "prod" ? "Ships to production" : tierLabel(v.tier);
+    case "X":
+      return v.tier === "network" ? "The running service is reachable over the network" : v.tier === "local" || v.tier === "internal" ? "Only reachable from inside" : tierLabel(v.tier);
+  }
+}
+
+/** The level the advisory alone would give, before Guardian looks at your project. */
+export function advisoryBand(f: Finding): Risk | null {
+  if (f.category !== "cve") return null;
+  if (f.cvss != null) return f.cvss >= 9 ? "critical" : f.cvss >= 7 ? "high" : f.cvss >= 4 ? "medium" : "low";
+  const s = (f.severity ?? "").toLowerCase();
+  return s === "critical" || s === "high" || s === "medium" || s === "low" ? s : s === "moderate" ? "medium" : null;
+}
+
+const joinWords = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+/**
+ * One or two sentences reconciling Guardian's level with the advisory's own rating, built from the factors only
+ * (no model text), so the reader sees why a "Critical" advisory can be a High risk here, or the other way round.
+ */
+export function scoreExplainer(f: Finding, risk: RiskAssessment): string {
+  const band = risk.band;
+  const name = BAND_COPY[band].name;
+  const fx = risk.factors;
+  const adv = advisoryBand(f);
+  const advText = f.cvss != null ? `${BAND_COPY[adv ?? band].name}, CVSS ${f.cvss.toFixed(1)}` : adv ? BAND_COPY[adv].name : "";
+  const unknown = FACTOR_KEYS.filter((k) => fx[k].unknown).map((k) => FACTOR_INFO[k].name.toLowerCase());
+  const unknownNote = unknown.length ? ` ${joinWords(unknown).replace(/^./, (c) => c.toUpperCase())} could not be checked, so a middle value was used.` : "";
+  const override = risk.override_applied ? " A safety rule also raised it, because the flaw is actively exploited and reachable in production." : "";
+  if (!adv) return `${name} because of the kind of issue it is and how it reaches your project. There is no published advisory score for it.${unknownNote}${override}`;
+  if (adv === band) return `${name}, the same as the advisory's own rating (${advText}). Your project's context neither raises nor lowers it.${unknownNote}${override}`;
+  const lower = BAND_ORDER.indexOf(band) < BAND_ORDER.indexOf(adv);
+  const reasons: string[] = [];
+  if (lower) {
+    if (fx.R.tier === "not_imported") reasons.push("your code never imports the package");
+    else if (fx.R.tier === "imported") reasons.push("your code imports the package but was not seen calling the vulnerable function");
+    if (fx.P.tier === "dev") reasons.push("it is only used while developing");
+    if (!fx.E.unknown && fx.E.value < 0.3) reasons.push("attackers are unlikely to exploit it");
+    if (fx.X.tier === "local" || fx.X.tier === "internal") reasons.push("the service is not reachable from outside");
+  } else {
+    if (fx.R.tier === "called") reasons.push("your code calls the vulnerable function");
+    if (fx.P.tier === "prod") reasons.push("it ships to production");
+    if (fx.X.tier === "network") reasons.push("the service is reachable over the network");
+    if (fx.E.tier === "kev") reasons.push("attackers are actively using it");
+    else if (!fx.E.unknown && fx.E.value >= 0.8) reasons.push("it is more likely to be exploited than most flaws");
+  }
+  const why = reasons.length ? joinWords(reasons) : "the other four factors pull the score " + (lower ? "down" : "up");
+  return `The advisory rates it ${advText}. Guardian ranks it ${lower ? "lower" : "higher"}, ${name}, because ${why}.${unknownNote}${override}`;
+}
+
+/** True for the risk analyst's machine summary ("... Factors: S=0.92 (cvss) ..."), which is not for people. */
+export const isMachineSummary = (s: string | null | undefined) => !!s && /Factors:\s*S=/.test(s);
 
 // ------------------------------------------------------------------ evidence
 

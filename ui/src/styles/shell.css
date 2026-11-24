@@ -195,18 +195,46 @@
 .plans-note { margin-top: var(--s3); }
 .skel-rows { display: grid; gap: var(--s2); }
 
+/* ---- risk verdict (top of a finding) */
+.t-critical { color: var(--critical-text); } .t-high { color: var(--high-text); } .t-medium { color: var(--medium-text); } .t-low { color: var(--text-2); }
+.verdict { display: grid; gap: var(--s3); }
+.verdict-top { display: flex; align-items: baseline; gap: var(--s2); flex-wrap: wrap; }
+.verdict-score { font-size: 44px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; }
+.verdict-of { font-size: var(--fs-lg); margin-right: var(--s3); }
+.verdict-words { display: grid; gap: 2px; align-self: center; min-width: 0; }
+.verdict-words b { font-size: var(--fs-lg); font-weight: 600; }
+.verdict-words .muted { font-size: var(--fs-sm); }
+.verdict-why { margin-top: var(--s1); }
+.verdict-note { font-size: var(--fs-sm); line-height: 1.55; max-width: 68ch; margin-top: calc(-1 * var(--s1)); }
+.verdict-link { justify-self: start; color: var(--text-2); font-size: var(--fs-sm); text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.verdict-link:hover { color: var(--text); }
+.lead-src { font-size: var(--fs-xs); margin-bottom: var(--s1); }
+
+/* the 0-100 scale in four ranges, with a marker */
+.bscale { display: grid; gap: 6px; }
+.bscale-track { position: relative; display: flex; gap: 2px; height: 10px; }
+.bscale-seg { border-radius: 2px; opacity: 0.32; flex-basis: 0; }
+.bscale-seg.on { opacity: 1; }
+.bscale-seg.s-low { background: var(--n3); } .bscale-seg.s-medium { background: var(--medium); }
+.bscale-seg.s-high { background: var(--high); } .bscale-seg.s-critical { background: var(--critical); }
+.bscale-mark { position: absolute; top: -4px; bottom: -4px; width: 3px; margin-left: -1.5px; background: var(--text); border-radius: 2px; box-shadow: 0 0 0 2px var(--surface); }
+.bscale-labels { display: flex; gap: 2px; font-size: var(--fs-xs); color: var(--text-3); }
+.bscale-labels span { flex-basis: 0; white-space: nowrap; }
+.bscale-labels .on { color: var(--text); font-weight: 500; }
+
 /* ---- score factors */
-.factors { display: grid; margin-top: var(--s3); }
-.fgrid { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(130px, 1fr) 52px 64px; gap: var(--s3); align-items: center; font-size: var(--fs-sm); }
-.fhead { color: var(--text-3); font-size: var(--fs-xs); padding-bottom: var(--s2); border-bottom: 1px solid var(--line); }
+.factors { display: grid; margin-top: var(--s2); }
 .r { text-align: right; justify-self: end; }
 .frow { padding: var(--s3) 0; border-bottom: 1px solid var(--line); display: grid; gap: var(--s2); }
+.fline { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3); }
 .fname { font-weight: 500; font-size: var(--fs-md); }
-.fval { display: flex; align-items: center; gap: var(--s2); }
-.fbar { flex: 1; height: 8px; background: var(--canvas); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
-.fbar i { display: block; height: 100%; }
-.fpts { color: var(--text); }
+.fpts { color: var(--text-2); font-size: var(--fs-sm); white-space: nowrap; }
+.fpts b { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
+.fmeter { display: block; height: 8px; background: var(--canvas); border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+.fmeter i { display: block; height: 100%; background: var(--n5); border-radius: 3px 0 0 3px; transition: width 480ms var(--ease); }
+.fmeter i.unknown { background: repeating-linear-gradient(135deg, var(--n3) 0 4px, var(--n2) 4px 8px); }
 .fwhy { display: flex; flex-wrap: wrap; gap: var(--s2); align-items: center; font-size: var(--fs-sm); color: var(--text-2); }
+.fwhy-text { color: var(--text); }
 .basedon { display: inline-flex; gap: var(--s1); flex-wrap: wrap; }
 .srcchip { height: 22px; padding: 0 var(--s2); border-radius: var(--r-sm); border: 1px solid var(--line-strong); background: var(--canvas); color: var(--text-2); font-size: var(--fs-xs); }
 .srcchip:hover { color: var(--text); background: var(--hover); }
