@@ -1,4 +1,4 @@
-"""Scoring (Dev4). CP1: initial-risk rule (D4-02). Full §7 score comes in D4-04.
+"""Deterministic initial-risk rules (D4-02) and full evidence-backed risk scoring (D4-04).
 
 Two layers live here, both pure code (no LLM, no I/O), so any number in the UI or report can be recomputed:
 
@@ -124,7 +124,9 @@ CATEGORY_SEVERITY = {
     FindingCategory.POLICY_VIOLATION: 0.5,
     FindingCategory.OUTDATED: 0.4,
 }
-# Tier -> factor value. "unknown" is deliberately mid-range: not knowing is neither safe nor proven dangerous.
+# Tier -> heuristic factor value. Missing evidence is not evidence of safety.
+# These defaults are ranking choices, not probabilities; unknown scope uses 0.7,
+# while unknown reachability/exposure use 0.5. build_factors marks the unknowns.
 REACHABILITY = {"called": 1.0, "imported": 0.6, "unknown": 0.5, "not_imported": 0.1, "not_applicable": 0.0}
 SCOPE = {"prod": 1.0, "dev": 0.3, "unknown": 0.7}
 EXPOSURE = {"network": 1.0, "internal": 0.5, "unknown": 0.5}
@@ -145,7 +147,9 @@ def band(score: float) -> Priority:
 def factor(value: float, tier: str, evidence_ids: list[str] | None = None, *, unknown: bool = False,
            label: ClaimLabel | None = None) -> FactorValue:
     """Build a FactorValue. `tier` names why the value was chosen; `evidence_ids` (de-duplicated, order kept)
-    prove it. The label defaults to VERIFIED when evidence backs the value and it is not a guess, else INFERRED."""
+    support it. The label defaults to VERIFIED when evidence backs the value and it is not a guess, else INFERRED.
+    INFERRED can therefore mean a deterministic missing-data default; it does not imply an LLM chose the value.
+    """
     ids = list(dict.fromkeys(evidence_ids or []))
     return FactorValue(value=round(value, 4), tier=tier, unknown=unknown, evidence_ids=ids,
                        label=label or (ClaimLabel.INFERRED if unknown or not ids else ClaimLabel.VERIFIED))
@@ -163,8 +167,10 @@ def weights_for(f: RiskFactors) -> dict[str, float]:
 @dataclass(frozen=True)
 class Computed:
     """Result of `compute`: score (0-100), band (after any override), confidence, the override's name if one
-    applied, the weights actually used and each factor's contribution in points (they sum to the score minus
-    the provenance modifier; the report prints them as the factor table)."""
+    applied, the weights actually used and each factor's contribution in points.
+    Contributions are rounded separately and are computed before the final 100-point cap;
+    adding them to the provenance modifier need not exactly equal the capped final score.
+    """
 
     score: float
     band: Priority
@@ -175,7 +181,12 @@ class Computed:
 
 
 def compute(f: RiskFactors) -> Computed:
-    """Derive score, band, KEV override and confidence from the factors (formula in the module docstring)."""
+    """Derive score, band, KEV override and confidence from the supplied factors.
+
+    Evidence lookup and normalization belong to agents/risk_analyst.py:build_factors.
+    This function does no network/model calls. The score is a prioritization heuristic,
+    not an exploitation probability, and confidence records missing inputs separately.
+    """
     w = weights_for(f)
     vals = {k: getattr(f, k).value for k in WEIGHTS}
     contrib = {k: round(100 * w[k] * vals[k], 2) for k in WEIGHTS}
