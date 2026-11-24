@@ -212,3 +212,35 @@ def test_maven_reachability_uses_java_imports_and_never_guesses(tmp_path):
     assert hit.tier == "imported" and hit.hits[0]["line"] == 2
     assert r.reachability_import(tmp_path, "org.apache.commons/commons-lang3", "maven").tier == "not_imported"
     assert r.reachability_import(tmp_path, "github.com/x/y", "golang").tier == "unknown"
+
+
+def test_osv_purls_match_grype_for_every_ecosystem(tmp_path, settings, monkeypatch):
+    """OSV names Maven packages group:artifact; an npm-style purl kept them from merging with Grype's findings
+    (WebGoat: 36 duplicate advisories) and made a used Java package look like an unimported npm one."""
+    import json as _json
+    from dataclasses import replace
+
+    from guardian.tools import scanners
+    from guardian.tools.registry import ToolContext
+
+    monkeypatch.setenv("GUARDIAN_INTEL_CACHE", str(tmp_path / "intel"))
+    repo = tmp_path / "app"
+    repo.mkdir()
+    (repo / "pom.xml").write_text("<project/>", encoding="utf-8")
+    pkgs = [("Maven", "com.thoughtworks.xstream:xstream", "1.4.5"), ("PyPI", "Django", "3.2.18"),
+            ("npm", "lodash", "4.17.20"), ("Go", "github.com/x/y", "v1.0.0")]
+    out = {"results": [{"packages": [{"package": {"name": n, "version": v, "ecosystem": e},
+                                      "vulnerabilities": [{"id": f"GHSA-{i}"}], "groups": []}
+                                     for i, (e, n, v) in enumerate(pkgs)]}]}
+
+    class Proc:
+        stdout = _json.dumps(out)
+
+    monkeypatch.setattr(scanners, "run", lambda args, **kw: Proc())
+    monkeypatch.setattr(scanners, "find", lambda name: name)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    ctx = ToolContext(run_id="r", run_dir=run_dir, repo=repo, settings=replace(settings, offline=False), work_dir=repo)
+    purls = sorted(f.component_purl for f in scanners.osv_scan(ctx).findings)
+    assert purls == ["pkg:go/github.com/x/y@v1.0.0", "pkg:maven/com.thoughtworks.xstream/xstream@1.4.5",
+                     "pkg:npm/lodash@4.17.20", "pkg:pypi/django@3.2.18"]

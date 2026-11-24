@@ -137,7 +137,16 @@ def osv_scan(ctx: ToolContext) -> ToolOutput:
     from guardian.adapters.npm import purl as npm_purl
 
     def mk_purl(name: str, version: str, ecosystem: str) -> str:
-        return pypi.purl(name, version) if ecosystem.lower() == "pypi" else npm_purl(name, version)
+        """The same purl Syft/Grype use, so OSV results merge with Grype's (dedupe by purl + id/alias)."""
+        eco = ecosystem.lower()
+        if eco == "pypi":
+            return pypi.purl(name, version)
+        if eco == "maven":  # OSV names Maven packages group:artifact
+            group, _, artifact = name.partition(":")
+            return f"pkg:maven/{group}/{artifact}@{version}" if artifact else f"pkg:maven/{name}@{version}"
+        if eco in ("npm", ""):
+            return npm_purl(name, version)
+        return f"pkg:{eco}/{name}@{version}"  # go, crates.io, ... : never mislabelled as npm
 
     for res in data.get("results", []):
         for pkg in res.get("packages", []):
