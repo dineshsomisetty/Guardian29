@@ -1,0 +1,53 @@
+{
+ "plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW",
+ "plan_hash": "12534c13bd90510fb2ad73a907927c4e98cc2d8df1412d49b7066441616f2ea0",
+ "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+ "attempt": 1,
+ "action": "upgrade",
+ "ops": [
+  {
+   "op": "set_dependency_version",
+   "file_path": "package.json",
+   "args": {
+    "name": "lodash",
+    "version": "4.17.5"
+   }
+  }
+ ],
+ "target_version": "4.17.5",
+ "rationale": [
+  {
+   "text": "lodash@4.17.5 is a published version above the fixed boundary.",
+   "field": "target_version",
+   "value": "4.17.5",
+   "evidence_ids": [
+    "ev_5AA819X9YP981068VCD1GDJFMG"
+   ],
+   "label": "verified"
+  },
+  {
+   "text": "Callers of the legacy API are not verified to be compatible until the sandbox build runs.",
+   "field": null,
+   "value": null,
+   "evidence_ids": [
+    "ev_5AA819X9YP981068VCD1GDJFMG"
+   ],
+   "label": "inferred"
+  }
+ ],
+ "expected_risk_reduction": "high -> resolved if the rescan no longer reports the advisory (simulate_after).",
+ "compatibility_impact": {
+  "from_version": "2.4.2",
+  "to_version": "4.17.5",
+  "semver_delta": "major",
+  "engines_ok": true,
+  "peer_dep_changes": [],
+  "deprecated_target": false,
+  "level": "medium"
+ },
+ "rollback": "Nothing is applied to the target: the patch lands in a copy under runs/<run>/attempts/. Discard it, or revert the diff after adoption.",
+ "evidence_ids": [
+  "ev_PQ5E6EYCNDY0YP57RCYBVN5SXS",
+  "ev_5AA819X9YP981068VCD1GDJFMG"
+ ]
+}

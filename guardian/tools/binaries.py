@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -26,11 +27,22 @@ def find(name: str) -> str:
     return found
 
 
+def scanner_env(env: dict[str, str] | None = None) -> dict[str, str]:
+    out = dict(os.environ if env is None else env)
+    out.setdefault("SYFT_CHECK_FOR_APP_UPDATE", "false")
+    out.setdefault("GRYPE_CHECK_FOR_APP_UPDATE", "false")
+    if out.get("GUARDIAN_OFFLINE") == "1":
+        out["GRYPE_DB_AUTO_UPDATE"] = "false"
+        out["GRYPE_DB_VALIDATE_AGE"] = "false"  # an older local DB is fine offline; the run records its age
+    return out
+
+
 def run(args: list[str], cwd: Path | None = None, timeout: int = 900, ok_codes=(0,),
         env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    """argv list only, never a shell (§0 rule 5)."""
+    """argv list only, never a shell (§0 rule 5). Scanner self-update checks are always off, and with
+    GUARDIAN_OFFLINE=1 Grype never refreshes its database (G7.3: an offline run makes no network call)."""
     proc = subprocess.run(args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                          timeout=timeout, env=env)
+                          timeout=timeout, env=scanner_env(env))
     if proc.returncode not in ok_codes:
         raise RuntimeError(f"{Path(args[0]).name} exited {proc.returncode}: {proc.stderr.strip()[-400:]}")
     return proc

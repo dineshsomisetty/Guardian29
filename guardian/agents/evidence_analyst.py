@@ -77,8 +77,21 @@ def _finding_view(f: Finding) -> dict:
     )
 
 
+_FETCH_KEYS = ("source", "scripts_source")
+
+
+def _prompt_facts(facts: dict) -> dict:
+    """Facts as the LLM sees them. Where a fact was fetched from ("cache" vs "registry.npmjs.org") stays in the
+    Evidence for the audit trail, but is left out of the prompt: it is the only thing that differs between a
+    live run and its offline replay, and it would make replay miss its cache (G7.3)."""
+    def fetch_note(v) -> bool:
+        return isinstance(v, str) and (v == "cache" or v.startswith(("registry.", "api.", "github.com"))
+                                       or v.endswith((".org", ".com", ".io", ".dev", ".gov")))
+    return {k: v for k, v in facts.items() if not (k in _FETCH_KEYS and fetch_note(v))}
+
+
 def _evidence_view(ev: Evidence) -> dict:
-    facts = json.dumps(ev.facts, default=str, sort_keys=True)
+    facts = json.dumps(_prompt_facts(ev.facts), default=str, sort_keys=True)
     if len(facts) > 3000:
         facts = facts[:3000] + "...(truncated)"
     return {"evidence_id": ev.evidence_id, "kind": ev.kind, "source_tool": ev.source_tool,
@@ -139,6 +152,9 @@ def _call_with_repair(rc: RunContext, system: str, user: str) -> tuple[list[RawA
     last_err = None
     for attempt in (1, 2):  # G4.1: one repair retry
         resp = rc.llm.complete_json(AGENT, system, prompt, schema)
+        budget = rc.tool_ctx.budget
+        if budget is not None and resp.usage:
+            budget.charge_tokens(resp.usage.get("input_tokens", 0) + resp.usage.get("output_tokens", 0))
         try:
             return parse_batch(resp.text).assessments, None
         except SchemaError as exc:
@@ -166,6 +182,12 @@ def analyse_batch(rc: RunContext, findings: list[Finding], system: str) -> list[
     audit.emit(AGENT, "llm_call", f"Assessing {len(findings)} findings",
                evidence_ids=sorted({e for f in findings for e in f.evidence_ids})[:50],
                data={"model": rc.llm.model, "mode": rc.llm.mode, "findings": [f.finding_id for f in findings]})
+    budget = rc.tool_ctx.budget
+    if budget is not None and budget.tokens_left() <= 0:  # G3.6: stop spending, keep the rule risk
+        audit.emit("guardrail", "guardrail", f"G3.6 LLM token budget exhausted ({budget.llm_tokens} tokens) "
+                                             f"-> rule-based risk for {len(findings)} findings",
+                   data={"rule": "G3.6", "llm_tokens": budget.llm_tokens, "max": budget.max_llm_tokens})
+        return [_apply_rule(f) for f in findings]
     try:
         assessments, err = _call_with_repair(rc, system, user)
     except LLMError as exc:
@@ -245,4 +267,4 @@ def evidence_analyst_node(state: GraphState) -> dict:
     llm_n = sum(1 for f in updated if f.initial_risk_source == "llm")
     audit.emit(AGENT, "agent_end", f"Initial risk assigned: {by_risk} ({llm_n} by LLM, {len(updated) - llm_n} by rule)",
                data={"by_risk": by_risk})
-    return {"status": "done"}
+    return {"status": "analysing"}

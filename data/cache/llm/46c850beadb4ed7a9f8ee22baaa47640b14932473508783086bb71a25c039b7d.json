@@ -1,0 +1,1 @@
+{"agent": "investigator", "text": "{\"action\": \"call_tool\", \"tool\": \"registry_metadata\", \"name\": \"fsevents\", \"version\": \"2.3.2\", \"path\": null, \"line\": null, \"context\": null, \"conclusion\": null, \"claims\": []}", "model": "deepseek-flash"}

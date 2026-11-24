@@ -1,93 +1,136 @@
 # Guardian — agentic software supply chain guardian
 
-Guardian analyses a repository's software supply chain and shows what is in it, what is risky and what changed.
-A LangGraph pipeline of agents — **discovery** (resolve lockfiles with `--ignore-scripts`, Syft CycloneDX SBOM,
-dependency graph with origin + integrity per package, CI workflows and Dockerfiles), **detection** (Grype with an
-OSV-Scanner cross-check, plus lockfile / typosquat / unpinned-CI / tag-only-image / what-changed detectors) and
-the **evidence analyst** (an LLM that explains each finding and proposes an initial risk, citing evidence ids that
-a code-level grounding check verifies) — writes every fact as evidence and every step as a trace event. The rule is:
-*tools produce facts, agents make decisions and explanations, humans approve changes.* The plan
-(`GUARDIAN_PLAN.md`) adds prioritisation, remediation with human approval and sandboxed validation on Day 2.
+**Know what you build. Trust what you ship.**
+
+Guardian analyses a repository's software supply chain end to end: it **discovers** what the application is built
+from, **detects** vulnerable and suspicious components, **prioritises** them with an explainable risk score,
+**recommends** a safe fix, waits for a **human approval**, then **validates** the fix in a Docker sandbox (build,
+tests, rescan, SBOM diff) and writes an evidence-based **report**.
+
+The rule throughout: *tools produce facts, agents reason and explain, humans approve changes.*
+Every fact is stored as Evidence; every AI statement is labelled **verified fact** or **AI inference** by code.
+
+| Document | What it covers |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | diagram of agents, tools, data sources, AI interactions, approval points, evidence storage |
+| [docs/responsible_ai.md](docs/responsible_ai.md) | where AI is used, hallucination control, approvals, secrets protection, limitations |
+| [docs/requirements_coverage.md](docs/requirements_coverage.md) | the problem statement, line by line, with proof for each item |
+| [docs/generality_and_scale.md](docs/generality_and_scale.md) | six real repositories (npm, pip, Maven; GitHub and GitLab CI): results, time, memory, what they exposed |
+| [GUARDIAN_PLAN.md](GUARDIAN_PLAN.md) | the full execution plan and guardrails G1–G7 |
 
 ## Setup (Windows, PowerShell)
 
-Needs: Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/), Git, Node.js + npm (lockfile resolution and the UI).
+Needs: Python ≥ 3.11 with [uv](https://docs.astral.sh/uv/), Git, Node.js 22+ and npm, Docker Desktop (sandbox).
 
 ```powershell
-uv sync --extra dev                                                    # Python deps (or: make setup)
-powershell -ExecutionPolicy Bypass -File scripts/install_tools.ps1     # Syft 1.57.2, Grype 0.122.1, OSV-Scanner 2.7.1 -> tools/bin (SHA-256 verified)
-powershell -ExecutionPolicy Bypass -File scripts/fetch_targets.ps1     # Juice Shop @ c9f99228d, PyGoat @ 2aa4cc1 -> targets/
-Copy-Item .env.example .env                                            # then set DEEPSEEK_API_KEY in .env
+uv sync --extra dev                                                    # Python deps
+powershell -ExecutionPolicy Bypass -File scripts/install_tools.ps1     # Syft, Grype, OSV-Scanner -> tools/bin (SHA-256 verified)
+powershell -ExecutionPolicy Bypass -File scripts/fetch_targets.ps1     # Juice Shop, PyGoat (pinned) -> targets/
+Copy-Item .env.example .env                                            # then set DEEPSEEK_API_KEY (or another provider)
+cd ui; npm ci; cd ..
 ```
 
-LLM settings live in `.env` (`GUARDIAN_LLM_PROVIDER=deepseek|anthropic|openai_compat`, `GUARDIAN_LLM_MODE=live|record|replay`).
-Never commit `.env`.
+LLM settings live in `.env`: `GUARDIAN_LLM_PROVIDER=deepseek|anthropic|openai_compat`,
+`GUARDIAN_LLM_MODE=live|record|replay`. `record` caches every LLM response under `data/cache/llm/`; `replay` with
+`GUARDIAN_OFFLINE=1` then runs end to end with **zero network calls**. Never commit `.env`.
 
 ## Run
 
 ```powershell
-uv run python -m guardian run --repo targets/juice-shop
+uv run python -m guardian run --repo targets/juice-shop                     # one target, stops at the human gate
+uv run python -m guardian run --repos targets/juice-shop targets/pygoat     # several targets + summary table
+uv run python -m guardian plans --run <run_id>                              # the plan waiting for a decision
+uv run python -m guardian decide --run <run_id> --plan <plan_id> --plan-hash <hash> --decision approve|reject|accept_risk [--comment "..."] [--by name]
+uv run python -m guardian watch --run <run_id> --once                      # continuous monitoring: re-assess with fresh advisories
 ```
 
-Output goes to `runs/<run_id>/` (`runs/LATEST` holds the newest id): `run_summary.json`, `sbom.cdx.json`,
-`graph.json`, `findings.json`, `evidence/*.json`, `changes.json`, `trace.jsonl`. A Juice Shop run takes about
-about a minute once tools are installed (≈55 s including the DeepSeek step).
+Output goes to `runs/<run_id>/`: `sbom.cdx.json`, `graph.json`, `findings.json`, `evidence/`, `risk.json`,
+`plans/`, `approvals.jsonl`, `validation/`, `sbom.after.cdx.json`, `trace.jsonl`, `audit.jsonl`,
+`report.json`, `report.html`, `checkpoints.sqlite`. A verified fix also leaves a local branch and `PR.md` in
+`runs/<run_id>/attempts/<attempt_id>/` (never pushed).
 
-## View
+## View (UI)
 
-React UI:
 ```powershell
-uv run python -m guardian serve-runs        # serves runs/ on http://localhost:8001 (refuses runs/<id>/work/)
-cd ui; npm install; npm run dev             # http://localhost:5173
+uv run python -m guardian api                 # http://127.0.0.1:8000 (FastAPI + live SSE trace)
+cd ui; npm run dev                            # http://localhost:5173
 ```
 
-Static fallback (no server, one self-contained file):
-```powershell
-uv run python scripts/static_view.py                    # latest run
-uv run python scripts/static_view.py runs/<run_id>      # -> runs/<run_id>/static_view.html, open in a browser
-```
+The UI opens on an **Overview**: what was scanned, how risky it is in plain words, the top risks and why they
+matter, and the next action. Then: the live 9-step pipeline, the dependency map (risk paths highlighted), the
+findings table with a forensic inspector, the **approval gate** (fix, diff, evidence, score breakdown,
+rollback), **validation** (build/test logs, before→after score, SBOM diff, attempt timeline) and report export.
+
+### Security of the API
+
+* **No tokens configured** → local dev mode; the API refuses to bind anything but loopback.
+* **Tokens** → `GUARDIAN_API_TOKENS="alice:<token>:approver,ci:<token>:operator,bob:<token>:viewer"`, then
+  `guardian api --host 0.0.0.0`. Viewers read, operators start runs, only approvers decide, and the recorded
+  approver is the authenticated identity.
+* Runs may only target directories under `GUARDIAN_TARGET_ROOTS` (default `targets/`); at most
+  `GUARDIAN_MAX_ACTIVE_RUNS` (default 2) run at once.
+
+## How it works (9 agents)
+
+`discovery → detection → evidence_analyst → investigator → risk_analyst → remediation → human_gate → validator → reporter`
+
+| Agent | What it does |
+|---|---|
+| Discovery | copies the target, resolves lockfiles with `--ignore-scripts`, builds a CycloneDX SBOM (Syft) and the dependency graph with origin + integrity |
+| Detection | Grype + OSV-Scanner; typosquats, install scripts, missing lockfile, unpinned CI actions, tag-only images, unexpected changes (`--compare-ref`), package risk, policy-as-code |
+| Evidence analyst (LLM) | explains each finding and proposes an initial risk; every claim is grounded against evidence |
+| Investigator (LLM, ReAct) | digs into suspicious non-CVE findings with up to 8 read-only tool calls |
+| Risk analyst | `score = 100 × (0.30 S + 0.25 E + 0.20 R + 0.15 P + 0.10 X)` from severity, EPSS/KEV, reachability, production use, exposure; computed in code; LLM writes the summary only |
+| Remediation | upgrade / replace / remove / pin / block / update base image / mitigate, target versions only from evidence, unified diff, expected risk reduction, rollback, plan hash |
+| Human gate | pauses (`interrupt()`); resumes only with an approval for that exact plan hash |
+| Validator | fresh copy → patch → lockfiles → Docker build + unit/integration tests with `--network none` → rescan → SBOM diff → detectors + policy re-run; up to 3 attempts, then escalation |
+| Reporter | `report.json` + `report.html` |
 
 ## Tests
 
 ```powershell
-make check            # ruff + forbidden-pattern check + pytest   (or: uv run pytest)
-uv run pytest tests/integration/test_golden.py -q   # latest real run vs tests/golden/juice_shop_expected.yaml
+bash scripts/harness.sh          # ruff, pytest, security greps (no shell=True / git push / npm publish), UI typecheck + build
+uv run pytest -q                 # tests only
 ```
-The golden test is skipped when there is no run in `runs/`.
 
-## Repo layout
+Golden tests check the newest real Juice Shop run against `tests/golden/juice_shop_expected.yaml`.
 
-| Path | What |
-|---|---|
-| `guardian/agents/` | discovery, detection (incl. Grype/OSV dedupe), evidence_analyst (LLM) |
-| `guardian/graph/` | LangGraph workflow, supervisor routing, `graph.json` / `run_summary.json` |
-| `guardian/core/` | data model, evidence/finding store, audit trace, workspace, graph build, initial-risk rule |
-| `guardian/tools/` | tool contract + registry, lockfile resolve, SBOM, scanners, `file_read`, detectors |
-| `guardian/adapters/` | npm, GitHub Actions, Dockerfile parsers |
-| `guardian/guardrails/` | redaction, untrusted-data wrapping, grounding of LLM claims |
-| `guardian/llm/`, `guardian/prompts/` | LLM provider (DeepSeek / Anthropic / OpenAI-compatible, record/replay), system prompts |
-| `ui/` | React + Vite UI (graph, findings, what changed, agent trace) |
-| `scripts/` | tool install, target fetch, static viewer, forbidden-pattern check |
-| `tests/` | unit, guardrail and integration tests; `golden/` expectations; `fixtures/` resolved Juice Shop lockfiles |
-| `data/` | popular package names (typosquat), caches |
-| `docs/` | decisions, targets, CP1 talk track |
-| `targets/`, `runs/`, `tools/bin/` | gitignored: cloned targets, run output, installed binaries |
+## Targets
 
-## Known limitations (Checkpoint 1)
+| Target | Ecosystem | Why |
+|---|---|---|
+| OWASP Juice Shop | npm (Node, Angular), Docker | large realistic tree (1,656 packages), typosquats, install scripts, unpinned CI |
+| PyGoat | pip (Django), Docker | second ecosystem, old Django with many advisories |
+| OWASP NodeGoat | npm | older dependencies (optional extra) |
+| OWASP WebGoat | Maven (Java) | `pom.xml` parsing, Java dependency findings (optional extra) |
+| vulnerable-rest-api | npm (Node + React) | no root package: `client/` + `server/` projects |
+| vuln_django_play | pip (Django), GitLab CI | GitLab pipelines as a supply-chain source |
 
-- **LLM explanations need a DeepSeek key** (or a recorded replay cache). Without one the evidence analyst logs an
-  error and every finding keeps the **rule-based initial risk** (CVSS band / category default); the run still
-  completes. The latest CP1 run (`run_20261123_150644`) had no key, so it has no LLM explanations.
-- Up to 200 findings per run (`GUARDIAN_MAX_LLM_FINDINGS`; anomalies first, then CVEs by risk) go to the LLM; any beyond that keep the rule-based risk.
-- OSV-Scanner is a **cross-check** merged into Grype findings by (purl, id/alias), not an independent pipeline.
-- **No container image SBOM/scan yet**: Dockerfiles are checked for tag-only base images only.
-- Juice Shop commits no lockfile. A run reuses the committed fixture lockfile (`tests/fixtures/juice-shop/`) when the
-  target's `package.json` is byte-identical; otherwise it resolves with `npm install --package-lock-only
-  --ignore-scripts` (needs network; ~62 s root + ~45 s frontend). Only npm is wired end to end; PyGoat (pip) is
-  fetched but not yet analysed.
-- Day-2 features are **not built**: EPSS/KEV/reachability prioritisation, remediation plans, human approval gate,
-  sandboxed build/test, rescan and before/after SBOM, reports, watch mode.
+## Known limitations
+
+- Reachability is import-level (is the package imported in production code?), not function-level.
+- The built-image rescan (G6.7) is opt-in (`GUARDIAN_IMAGE_BUILD=1`): it runs the target's Dockerfile with network on.
+- CVE upgrades are planned for npm and pip; Maven is scanned (SBOM, CVEs) but not patched.
+- Sandbox tests are judged against the unpatched project: failures that already happen without the fix are
+  disclosed, not blamed on it (Juice Shop: unit 439/441 and API 559/580 on the unmodified app; the 21 API
+  failures need the internet, which the sandbox never gives tests).
+- Web builds that fetch resources (Juice Shop's Angular build inlines web fonts) run while the dependency
+  image is built, inside the container; validation builds and tests always run with `--network none`.
+- Rego policies are mirrored by a native Python evaluator; `conftest`/`opa` is used only if installed.
+- LLM explanations need a provider key or a recorded replay cache; without one the rule-based risk is used.
+
+## Contributors
+
+Five-person team, one owned area each, equal standing (areas as defined in `GUARDIAN_PLAN.md`):
+
+| Role | Area | Contributor |
+|---|---|---|
+| Dev1 | Agentic AI workflow: agents, orchestration, guardrails, remediation loop | Nibiru7899 |
+| Dev2 | Tools, graph, sandbox | Somisetty Dinesh |
+| Dev3 | UI and API | tarunkumar |
+| Dev4 | Threat intel, scoring, detectors, reports | dheeraj856 |
+| Dev5 | Targets, decisions, docs | Kavya Penikalapati |
 
 ## Credits
 
-Graph rendering: React Flow (xyflow, MIT) and dagre (MIT).
+Graph rendering: React Flow (xyflow, MIT) and dagre (MIT). Scanners: Syft, Grype (Anchore), OSV-Scanner (Google).
