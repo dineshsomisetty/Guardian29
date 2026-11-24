@@ -356,3 +356,22 @@ def test_validator_lockfiles_start_from_discoverys_resolution(tmp_path, monkeypa
     assert (w / "package-lock.json").read_text() == (base / "package-lock.json").read_text()  # seeded first
     assert calls and "--package-lock-only" in calls[0][0] and "--ignore-scripts" in calls[0][0]
     assert out.evidence[0].facts["source"].startswith("discovery's lockfile")
+
+
+def test_an_upgrade_may_add_its_own_dependencies_but_nothing_else(tmp_path):
+    """express-jwt 5.x brings jws, jwa, lodash.set...: expected. A package outside its subtree is still flagged
+    (and new vulnerabilities, e.g. in lodash.set, are judged separately and always fail the attempt)."""
+    from guardian.agents.validator import _unexpected_added
+    from guardian.core.models import PatchOp, RemediationPlan
+
+    (tmp_path / "package-lock.json").write_text(json.dumps({"packages": {
+        "": {}, "node_modules/express-jwt": {"dependencies": {"jws": "^3", "lodash.set": "^4"}},
+        "node_modules/jws": {"dependencies": {"jwa": "^1"}}, "node_modules/jwa": {}, "node_modules/lodash.set": {},
+        "node_modules/left-pad": {}}}))
+    plan = RemediationPlan(plan_id="pl_x", plan_hash="h", finding_id="f", attempt=1, action="upgrade",
+                           ops=[PatchOp(op="set_dependency_version", file_path="package.json",
+                                        args={"name": "express-jwt", "version": "^5.3.3"})],
+                           expected_risk_reduction="x", rollback="x", evidence_ids=["ev_1"])
+    added = ["pkg:npm/jws@3.2.3", "pkg:npm/jwa@1.4.2", "pkg:npm/lodash.set@4.3.2", "pkg:npm/left-pad@1.3.0"]
+    assert _unexpected_added(plan, added, tmp_path) == ["pkg:npm/left-pad@1.3.0"]
+    assert len(_unexpected_added(plan, added)) == 4  # without the lockfile nothing is assumed

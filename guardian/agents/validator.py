@@ -66,11 +66,40 @@ def _purl_name(purl: str) -> str:
     return base.rsplit("@", 1)[0].replace("%40", "@") if "@" in base[1:] else base
 
 
-def _unexpected_added(plan, added: list[str]) -> list[str]:
-    """New components the plan did not ask for. A generate_lockfile plan legitimately adds the whole tree."""
+def _npm_subtree(work, roots: set[str]) -> set[str]:
+    """Package names reachable from `roots` in the patched copy's npm lockfiles (an upgrade brings its own
+    dependencies: they are expected, not 'unexpected new packages')."""
+    import json as _json
+
+    deps: dict[str, set[str]] = {}
+    for lock in [work / "package-lock.json", *work.glob("*/package-lock.json")]:
+        try:
+            pk = _json.loads(lock.read_text(encoding="utf-8")).get("packages") or {}
+        except (OSError, ValueError):
+            continue
+        for key, entry in pk.items():
+            if "node_modules/" in key and isinstance(entry, dict):
+                name = key.rsplit("node_modules/", 1)[1]
+                deps.setdefault(name, set()).update((entry.get("dependencies") or {}).keys())
+                deps[name].update((entry.get("optionalDependencies") or {}).keys())
+    seen, todo = set(), [r for r in roots if r in deps]
+    while todo:
+        n = todo.pop()
+        if n not in seen:
+            seen.add(n)
+            todo.extend(deps.get(n, ()))
+    return seen
+
+
+def _unexpected_added(plan, added: list[str], work=None) -> list[str]:
+    """New components the plan did not ask for. A generate_lockfile plan legitimately adds the whole tree, and
+    an upgraded or replacement package legitimately adds its own dependency subtree. New *vulnerabilities* are
+    judged separately and always count."""
     if any(o.op == "generate_lockfile" for o in plan.ops):
         return []
     wanted = {str(v) for o in plan.ops for v in o.args.values() if isinstance(v, str)}
+    if work is not None:
+        wanted |= _npm_subtree(work, wanted)
     return [a for a in added if _purl_name(a) not in wanted]
 
 
@@ -193,7 +222,7 @@ def validator_node(state: GraphState) -> dict:
                 rescanned = "sbom.after.cdx.json"
                 diff_ev_id = rs.evidence[0].evidence_id
                 new_vulns = rs.artifacts.get("new_vulns", [])
-                unexpected = _unexpected_added(plan, rs.artifacts["sbom_diff"]["added"])
+                unexpected = _unexpected_added(plan, rs.artifacts["sbom_diff"]["added"], attempt_dir)
                 new = sorted({*new, *(f"vuln:{v}" for v in new_vulns), *(f"dep:{a}" for a in unexpected)})
             sv = call_tool(AGENT, "sandbox_validate", None, actx, store, audit)
             if sv is not None:
