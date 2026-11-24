@@ -127,6 +127,34 @@ by another process hours later.
 | Live trace | SSE reads `trace.jsonl` from a byte cursor (linear, not quadratic) |
 | Sandbox | deps image cached by lockfile hash; CPU, memory, process and time limits per container |
 
+## Validation speed
+
+Measured on Juice Shop (recorded runs under `runs/`, per-phase `seconds` in the build_log / test_result evidence, trace
+timestamps): one validation took 12-20 minutes. Install of the deps image 260-390 s whenever the patched lockfile
+differed (the Angular frontend install + production build was rebuilt every time), integration tests ~330-385 s, unit
+tests ~45-57 s, server build ~15 s, `resolve_lockfiles` up to ~90 s on the first try, syft + grype rescan 10-20 s, plus
+the unpatched baseline (the same cost again) when no baseline was cached.
+
+What changed (no G6 rule, G5 approval binding, G3.6 budget or verdict rule is relaxed):
+
+* Deps image: one BuildKit stage per npm project, merged by `COPY --from`, so a changed root lockfile no longer
+  invalidates the frontend install/build layers; registry downloads use a BuildKit cache mount (never part of the image,
+  npm still verifies lockfile integrity). The image cache is checked before any build context is assembled, and a
+  per-tag lock stops the baseline and patched runs from building the same image twice. No BuildKit: automatic retry
+  without the mounts. Same image layout as before. `GUARDIAN_DEPS_CACHE_MOUNT=0` turns the mounts off.
+* Unit and integration tests run concurrently after the build, each in its own container (same limits, `--network none`,
+  non-root, `--rm`, explicit removal) on a private snapshot of the built tree. Results are judged in step order, so the
+  verdict is the one the sequential order gives. `GUARDIAN_SANDBOX_PARALLEL=0` restores strictly sequential phases;
+  `GUARDIAN_SANDBOX_MAX_CONTAINERS` (default 3) bounds test containers running at once in the process.
+* Baseline prewarm: right after discovery the unpatched baseline starts in a daemon thread (cache key = lockfile hash +
+  recipe, shared across runs in `data/cache/sandbox_baseline`), so approval -> verdict normally finds it cached. An
+  in-flight baseline is joined, never run twice; a failed prewarm is swallowed and the validation recomputes.
+  `GUARDIAN_PREWARM_BASELINE=0` disables it. It uses Docker CPU while the human is reading the report.
+* Every `sandbox_validate` summary now lists the seconds of each phase.
+
+Not changed on purpose: the integration suite always runs (no proof that a fix touches nothing it covers), the
+signature audit stays inside the deps image (it costs seconds there), and per-phase timeouts keep their meaning.
+
 ## 7. Code map
 
 | Area | Path |

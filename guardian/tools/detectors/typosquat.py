@@ -1,6 +1,17 @@
 """D2-05 typosquat detector: direct dependency names close to popular packages (Dev4 similarity). Owner: Dev2.
 
-Scans current manifests plus legacy/backup manifests (`ftp/package.json.bak`) that ship with the target.
+Called by: the detection agent (tool `detector:typosquat`).
+Why: attackers publish packages whose names differ from a popular one by a typo or an affix and wait for someone
+to install them by mistake.
+Inputs: every npm project's package.json (dependencies and devDependencies) plus legacy/backup manifests
+(`ftp/package.json.bak`) that ship with the target, compared with detectors/similarity.check_name.
+Registry check: a lookalike that the registry shows to be long established is cleared (see `established`):
+>= 5 years old with >= 30 stable releases. The registry call is cached, throttled and G3.5-checked; offline with a
+cache miss there is no registry data, so the name match stays a finding (we never clear on missing data).
+Output: Finding category `typosquat` per suspect (scope dev for devDependencies else prod; no component_purl for
+the legacy manifest). Evidence kind `detector_result`, facts {name, range, section, similar_to, distance, reason,
+legacy_manifest}. One extra detector_result Evidence {cleared_as_established, rule} records every lookalike that
+was cleared, so the decision not to flag is auditable.
 """
 
 from __future__ import annotations
@@ -12,9 +23,12 @@ from guardian.core.models import Evidence, Finding, FindingCategory, Scope
 from guardian.tools.detectors.similarity import check_name
 from guardian.tools.registry import ToolContext, ToolOutput
 
+# Backup manifests shipped inside targets (old dependency lists attackers/benchmarks leave behind); also scanned.
 LEGACY_MANIFESTS = ["ftp/package.json.bak"]
+# A real lookalike is usually young or barely released; a package that is both old and heavily released is a
+# legitimate project that happens to have a similar name (e.g. query-string vs querystring).
 ESTABLISHED_YEARS = 5
-ESTABLISHED_RELEASES = 30
+ESTABLISHED_RELEASES = 30  # stable (non pre-release) versions published
 
 
 def established(meta: dict | None) -> dict | None:
@@ -38,8 +52,11 @@ def established(meta: dict | None) -> dict | None:
 
 def _scan(ctx: ToolContext, manifest: Path, rel: str, project: str, legacy: bool,
           cleared: list[dict]) -> tuple[list, list]:
+    """Check every dependency of one manifest; returns (findings, evidence).
+    `rel` is the repo-relative path shown in findings; `legacy` marks a backup manifest (no installed purl);
+    `cleared` is appended to with lookalikes dismissed as established packages."""
     findings, evidence = [], []
-    intel = None
+    intel = None  # created lazily: most manifests have no suspect, so most runs never need the registry
     for name, rng, section, line in manifest_deps(manifest):
         hit = check_name(name)
         if not hit:
@@ -52,8 +69,8 @@ def _scan(ctx: ToolContext, manifest: Path, rel: str, project: str, legacy: bool
         if est:
             cleared.append({"name": name, "similar_to": hit.popular, **est, "file": rel})
             continue
-        version = rng.lstrip("^~=<> ")
-        installed = None
+        version = rng.lstrip("^~=<> ")  # best-effort purl version: the range with its operators stripped
+        installed = None  # exact installed purl from the dependency graph, preferred when known
         if ctx.graph is not None and not legacy:
             installed = next((n for n, d in ctx.graph.g.nodes(data=True)
                               if d.get("label") == name and project in d.get("projects", [])), None)
@@ -73,6 +90,7 @@ def _scan(ctx: ToolContext, manifest: Path, rel: str, project: str, legacy: bool
 
 
 def detect(ctx: ToolContext) -> ToolOutput:
+    """Scan all npm projects and the legacy manifests; report suspects and the lookalikes cleared as established."""
     work = ctx.work_dir or ctx.repo
     findings, evidence, cleared = [], [], []
     for proj in find_projects(work):

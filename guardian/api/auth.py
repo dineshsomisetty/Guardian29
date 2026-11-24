@@ -16,6 +16,11 @@ Roles are ordered: viewer < operator < approver.
 
 The approver's *authenticated* name is what `approvals.jsonl` records as `decided_by` (G5, G7.1): a request
 body cannot claim to be someone else.
+
+Who uses it: guardian/api/app.py builds one `TokenStore` per app and calls `principal_for` in the app-wide viewer
+dependency and again, with a higher role, inside the start-run and decision routes; `serve_api` calls `check_bind`.
+Inputs: the GUARDIAN_API_TOKENS environment variable and each request's Authorization header (or query string
+for SSE). Outputs: a `Principal` (name, role) or an HTTP 401/403.
 """
 
 from __future__ import annotations
@@ -27,29 +32,38 @@ from dataclasses import dataclass
 
 from fastapi import HTTPException, Request
 
-ROLES = ("viewer", "operator", "approver")
+ROLES = ("viewer", "operator", "approver")  # lowest to highest privilege; a role includes all the ones before it
 ENV = "GUARDIAN_API_TOKENS"
 
 
 @dataclass(frozen=True)
 class Principal:
+    """An authenticated (or local-dev) caller. `authenticated` is False only for the anonymous local developer."""
+
     name: str
     role: str
     authenticated: bool
 
     def can(self, role: str) -> bool:
+        """True if this principal's role is at least `role` (approver can do everything an operator can)."""
         return ROLES.index(self.role) >= ROLES.index(role)
 
 
+# Used when no tokens are configured: full rights, but the server then only listens on loopback (see check_bind).
 LOCAL_DEV = Principal(name="local-dev", role="approver", authenticated=False)
 
 
 def _digest(token: str) -> bytes:
+    """SHA-256 of a token: only digests are stored, so a memory dump does not reveal usable tokens."""
     return hashlib.sha256(token.encode("utf-8")).digest()
 
 
 class TokenStore:
+    """The configured API tokens, keyed by digest. An empty store means local dev mode (no authentication)."""
+
     def __init__(self, spec: str | None):
+        """Parse `name:token:role,name:token:role,...`; raises ValueError on a malformed entry (fail at start-up
+        rather than silently running with fewer users or weaker rules than the operator intended)."""
         self._by_digest: dict[bytes, Principal] = {}
         for raw in (spec or "").split(","):
             raw = raw.strip()
@@ -69,13 +83,16 @@ class TokenStore:
 
     @classmethod
     def from_env(cls) -> TokenStore:
+        """Build the store from GUARDIAN_API_TOKENS (unset = empty = local dev mode)."""
         return cls(os.environ.get(ENV))
 
     @property
     def enabled(self) -> bool:
+        """True in token mode (at least one token configured)."""
         return bool(self._by_digest)
 
     def lookup(self, token: str) -> Principal | None:
+        """The principal owning `token`, or None. Compares against every entry so timing does not leak a match."""
         want = _digest(token)
         found = None
         for d, p in self._by_digest.items():  # constant time per entry; no early exit on match
@@ -85,6 +102,8 @@ class TokenStore:
 
 
 def _token_from(request: Request, allow_query: bool) -> str | None:
+    """Extract the bearer token from the Authorization header; the query string only if `allow_query` (SSE).
+    Query tokens end up in URLs and logs, so they are accepted on that one route only."""
     header = request.headers.get("authorization", "")
     if header.lower().startswith("bearer "):
         return header[7:].strip() or None
@@ -108,6 +127,7 @@ def principal_for(request: Request, store: TokenStore, role: str, *, allow_query
     return p
 
 
+# Hosts that only this machine can reach; anything else counts as "exposed to the network".
 LOOPBACK = {"127.0.0.1", "::1", "localhost"}
 
 

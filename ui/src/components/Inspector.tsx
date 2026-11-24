@@ -9,6 +9,10 @@ import { inertProps, typingTarget, useEvidence } from "./hooks";
 import { BandScale, FactorTable } from "./RiskTable";
 import { ClaimList, EmptyState, EvidenceById, Section, SevPill, Tip } from "./ui";
 
+/**
+ * Right-hand side panel for the selected finding, package or evidence record. A finding shows the risk verdict
+ * first, then what it means, how the score adds up, how it gets in and the evidence.
+ */
 export default function Inspector() {
   const { inspector, closeInspector, stepFinding } = useStore();
   const open = !!inspector;
@@ -204,6 +208,8 @@ function FindingPane({ id }: { id: string }) {
   const pos = order.indexOf(id);
   const name = f.component_purl ? purlName(f.component_purl) : "";
   const ver = f.component_purl ? purlVersion(f.component_purl) : "";
+  // The one-paragraph explanation: the investigator's text, else the risk summary (never the machine-readable
+  // one), else a generic line built from the finding.
   const lead =
     f.explanation ??
     (risk?.summary && !isMachineSummary(risk.summary) ? risk.summary : null) ??
@@ -320,7 +326,7 @@ function FindingPane({ id }: { id: string }) {
                 {plans.map((p) => (
                   <li key={p.plan_id}>
                     Attempt {p.attempt}: {planSummary(p, undefined, null).change}{" "}
-                    <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("gate"); }}>Open approval</button>
+                    <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("gate"); }}>Open remediation</button>
                     <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("validation"); }}>Open validation</button>
                   </li>
                 ))}
@@ -356,6 +362,7 @@ function RiskVerdict({ finding }: { finding: Finding }) {
   const risk = riskById.get(finding.finding_id);
   if (!risk) return null;
   const first = finding.initial_risk;
+  // True when the investigator's first level was changed by Guardian's scoring.
   const firstDiffers = first && first !== risk.band;
   return (
     <section className="sec verdict" aria-label="Risk level">

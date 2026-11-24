@@ -5,6 +5,17 @@ results between rehearsal and demo); otherwise run
     npm install --package-lock-only --ignore-scripts --package-lock=true
 (`--package-lock=true` overrides the target's `.npmrc package-lock=false`; `--ignore-scripts` = no install
 scripts run, C2). The frontend needs `--legacy-peer-deps` (verified on Juice Shop, 2026-11-23).
+
+Pipeline use: the discovery agent runs `resolve_lockfiles` right after the workspace is copied and before the SBOM,
+so Syft/Grype see exact versions even for targets that do not commit a lockfile. The validator re-runs it on a
+patched attempt copy so the rescan sees the upgraded versions.
+Reads: package.json / package-lock.json / requirements*.txt in the work copy and tests/fixtures/<target>/.
+Writes: package-lock.json files into the WORK COPY only (never the original target).
+Evidence: one `detector_result` per npm project (source_tool resolve:npm) and per pip project (resolve:pip),
+recording where the lockfile came from and `install_scripts_executed: False`.
+Network: only the `npm install --package-lock-only` call talks to the npm registry (no package code runs).
+Pip is never resolved or installed: the requirements pins are the lock. If npm fails, `run` raises and the
+registry's call_tool logs the failure; with nothing to resolve the tool returns a summary only.
 """
 
 from __future__ import annotations
@@ -21,10 +32,16 @@ from guardian.tools.registry import ToolContext, ToolOutput
 
 
 def _npm() -> str:
+    """Path of the npm launcher (npm.cmd on Windows), falling back to plain "npm"."""
     return shutil.which("npm.cmd") or shutil.which("npm") or "npm"
 
 
 def resolve_lockfiles(ctx: ToolContext) -> ToolOutput:
+    """Make sure every npm project in the work copy has a lockfile and list pip requirements, running no
+    install scripts. Returns one detector_result Evidence per project plus artifacts `npm_projects` and
+    `pip_projects` (project names). Lockfile source, in priority order: seeded from the baseline copy and
+    updated minimally (validator), already committed in the target, a hash-matching committed fixture, or a
+    fresh `npm install --package-lock-only`."""
     work = ctx.work_dir or ctx.repo
     evidence, projects = [], []
     # a patched attempt copy lives in runs/<id>/attempts/<at>/work: the validator passes the target's name
@@ -40,8 +57,14 @@ def resolve_lockfiles(ctx: ToolContext) -> ToolOutput:
             if src.is_file():
                 shutil.copyfile(src, proj.lockfile)
                 seeded = src
-        had_lock = proj.lockfile.exists()
-        if seeded is not None:
+        had_lock = proj.lockfile.exists()  # True only when the TARGET itself committed the lockfile
+        base_manifest = Path(base) / proj.manifest.relative_to(work) if base is not None else None
+        if seeded is not None and base_manifest is not None and base_manifest.is_file() and (
+                base_manifest.read_bytes() == proj.manifest.read_bytes()):
+            # the patch did not touch this manifest: discovery's lockfile already matches it, npm has nothing to change
+            source = "discovery's lockfile (manifest unchanged by the patch, no npm call)"
+            had_lock = False
+        elif seeded is not None:
             args = [_npm(), "install", "--package-lock-only", "--ignore-scripts", "--package-lock=true",
                     "--no-audit", "--no-fund"]
             if proj.name != "root":

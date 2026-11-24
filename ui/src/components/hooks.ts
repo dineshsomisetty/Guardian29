@@ -117,19 +117,15 @@ export function useDismiss(open: boolean, close: () => void) {
 export type ReportLinks = { json: string | null; html: string | null } | "pending" | "not_yet";
 
 /**
- * Where the exported reports are. The API only has them once the run is done, so for a live run
- * nothing is requested (a probe would be a guaranteed 404).
+ * Where the exported reports are. A report can exist before the run is done: an interim one is written whenever
+ * the run pauses for decisions after a fix was validated, so the files are always probed (firstAvailable returns
+ * null for a missing one) and probed again whenever the status changes (e.g. a validation finishing).
  */
 export function useReportLinks(src: { kind: string; runId: string }, status: string, enabled = true): ReportLinks {
   const [links, setLinks] = useState<ReportLinks>("pending");
-  const mayHave = src.kind !== "api" || status === "done";
   useEffect(() => {
     let dead = false;
     if (!enabled) return;
-    if (!mayHave) {
-      setLinks("not_yet");
-      return;
-    }
     setLinks("pending");
     const s = src as Parameters<typeof reportCandidates>[0];
     Promise.all([firstAvailable(reportCandidates(s, "json")), firstAvailable(reportCandidates(s, "html"))]).then(
@@ -138,7 +134,7 @@ export function useReportLinks(src: { kind: string; runId: string }, status: str
     return () => {
       dead = true;
     };
-  }, [src.kind, src.runId, mayHave, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [src.kind, src.runId, status, enabled]); // eslint-disable-line react-hooks/exhaustive-deps
   return links;
 }
 

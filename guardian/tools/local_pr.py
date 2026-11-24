@@ -6,37 +6,53 @@ configured or contacted, nothing is pushed or merged, the target itself is never
 list (no shell) with hooks disabled, so a hook copied from the target cannot run.
 
 The tool is a write tool (G3.3): it runs only under the `approve` Approval that matches the plan.
+
+Pipeline use: called by the validator after a plan is verified AND a human approved it (the registry's call_tool
+checks plan_id + plan_hash before this code runs). Several verified plans of one attempt (batch remediation) can
+share one branch, one commit and one PR.md.
+Reads: runs/<id>/plans, validation results and evidence (via core.plans / JsonStore), approvals.jsonl, and the
+original target (only to rebuild the "before" baseline commit).
+Writes: a git repo inside runs/<id>/attempts/<attempt_id>/work (when it has none yet), a commit on the branch, and
+runs/<id>/attempts/<attempt_id>/PR.md. Emits one `diff` Evidence (branch, commit, files, pushed=False).
+External process: `git` only (init/add/commit/checkout/rev-parse), no network, no remote.
+Failure: PatchError (a ValueError) when the attempt is not verified, nothing changed, or paths escape the copy;
+call_tool logs it and the run goes on without a branch.
 """
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from guardian.core.models import Approval, Evidence, RemediationPlan, ValidationResult
-from guardian.core.plans import load_plan
+from guardian.core.plans import load_plan, load_validation, read_approvals
 from guardian.core.store import JsonStore
 from guardian.guardrails.redact import redact
 from guardian.tools import binaries
 from guardian.tools.patching import PatchError, confined
 from guardian.tools.registry import ToolContext, ToolOutput
 
-AUTHOR = "Guardian <guardian@localhost>"
+AUTHOR = "Guardian <guardian@localhost>"  # fixed commit author: the tool never uses the user's git identity
 
 
 class BranchArgs(BaseModel):
+    """Arguments of local_fix_branch (G3.2): ids are pattern-checked ULIDs so nothing odd reaches a path or argv."""
+
     plan_id: str = Field(pattern=r"^pl_[0-9A-Z]{26}$")
     attempt_id: str = Field(pattern=r"^at_[0-9A-Z]{26}$")
     finding_id: str = Field(pattern=r"^fd_[0-9A-Z]{26}$")
+    also_plan_ids: list[str] = Field(default=[], max_length=200)  # batch: other verified plans of the same attempt
 
 
 def branch_name(finding_id: str) -> str:
+    """`guardian/fix-<last 8 chars of the finding id, lower-case>`: short, unique per finding, always a valid ref."""
     return f"guardian/fix-{finding_id[-8:].lower()}"
 
 
 def _git(work: Path, hooks: Path, *args: str) -> str:
+    """Run `git <args>` in `work` and return stdout. The -c options make it hermetic: hooks come from an empty
+    directory (a hook shipped in the target cannot run), no fsmonitor daemon, no GPG signing, fixed identity."""
     argv = [binaries.find("git"), "-c", f"core.hooksPath={hooks}", "-c", "core.fsmonitor=false",
             "-c", "commit.gpgsign=false", "-c", "user.name=Guardian", "-c", "user.email=guardian@localhost",
             "-c", "init.defaultBranch=main", *args]
@@ -44,16 +60,16 @@ def _git(work: Path, hooks: Path, *args: str) -> str:
 
 
 def _approval(run_dir: Path, plan_id: str) -> Approval | None:
-    path = run_dir / "approvals.jsonl"
+    """The latest Approval record for `plan_id` in runs/<id>/approvals.jsonl (one JSON object per line), or None.
+    Later lines win, so a re-decision overrides an earlier one; unreadable lines are skipped."""
     found = None
-    if path.exists():
-        for line in path.read_text(encoding="utf-8").splitlines():
-            try:
-                a = Approval.model_validate_json(line)
-            except ValueError:
-                continue
-            if a.plan_id == plan_id:
-                found = a
+    for rec in read_approvals(run_dir):  # withdrawn decisions no longer count
+        try:
+            a = Approval.model_validate(rec)
+        except ValueError:
+            continue
+        if a.plan_id == plan_id:
+            found = a
     return found
 
 
@@ -68,6 +84,7 @@ def patched_files(store: JsonStore, result: ValidationResult, attempt_id: str) -
 
 
 def _commit_message(plan: RemediationPlan, finding_title: str, approval: Approval | None) -> str:
+    """Commit text: one subject line, then finding/plan ids, who approved, and the reminder that nothing is pushed."""
     who = approval.decided_by if approval else "unknown"
     return (f"guardian: {plan.action} - {finding_title[:90]}\n\n"
             f"Finding: {plan.finding_id}\nPlan: {plan.plan_id} ({plan.plan_hash[:12]})\n"
@@ -75,6 +92,12 @@ def _commit_message(plan: RemediationPlan, finding_title: str, approval: Approva
 
 
 def _commit(work: Path, hooks: Path, branch: str, files: list[str], source: Path, message: str) -> str:
+    """Commit the patched `files` on `branch` and return the commit hash.
+
+    First time (no .git in the copy): git init, then temporarily put the ORIGINAL target's version of each
+    patched file back (`source`), commit that as a "baseline", branch off, and restore the patched versions. The
+    branch diff is then exactly the patch. Later calls just switch to / reset the branch and commit again.
+    Raises PatchError if staging produced no change."""
     fresh = not (work / ".git").exists()  # never run git here without its own repo: it would find a parent repo
     if fresh:
         _git(work, hooks, "init", "-q")
@@ -108,11 +131,16 @@ def _commit(work: Path, hooks: Path, branch: str, files: list[str], source: Path
 
 
 def _fmt(d: dict) -> str:
+    """`passed=12, failed=0, total=12` for a test-count dict, or "not run" when empty."""
     return ", ".join(f"{k}={v}" for k, v in d.items()) if d else "not run"
 
 
 def render_pr(store: JsonStore, plan: RemediationPlan, result: ValidationResult, approval: Approval | None,
               finding_title: str, branch: str, commit: str, files: list[str]) -> str:
+    """Build the reviewer-facing PR.md text for one plan: proposed fix + diff, rationale, validation results
+    (build, tests, artifact rescan, SBOM diff, known limitations), risk before/after, rollback, approval record.
+    Everything is pulled from stored plan/validation/evidence records, never recomputed; the whole text goes
+    through `redact` so a secret that slipped into a log excerpt is masked."""
     diff_ev = next((e for e in (store.get_evidence(i) for i in plan.evidence_ids)
                     if e and e.kind == "patch_diff"), None)
     summary_ev = next((e for e in (store.get_evidence(i) for i in result.log_evidence_ids)
@@ -162,16 +190,21 @@ def render_pr(store: JsonStore, plan: RemediationPlan, result: ValidationResult,
 
 
 def local_fix_branch(ctx: ToolContext, args: BranchArgs) -> ToolOutput:
+    """Write tool (G3.3): commit a verified fix on a local branch and write PR.md next to the work copy.
+
+    Refuses unless ctx.work_dir is exactly this attempt's own copy and the validation verdict is "verified". With
+    `also_plan_ids` (batch) the other verified plans' files join the same commit and their PR sections are
+    appended to PR.md. Returns a `diff` Evidence and artifacts pr_markdown / branch / commit. G5.5: no remote
+    is configured, nothing is pushed or merged."""
     work = ctx.work_dir
     attempt_dir = ctx.run_dir / "attempts" / args.attempt_id
     if work is None or work.resolve() != (attempt_dir / "work").resolve():
         raise PatchError("local_fix_branch works only in the attempt's own work copy")
     store = JsonStore(ctx.run_dir)
     plan = load_plan(ctx.run_dir, args.plan_id)
-    vpath = ctx.run_dir / "validation" / f"{args.attempt_id}.json"
-    if plan is None or not vpath.exists():
+    result = load_validation(ctx.run_dir, args.attempt_id, args.plan_id)
+    if plan is None or result is None:
         raise PatchError("plan or validation result missing")
-    result = ValidationResult.model_validate(json.loads(vpath.read_text(encoding="utf-8")))
     if result.verdict != "verified":
         raise PatchError(f"no branch for a {result.verdict} attempt")
     files = patched_files(store, result, args.attempt_id)
@@ -179,12 +212,29 @@ def local_fix_branch(ctx: ToolContext, args: BranchArgs) -> ToolOutput:
         raise PatchError("no patched files recorded")
     finding = store.get_finding(args.finding_id)
     approval = _approval(ctx.run_dir, plan.plan_id)
+    extras = []  # batch: the other verified plans of this attempt go on the same branch and into the same PR.md
+    for pid in args.also_plan_ids:
+        p2, r2 = load_plan(ctx.run_dir, pid), load_validation(ctx.run_dir, args.attempt_id, pid)
+        if p2 is None or r2 is None or r2.verdict != "verified":
+            raise PatchError(f"plan {pid} is not a verified plan of attempt {args.attempt_id}")
+        files = sorted(dict.fromkeys([*files, *patched_files(store, r2, args.attempt_id)]))
+        extras.append((p2, r2, _approval(ctx.run_dir, pid), store.get_finding(p2.finding_id).title))
     branch = branch_name(args.finding_id)
-    hooks = attempt_dir / ".nohooks"
+    hooks = attempt_dir / ".nohooks"  # an empty dir used as core.hooksPath, so no git hook can run
     hooks.mkdir(exist_ok=True)
-    commit = _commit(work, hooks, branch, files, ctx.artifacts.get("target_repo", ctx.repo), _commit_message(plan, finding.title, approval))
+    message = _commit_message(plan, finding.title, approval)
+    if extras:
+        message += "\nAlso in this commit:\n" + "".join(
+            f"- {p2.action} {t[:80]} (plan {p2.plan_id}, approved by {a.decided_by if a else 'unknown'})\n"
+            for p2, _r, a, t in extras)
+    commit = _commit(work, hooks, branch, files, ctx.artifacts.get("target_repo", ctx.repo), message)
     md = attempt_dir / "PR.md"
-    md.write_text(render_pr(store, plan, result, approval, finding.title, branch, commit, files), encoding="utf-8")
+    text = render_pr(store, plan, result, approval, finding.title, branch, commit, files)
+    for p2, r2, a2, t2 in extras:
+        # drop the 4-line header (title, blank, branch line, blank) that only the first plan's section needs
+        body = render_pr(store, p2, r2, a2, t2, branch, commit, files).split("\n", 4)[4]
+        text += f"\n---\n\n# Also in this PR: {t2}\n\n" + body
+    md.write_text(text, encoding="utf-8")
     ev = Evidence(run_id=ctx.run_id, kind="diff", source_tool="git (local)",
                   facts={"branch": branch, "commit": commit, "files": files, "pushed": False, "remote": None,
                          "author": AUTHOR}, excerpt=f"{branch} {commit}")

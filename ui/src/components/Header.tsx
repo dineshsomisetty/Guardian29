@@ -4,6 +4,7 @@ import { fmtDate, shortCommit } from "../lib/format";
 import { LLM_NAME, llmMode, statusText } from "../lib/labels";
 import { useStore } from "../store";
 import { useDismiss, useReportLinks } from "./hooks";
+import RunningNow from "./RunningNow";
 import { Tip } from "./ui";
 
 const STATUS: Record<string, { text: string; cls: string }> = {
@@ -62,6 +63,7 @@ export default function Header() {
         <span className={`dot ${st.cls}`} aria-hidden />
         {st.text}
       </span>
+      <RunningNow />
       <Tip text={drawerOpen ? "Hide the activity log" : "Show everything the agents did, step by step"} side="bottom">
         <button
           type="button"

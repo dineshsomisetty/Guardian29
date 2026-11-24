@@ -119,6 +119,7 @@ def fake_workflow(monkeypatch):
     mod.new_run_id = lambda: "run_new_1"
     mod.run = lambda repo, **kw: calls.update(run=(repo, kw))
     mod.resume = lambda run_id, approval, **kw: calls.update(resume=(run_id, approval, kw))
+    mod.resume_batch = lambda run_id, batch_id, approvals, **kw: calls.update(batch=(run_id, batch_id, approvals, kw))
     import guardian.graph as pkg
 
     monkeypatch.setitem(sys.modules, "guardian.graph.workflow", mod)
@@ -170,6 +171,59 @@ def test_decision_paths(client, runs, fake_workflow):
     assert run_id == RUN and isinstance(approval, Approval)
     assert (approval.plan_id, approval.plan_hash, approval.decision, approval.comment, approval.decided_by) == (
         PID, H1, "reject", "too risky", "sai")
+
+
+BID = "bt_" + "E" * 26
+PID2 = "pl_" + "F" * 26
+H2 = "c" * 64
+
+
+def batch_url(batch=BID):
+    return f"/runs/{RUN}/batches/{batch}/decisions"
+
+
+def test_recommendations_route(client, runs):
+    assert client.get(f"/runs/{RUN}/recommendations").status_code == 404  # none yet
+    write(runs / RUN / "recommendations.json", {"round": 1, "status": "awaiting_decisions", "batch_id": BID, "items": []})
+    assert client.get(f"/runs/{RUN}/recommendations").json()["batch_id"] == BID
+
+
+def test_batch_decision_paths(client, runs, fake_workflow):
+    item = {"plan_id": PID, "plan_hash": H1, "decision": "approve"}
+    other = {"plan_id": PID2, "plan_hash": H2, "decision": "approve"}
+    body = {"decisions": [item, other], "decided_by": "sai"}
+    assert client.post(batch_url(), json=body).status_code == 409  # nothing pending
+    write(runs / RUN / "pending_batch.json", {"batch_id": BID, "round": 1, "items": [
+        {"plan_id": PID, "plan_hash": H1, "rec_id": "rc_1"}, {"plan_id": PID2, "plan_hash": H2, "rec_id": "rc_2"}]})
+
+    def code(decisions, batch=BID):
+        return client.post(batch_url(batch), json={"decisions": decisions, "decided_by": "sai"}).status_code
+
+    assert code([item, other], "bt_" + "X" * 26) == 400  # not the pending batch
+    assert code([item]) == 400  # a pending item has no decision
+    assert code([]) == 400
+    assert code([item, other, {**other, "plan_id": "pl_" + "X" * 26}]) == 400  # extra item
+    assert code([item, item, other]) == 400  # the same plan twice
+    assert code([item, {**other, "plan_hash": "b" * 64}]) == 400  # G5.1
+    assert code([item, {**other, "plan_hash": "not-a-hash"}]) == 422
+    for d in ("reject", "accept_risk"):  # G5.2
+        assert code([item, {**other, "decision": d}]) == 400
+        assert code([item, {**other, "decision": d, "comment": "  "}]) == 400
+    assert code([item, {**other, "decision": "maybe"}]) == 422
+    assert code([item, {**other, "decision": "reject", "comment": "too risky"}]) == 400  # a reject says why
+    assert code([item, {**other, "decision": "reject", "comment": "x", "reason_type": "nope"}]) == 422
+    assert code([{**item, "reason_type": "too_big"}, other]) == 400  # reason types are for rejects only
+    assert "batch" not in fake_workflow
+
+    r = client.post(batch_url(), json={"decisions": [item, {**other, "decision": "reject", "comment": "too risky",
+                                                                   "reason_type": "too_big"}],
+                                       "decided_by": "sai"})
+    assert r.status_code == 202 and r.json()["decisions"] == 2
+    wait_for(fake_workflow, "batch")
+    run_id, batch_id, approvals, _ = fake_workflow["batch"]
+    assert (run_id, batch_id) == (RUN, BID)
+    assert [(a.plan_id, a.plan_hash, a.decision, a.comment, a.reason_type, a.decided_by) for a in approvals] == [
+        (PID, H1, "approve", None, None, "sai"), (PID2, H2, "reject", "too risky", "too_big", "sai")]
 
 
 def test_cors(client):
@@ -260,3 +314,17 @@ def test_trace_and_watch_routes(client, runs):
     assert client.get(f"/runs/{RUN}/watch").json() == []
     write(runs / RUN / "watch" / "20260101T000000.json", {"new_findings": []})
     assert client.get(f"/runs/{RUN}/watch").json() == [{"new_findings": []}]
+
+
+def test_batch_partial_decisions(client, runs, fake_workflow):
+    write(runs / RUN / "pending_batch.json", {"batch_id": BID, "round": 1, "items": [
+        {"plan_id": PID, "plan_hash": H1, "rec_id": "rc_1"}, {"plan_id": PID2, "plan_hash": H2, "rec_id": "rc_2"}]})
+    item = {"plan_id": PID, "plan_hash": H1, "decision": "approve"}
+    assert client.post(batch_url(), json={"decisions": [item]}).status_code == 400  # a full submission needs both
+    assert client.post(batch_url(), json={"decisions": [], "partial": True}).status_code == 400
+    assert client.post(batch_url(), json={"decisions": [{**item, "plan_hash": "b" * 64}], "partial": True}
+                       ).status_code == 400
+    r = client.post(batch_url(), json={"decisions": [item], "partial": True})
+    assert r.status_code == 202
+    wait_for(fake_workflow, "batch")
+    assert fake_workflow["batch"][3]["partial"] is True and len(fake_workflow["batch"][2]) == 1

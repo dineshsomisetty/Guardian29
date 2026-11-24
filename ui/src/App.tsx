@@ -7,7 +7,7 @@ import Rail, { VIEW_INFO } from "./components/Rail";
 import Header from "./components/Header";
 import GraphView from "./components/GraphView";
 import FindingsTable from "./components/FindingsTable";
-import ApprovalGate from "./components/ApprovalGate";
+import Remediation from "./components/Remediation";
 import ValidationView from "./components/ValidationView";
 import ReportView from "./components/ReportView";
 import Overview from "./components/Overview";
@@ -61,7 +61,7 @@ function Shell() {
           {view === "overview" && <Overview />}
           {view === "graph" && <GraphView />}
           {view === "findings" && <FindingsTable />}
-          {view === "gate" && <ApprovalGate />}
+          {view === "gate" && <Remediation />}
           {view === "validation" && <ValidationView />}
           {view === "report" && <ReportView />}
         </div>

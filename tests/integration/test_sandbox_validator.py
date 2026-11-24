@@ -84,3 +84,57 @@ def test_patched_copy_lockfiles_resolved_before_rescan(target, settings, fake_ll
     order.clear()  # discovery resolved the original target; only the validator's calls matter here
     _decide(s, "run_rl", "approve")
     assert order[:2] == [f"resolve:{target.name}:work", "rescan"], order
+
+
+def test_failing_test_that_asserts_the_attack_does_not_fail_the_fix(target, settings, fake_llm_factory, rig,  # noqa: F811
+                                                                     monkeypatch):
+    """Closing the hole breaks a test like "should accept forged JWTs": the fix is verified, at medium
+    confidence, and the test is named for review. Any other new failure still fails the attempt."""
+    from guardian.core.models import Evidence
+
+    names = {"new": ["GET basket should accept forged JWTs"]}
+
+    def fake_validate(ctx):
+        res = sandbox.SandboxResult(ran=True, kind="npm", verdict="failed_tests", build_ok=True, tests_ran=True,
+                                    unit_tests={"passed": 9, "failed": 1, "total": 10},
+                                    failed_names={"test": list(names["new"]), "new_vs_baseline": list(names["new"])},
+                                    baseline={"verdict": None})
+        ev = Evidence(run_id=ctx.run_id, kind="test_result", source_tool="sandbox:docker", facts={})
+        return ToolOutput(evidence=[ev], artifacts={"sandbox_result": res})
+
+    monkeypatch.setattr(sandbox, "sandbox_validate", fake_validate)
+    s = _settings(settings, plans=3)
+    llm, _b = fake_llm_factory(lambda *a: '{"assessments": []}')
+    run_dir = workflow.run(target, run_id="run_ex", settings=s, llm=llm, echo=False)
+    _decide(s, "run_ex", "approve")
+    v = list_validations(run_dir)[0]
+    assert v.verdict == "verified" and v.final_confidence.value == "medium"
+
+    names["new"] = ["GET basket should accept forged JWTs", "checkout total is correct"]
+    run_dir = workflow.run(target, run_id="run_ex2", settings=s, llm=llm, echo=False)
+    _decide(s, "run_ex2", "approve")
+    assert list_validations(run_dir)[0].verdict == "failed_tests"
+
+
+def test_fast_path_skips_the_sandbox_says_so_and_is_never_high(target, settings, fake_llm_factory, rig,  # noqa: F811
+                                                                 monkeypatch):
+    """A change that cannot touch app code (eligibility itself is tested in test_sandbox_shards) runs no install /
+    build / tests: the result reports them as skipped, not passed, and cannot reach HIGH confidence."""
+    from guardian.core.store import JsonStore
+
+    fake, _ = rig
+    fake.test_exit = 0
+    monkeypatch.setattr(sandbox, "fast_path_files", lambda plans: [".github/workflows/ci.yml"])
+    s = _settings(settings, plans=3)
+    llm, _b = fake_llm_factory(lambda *a: '{"assessments": []}')
+    run_dir = workflow.run(target, run_id="run_fp", settings=s, llm=llm, echo=False)
+    fake.calls.clear()
+    _decide(s, "run_fp", "approve")
+    v = list_validations(run_dir)[0]
+    assert not any(a[1] in ("build", "run") for a in fake.calls)  # no install, build or test container
+    assert v.verdict == "verified" and v.final_confidence.value == "medium" and v.build_ok is None
+    assert v.unit_tests == {} and v.integration_tests == {} and v.artifact_rescanned
+    summary = next(e for e in JsonStore(run_dir).list_evidence() if e.evidence_id == v.log_evidence_ids[0])
+    assert summary.facts["fast_path"] is True
+    assert {"build", "unit_tests", "integration_tests"} <= set(summary.facts["checks_skipped"])
+    assert summary.facts["sandbox"].startswith("not run: this change does not touch application code")

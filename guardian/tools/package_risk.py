@@ -1,10 +1,15 @@
 """Advanced package risk from registry metadata (D4-10, stretch; ported from dev04 and extended).
 
-Pure functions over trimmed packuments (threat_intel.trim_packument), so fixtures are easy and offline:
-  * maintainer change in the latest release
-  * unusual release activity (burst of releases, very recent release, very young package)
-  * dependency confusion (names under an internal scope/name from guardian.yaml that also exist publicly)
-  * provenance gaps (registry/audit signals from tools/provenance.py; peers = the other checked packages)
+Called by: tools/detectors/package_risk.py (the detection agent's `package_risk` tool), which fetches the
+trimmed packuments and passes them in. Everything here is a pure function over a trimmed packument (the dict
+produced by threat_intel.trim_packument), so unit tests need no network and the module never does I/O.
+Rules (each returns facts that become Evidence `registry_metadata` facts in the detector):
+  * maintainer change     the latest release has a completely different maintainer set than the one before
+  * unusual release activity  burst of releases, very recent release, very young package
+  * dependency confusion  names under an internal scope/name from guardian.yaml that also exist publicly
+  * provenance gaps       registry/audit signals from tools/provenance.py; "peers" = the other packages checked
+Missing metadata (offline cache miss, unpublished package) simply produces no facts: no finding, no guess.
+Thresholds come from guardian.yaml `thresholds` merged over DEFAULTS.
 """
 from __future__ import annotations
 
@@ -12,13 +17,19 @@ from datetime import UTC, datetime, timedelta
 
 from guardian.tools.provenance import maintainer_changed, provenance_for
 
+# Defaults for guardian.yaml thresholds:
+#   release_burst_versions / release_burst_days  this many stable releases inside this many days = a burst
+#   release_burst_recent_days  only bursts within the last N days matter (old history is not a current signal)
+#   new_version_days           a release this recent is "very recent"
+#   min_package_age_days       a package younger than this is "very young" (typosquats/attacks are new packages)
 DEFAULTS = {"release_burst_versions": 5, "release_burst_days": 7, "new_version_days": 3, "min_package_age_days": 7,
             "release_burst_recent_days": 90}
 PEER_MIN = 3  # peers that must have a signal before its absence counts as a gap
-PEER_SHARE = 0.5
+PEER_SHARE = 0.5  # ...and at least this fraction of the other checked packages must carry it
 
 
 def _ts(s: str) -> datetime | None:
+    """Parse an npm registry ISO timestamp (trailing Z allowed); None if missing or malformed."""
     try:
         return datetime.fromisoformat(s.replace("Z", "+00:00"))
     except (ValueError, AttributeError):
@@ -26,9 +37,16 @@ def _ts(s: str) -> datetime | None:
 
 
 def release_activity(meta: dict, thresholds: dict | None = None, now: datetime | None = None) -> list[dict]:
+    """Unusual-release-activity signals for one package: [{rule: release_burst | very_recent_release |
+    very_young_package, ...details}], empty when normal.
+
+    `thresholds` overrides DEFAULTS (None values ignored); `now` is injectable for tests. A lone
+    very_recent_release is dropped because a fresh release is routine for an active project; it is only kept
+    as context next to a real signal."""
     c = {**DEFAULTS, **{k: v for k, v in (thresholds or {}).items() if v is not None}}
     now = now or datetime.now(UTC)
     t = meta.get("time") or {}
+    # all publish times except registry bookkeeping keys (created/modified/unpublished are not versions)
     times = sorted(dt for k, v in t.items() if k not in ("created", "modified", "unpublished") and (dt := _ts(v)))
     # stable releases only: big projects publish -next/-rc builds daily, which is their normal cadence
     stable = sorted(dt for k, v in t.items()
@@ -38,10 +56,11 @@ def release_activity(meta: dict, thresholds: dict | None = None, now: datetime |
     window = timedelta(days=c["release_burst_recent_days"])
     # only a *recent* burst, and only for a package that normally releases less than weekly, is a signal
     recent = [x for x in stable if now - x <= window]
+    # the 365 days before the recent window: used to tell a normally busy package from a sudden burst
     year_before = [x for x in stable if window < now - x <= window + timedelta(days=365)]
     if len(year_before) >= 52:
         recent = []  # a package that already releases weekly or faster: a busy week is normal for it
-    for i in range(len(recent) - n + 1):
+    for i in range(len(recent) - n + 1):  # sliding window: n consecutive releases within d days
         if recent[i + n - 1] - recent[i] <= d:
             out.append({"rule": "release_burst", "versions": n, "window_days": c["release_burst_days"],
                         "start": recent[i].date().isoformat()})
@@ -60,6 +79,7 @@ def release_activity(meta: dict, thresholds: dict | None = None, now: datetime |
 
 
 def _maintainer_names(people) -> set[str]:
+    """Lowercased maintainer identifiers (name, else email) from npm maintainer dicts or plain strings."""
     return {(p.get("name") or p.get("email") or "").lower() if isinstance(p, dict) else str(p).lower()
             for p in people or []} - {""}
 
@@ -77,6 +97,7 @@ def maintainer_facts(meta: dict) -> dict | None:
 
 
 def _has(meta: dict, key: str) -> bool:
+    """True when the packument has a non-empty value for `key` (e.g. latest_signatures)."""
     return bool(meta.get(key))
 
 
@@ -85,7 +106,7 @@ def provenance_gaps(metas: dict[str, dict]) -> dict[str, dict]:
 
     Reasons: `no_repository_and_maintainer_changed` (plan section 7) and `signature_missing_peers_have` /
     `attestation_missing_peers_have` (>= PEER_MIN of the other checked packages, >= PEER_SHARE of them, carry it)."""
-    n = len(metas)
+    n = len(metas)  # packages checked in this run (the peer group)
     sig_peers = sum(1 for m in metas.values() if _has(m, "latest_signatures"))
     att_peers = sum(1 for m in metas.values() if _has(m, "latest_attestations"))
     out: dict[str, dict] = {}
@@ -94,9 +115,12 @@ def provenance_gaps(metas: dict[str, dict]) -> dict[str, dict]:
         reasons = []
         if not prov["repository_url"] and prov["maintainer_changed"]:
             reasons.append("no_repository_and_maintainer_changed")
-        others = max(n - 1, 0)
+        others = max(n - 1, 0)  # peers excluding this package
+        # peers with the signal = group total minus this package itself
         sig_others = sig_peers - (1 if _has(meta, "latest_signatures") else 0)
         att_others = att_peers - (1 if _has(meta, "latest_attestations") else 0)
+        # absence only matters when the ecosystem norm in this repo is to have it (a lone unsigned package among
+        # unsigned peers is not suspicious)
         if not _has(meta, "latest_signatures") and sig_others >= PEER_MIN and sig_others >= PEER_SHARE * others:
             reasons.append("signature_missing_peers_have")
         if not _has(meta, "latest_attestations") and att_others >= PEER_MIN and att_others >= PEER_SHARE * others:
@@ -108,7 +132,8 @@ def provenance_gaps(metas: dict[str, dict]) -> dict[str, dict]:
 
 
 def matches_internal(name: str, internal: list[str]) -> bool:
-    """`internal` entries are scopes ("@acme", "@acme/") or exact package names."""
+    """True if `name` is under one of the organisation's internal names. `internal` entries are scopes
+    ("@acme", "@acme/") or exact package names (guardian.yaml internal_scopes)."""
     for s in internal:
         s = str(s).rstrip("/")
         if name == s or (s.startswith("@") and name.startswith(s + "/")):
@@ -117,7 +142,11 @@ def matches_internal(name: str, internal: list[str]) -> bool:
 
 
 def confusion_facts(meta: dict | None) -> dict | None:
-    """Facts when an internal-looking name resolves on the public registry; None if it does not exist there."""
+    """Facts when an internal-looking name resolves on the public registry; None if it does not exist there.
+
+    That is the dependency-confusion risk: a public package with the same name as a private one can be installed
+    instead of it. The facts (public latest version, maintainers, creation date, version count) let a reviewer
+    judge whether the public package is the real internal one or an impostor."""
     if not meta:
         return None
     t = meta.get("time") or {}

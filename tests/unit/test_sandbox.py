@@ -1,6 +1,7 @@
 """D2-08: sandbox pipeline with a fake docker runner (no Docker needed), sbom_diff, mode switch."""
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -293,7 +294,7 @@ def test_multi_project_npm_installs_every_project_and_runs_the_full_build(tmp_pa
 
     fake = use(monkeypatch, Capture())
     sandbox.sandbox_validate(ctx_for(w, tmp_path))
-    df = seen["dockerfile"]
+    df = re.sub(r"--mount=\S+ ", "", seen["dockerfile"])  # the BuildKit download-cache mount is not the point here
     assert "RUN cd /deps/ && npm ci --ignore-scripts --no-audit" in df
     assert "RUN cd /deps/frontend && npm ci --ignore-scripts --legacy-peer-deps" in df
     runs = [a[-1] for a in fake.calls if a[1] == "run"]
@@ -332,7 +333,8 @@ def test_subproject_built_by_the_root_build_is_prebuilt_in_the_deps_image(tmp_pa
 
     fake = use(monkeypatch, Capture())
     sandbox.sandbox_validate(ctx_for(w, tmp_path))
-    assert "RUN cd /deps/frontend && NG_CLI_ANALYTICS=false npm run build" in seen["dockerfile"] and seen["src_copied"]
+    df = re.sub(r"--mount=\S+ ", "", seen["dockerfile"])
+    assert "RUN cd /deps/frontend && NG_CLI_ANALYTICS=false npm run build" in df and seen["src_copied"]
     build = next(a[-1] for a in fake.calls if a[1] == "run" and "npm run build" in a[-1])
     assert "cp -r /deps/frontend/dist /work/frontend/dist" in build and build.endswith("npm run build:server")
 
@@ -348,6 +350,7 @@ def test_validator_lockfiles_start_from_discoverys_resolution(tmp_path, monkeypa
     for d in (base, w):
         d.mkdir()
         (d / "package.json").write_text('{"dependencies": {"a": "1"}}', encoding="utf-8")
+    (w / "package.json").write_text('{"dependencies": {"a": "2"}}', encoding="utf-8")  # the patch changed the manifest
     (base / "package-lock.json").write_text('{"packages": {"": {}, "node_modules/a": {"version": "1.0.0"}}}')
     calls = []
     monkeypatch.setattr(resolve, "run", lambda args, cwd, timeout: calls.append((args, cwd)))

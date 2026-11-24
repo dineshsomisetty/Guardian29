@@ -6,6 +6,25 @@
 - replay: serve from cache only; fail closed if missing (no network).
 
 Keys come only from the environment and are never logged (G1.3).
+
+Modes (`Settings.llm_mode`, env GUARDIAN_LLM_MODE):
+- live    call the backend every time; nothing is read from or written to the cache.
+- record  call the backend and also write each response to the cache. Used to capture the runs that tests and
+          offline demos replay later.
+- replay  never touch the network or need a key: answer from the cache or fail with `ReplayMiss`. This is what
+          makes a full run reproducible and runnable with GUARDIAN_OFFLINE=1 (G7.3).
+
+Cache: one JSON file per request under `Settings.llm_cache_dir`, named by SHA-256 of (agent, model, system prompt,
+user prompt, schema). So any change to a prompt, the schema, the agent label or the model is a new key and a
+replay of an old recording misses instead of silently returning an answer for a different question.
+
+Replay misses: `ReplayMiss` is an LLMError. Callers treat it like any LLM failure and fall back to their
+deterministic path (the evidence analyst keeps the rule risk, the risk analyst uses template summaries, the
+remediation agent uses rules). The provider never invents an answer and never calls the network in replay mode.
+
+Budget: the provider does not count tokens itself. Each caller checks `Budget.tokens_left()` before a call and
+charges `LLMResponse.usage` afterwards (G3.6); cached replies carry no usage and therefore cost nothing.
+Outbound calls pass the network allowlist (G3.5): the endpoint host must be the configured LLM host.
 """
 
 from __future__ import annotations
@@ -25,19 +44,29 @@ from guardian.guardrails.network import NetworkBlocked, check_url
 
 
 class LLMError(Exception):
+    """Any failure to get a usable answer from the model (no key, network, HTTP error, truncated output, ...)."""
+
     pass
 
 
 class LLMRefusal(LLMError):
+    """The model declined to answer (safety refusal). Not retried; callers fall back like for any LLMError."""
+
     pass
 
 
 class ReplayMiss(LLMError):
+    """Replay mode found no recorded response for this exact request (see the cache key in the module doc)."""
+
     pass
 
 
 @dataclass
 class LLMResponse:
+    """One model answer. `text` is the raw JSON string (parsed and checked by the caller, G4.1); `model` is the
+    model that actually answered (a server-side fallback may differ from the requested one); `cached` is True for
+    a replayed answer; `usage` is {"input_tokens", "output_tokens"} for a live call, None when replayed."""
+
     text: str
     model: str
     cached: bool = False
@@ -45,6 +74,8 @@ class LLMResponse:
 
 
 class Backend(Protocol):
+    """What a model backend must offer: return JSON text matching `schema` for a system + user prompt."""
+
     model: str
 
     def complete_json(self, system: str, user: str, schema: dict[str, Any]) -> LLMResponse: ...
@@ -54,6 +85,8 @@ class Backend(Protocol):
 
 
 class AnthropicBackend:
+    """Anthropic SDK with structured (JSON schema) output. `effort` trades reasoning depth for cost/latency."""
+
     def __init__(self, model: str, effort: str = "low", max_tokens: int = 16000):
         import anthropic  # local import: replay mode never needs the SDK or a key
 
@@ -65,6 +98,8 @@ class AnthropicBackend:
         self.max_tokens = max_tokens
 
     def complete_json(self, system: str, user: str, schema: dict[str, Any]) -> LLMResponse:
+        """One request. Raises LLMRefusal if the model declines, LLMError if the output was cut off at
+        max_tokens (truncated JSON would be useless) or contains no text block."""
         resp = self._client.beta.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
@@ -104,6 +139,12 @@ class OpenAICompatBackend:
         self._max_tokens = max_tokens
 
     def complete_json(self, system: str, user: str, schema: dict[str, Any]) -> LLMResponse:
+        """One chat-completions request (temperature 0 for repeatability).
+
+        With json_mode "json_object" the schema is appended to the system prompt, because the endpoint only
+        guarantees valid JSON, not a schema; our parser (G4.1) enforces the shape. The URL passes the G3.5
+        allowlist first. Errors (no key for a hosted endpoint, unreachable, HTTP >= 400, output cut off) are raised
+        as LLMError; the response body is never logged beyond a 200 character error excerpt."""
         if not self._key and "api." in self._url:
             raise LLMError(f"{self._key_env} not set (live/record mode needs it; use replay for offline)")
         headers = {"Authorization": f"Bearer {self._key}"} if self._key else {}
@@ -143,7 +184,10 @@ class OpenAICompatBackend:
 
 
 class LLMProvider:
-    """Wraps a backend with record/replay caching. `backend` may be injected (tests: fake LLM)."""
+    """Wraps a backend with record/replay caching. `backend` may be injected (tests: fake LLM).
+
+    The backend is created lazily on the first live/record call, so replay mode (and tests with an injected
+    fake) never needs an SDK, a key or network access."""
 
     def __init__(self, mode: str, cache_dir: Path, model: str, backend: Backend | None = None,
                  backend_factory=None):
@@ -155,6 +199,9 @@ class LLMProvider:
 
     @classmethod
     def from_settings(cls, s: Settings) -> LLMProvider:
+        """Build the provider the settings ask for: anthropic -> AnthropicBackend; anything else needs
+        LLM_BASE_URL and uses the OpenAI-compatible backend (DeepSeek in json_object mode, others json_schema).
+        Backend creation is deferred, so a missing key surfaces on the first call, not here."""
         def factory() -> Backend:
             if s.llm_provider == "anthropic":
                 return AnthropicBackend(s.llm_model)
@@ -168,6 +215,7 @@ class LLMProvider:
         return cls(s.llm_mode, s.llm_cache_dir, s.llm_model, backend_factory=factory)
 
     def _backend_or_create(self) -> Backend:
+        """The backend, created on first use; LLMError if neither a backend nor a factory was provided."""
         if self._backend is None:
             if self._factory is None:
                 raise LLMError("no LLM backend configured")
@@ -175,10 +223,16 @@ class LLMProvider:
         return self._backend
 
     def cache_key(self, agent: str, system: str, user: str, schema: dict[str, Any]) -> str:
+        """SHA-256 hex of everything that determines the answer; the cache file name for this request."""
         blob = json.dumps([agent, self.model, system, user, schema], sort_keys=True)
         return hashlib.sha256(blob.encode()).hexdigest()
 
     def complete_json(self, agent: str, system: str, user: str, schema: dict[str, Any]) -> LLMResponse:
+        """Answer a structured request according to the mode (module docstring).
+
+        `agent` names the caller (part of the cache key and stored in recordings). Raises ReplayMiss in replay
+        mode when nothing was recorded; otherwise LLMError / LLMRefusal from the backend. Side effect: in record
+        mode writes <cache_dir>/<key>.json ({agent, text, model}) after a successful call."""
         key = self.cache_key(agent, system, user, schema)
         path = self.cache_dir / f"{key}.json"
         if self.mode == "replay":

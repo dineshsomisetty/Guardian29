@@ -1,4 +1,12 @@
-"""D2-02 SBOM: `syft scan dir:<work> -o cyclonedx-json=<run>/sbom.cdx.json`. Owner: Dev2."""
+"""D2-02 SBOM: `syft scan dir:<work> -o cyclonedx-json=<run>/sbom.cdx.json`. Owner: Dev2.
+
+Pipeline use: the discovery agent calls `generate_sbom` after lockfiles are resolved; the graph builder, Grype
+and the validator's SBOM diff all start from the file it writes. Syft runs on the sandboxed WORK COPY (never the
+original target), offline: it only reads files. Output: runs/<id>/sbom.cdx.json (CycloneDX JSON) and one `sbom`
+Evidence with component counts and the file's SHA-256; the path is also published as artifact `sbom_path`.
+Failure: if syft is missing or exits non-zero, `run` raises and call_tool logs the error and continues without
+an SBOM (later steps then report what they could not do).
+"""
 
 from __future__ import annotations
 
@@ -9,11 +17,15 @@ from guardian.core.models import Evidence
 from guardian.tools.binaries import find, run, sha256_file, version
 from guardian.tools.registry import ToolContext, ToolOutput
 
-# Legacy/backup and challenge folders are not part of the shipped app; analysed separately (what changed).
+# Syft --exclude globs. Legacy/backup and challenge folders are not part of the shipped app; analysed
+# separately (what changed). node_modules is excluded because the lockfile already describes what would be
+# installed, and scanning thousands of unpacked files would be slow and noisy.
 EXCLUDES = ["./ftp/**", "./**/node_modules/**", "./test/**", "./data/static/**"]
 
 
 def generate_sbom(ctx: ToolContext) -> ToolOutput:
+    """Run Syft on the work copy and return an `sbom` Evidence (format, component/purl counts, hash) plus the
+    `sbom_path` artifact. Component counts are read back from the written file, not from Syft's stdout."""
     work = ctx.work_dir or ctx.repo
     out = ctx.run_dir / "sbom.cdx.json"
     args = [find("syft"), "scan", f"dir:{work}", "-o", f"cyclonedx-json={out}", "-q"]

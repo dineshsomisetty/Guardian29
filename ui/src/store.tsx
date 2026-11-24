@@ -186,7 +186,7 @@ function Inner({
       setData((prev) => {
         const next = { ...prev };
         let changed = false;
-        for (const k of ["summary", "findings", "risk", "plans", "validation", "approvals"] as const) {
+        for (const k of ["summary", "findings", "risk", "plans", "validation", "approvals", "recommendations"] as const) {
           if (!same(prev[k], dyn[k])) {
             (next as Record<string, unknown>)[k] = dyn[k];
             changed = true;

@@ -1,4 +1,16 @@
-"""D4-12 ci_pin: GitHub Actions referenced by tag/branch instead of a 40-char commit SHA. Owner: Dev4."""
+"""D4-12 ci_pin: CI references (GitHub Actions, GitLab includes) not pinned to a commit SHA. Owner: Dev4.
+
+Called by: the detection agent (tool `detector:ci_pin`); the validator re-runs it on patched copies.
+Why: a tag or branch can be moved by whoever controls the action's repository, so every pipeline run would
+execute different code with the pipeline's secrets. Only a full 40-char commit SHA is immutable.
+Inputs: workflow files parsed by adapters/github_actions.py (`uses: owner/action@ref`) and
+adapters/gitlab_ci.py (`include:` entries). Local actions (`./...`) are never flagged.
+Output: Finding category `unpinned_ci` (scope prod, project "root"), one per (workflow file, action@ref) with every
+line of that use in the evidence, and one per unpinned GitLab include. Evidence kind `file_excerpt` with facts
+  GitHub: {action, ref, pinned_to_sha: False, lines, workflow, pinned_actions_in_repo}
+  GitLab: {include, ref, pinned_to_sha: False, ci: "gitlab"}
+No network, no cache: purely a read of the repo files.
+"""
 
 from __future__ import annotations
 
@@ -8,8 +20,10 @@ from guardian.tools.registry import ToolContext, ToolOutput
 
 
 def detect(ctx: ToolContext) -> ToolOutput:
+    """Flag every non-local, non-SHA-pinned GitHub Action use and GitLab include in the work copy."""
     root = ctx.work_dir or ctx.repo
     refs = github_actions.parse(root)
+    # (workflow file, "action@ref") -> uses of it, so repeated uses in one file give one finding
     groups: dict[tuple[str, str], list] = {}
     for r in refs:
         if not r.local and not r.pinned:
@@ -20,6 +34,7 @@ def detect(ctx: ToolContext) -> ToolOutput:
         ev = Evidence(run_id=ctx.run_id, kind="file_excerpt", source_tool="detector:ci_pin",
                       facts={"action": first.action, "ref": first.ref, "pinned_to_sha": False,
                              "lines": [h.line for h in hits], "workflow": file,
+                             # context for the analyst: the repo already pins some actions, so pinning is feasible
                              "pinned_actions_in_repo": sum(1 for r in refs if r.pinned)},
                       file_path=file, line=first.line, excerpt=first.raw)
         evidence.append(ev)
