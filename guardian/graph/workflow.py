@@ -1,6 +1,6 @@
 """LangGraph orchestration + run driver. Owner: Dev1.
 
-Graph (§2.2; the investigator is D1-08, the full §7 risk analyst D1-06 is still the Day-1 form):
+Graph (§2.2; both sequential and batch remediation use the full evidence-backed risk analyst):
 
     START -> discovery -> detection -> evidence_analyst -> investigator -> risk_analyst
           -> [ remediation -> (sandbox_preview) -> human_gate -> record_decision -> validator ]*  -> reporter -> END

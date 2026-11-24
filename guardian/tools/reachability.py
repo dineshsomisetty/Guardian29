@@ -6,11 +6,14 @@ Question answered: does production code actually use a vulnerable package, so it
 
 Tiers (ReachabilityResult.tier):
   imported      the package is imported/required in at least one production source file (proven, with file+line)
-  not_imported  source files were scanned and none imports it (likely only a transitive/unused dependency)
+  not_imported  source files were scanned and no supported import pattern matched
   unknown       nothing could be scanned for this ecosystem (no scanner, no source files): never read as safe
 Function level (`reachability_called`, stretch goal 1): for packages with a reviewed rule in
 data/reachability/vulnerable_functions.yaml, find call sites of the known-vulnerable functions (npm only).
 Evidence `called` entries: {vuln_ids, functions, why, sites:[{function, file, line, excerpt}]}.
+These are static text-pattern checks, not runtime traces or a whole-program call graph.
+Dynamic loading, aliases outside the supported patterns, and transitive use can be missed;
+neither not_imported nor a matching call site establishes exploitability on its own.
 
 Inputs: the work copy of the target. Test paths, build output and vendored dirs are skipped (SKIP_DIRS,
 TEST_HINTS), files over MAX_FILE_BYTES are ignored. Ecosystems: npm (JS/TS), pypi (.py), maven (Java/Kotlin...).
