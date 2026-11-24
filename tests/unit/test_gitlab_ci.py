@@ -17,18 +17,18 @@ scan:
     name: "stackhawk/hawkscan:beta"
     entrypoint: [""]
 pinned:
-  image: python:3.12@sha256:%s
+  image: python:3.12@sha256:{}
 deploy:
   image: $CI_REGISTRY_IMAGE
 include:
   - project: 'acme/ci-templates'
     ref: main
   - project: 'acme/pinned'
-    ref: %s
+    ref: {}
   - remote: 'https://example.com/ci.yml'
   - template: Security/SAST.gitlab-ci.yml
   - local: other.gitlab-ci.yml
-""" % ("a" * 64, "b" * 40)
+""".format("a" * 64, "b" * 40)
 
 
 def _repo(tmp_path):

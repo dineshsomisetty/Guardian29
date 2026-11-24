@@ -180,3 +180,35 @@ def test_sbom_only_ecosystems_get_package_nodes_and_empty_graphs_get_a_root(tmp_
     empty = SimpleNamespace(graph=None, artifacts={"graph_json": {"nodes": [], "edges": [], "roots": []}})
     data = build_graph_json(empty, [])
     assert data["roots"] == ["root"] and any(n["id"] == "root" for n in data["nodes"])
+
+
+def test_established_lookalikes_are_not_typosquats_but_young_ones_are():
+    """query-string (13 years, 93 releases) looks like querystring but is not a typosquat; ngy-cookie (2 releases)
+    and epilogue-js (9 years but 2 releases) stay flagged; no registry data keeps the flag."""
+    from guardian.tools.detectors.typosquat import established
+
+    def meta(created, n):
+        return {"time": {"created": created}, "version_list": [f"1.{i}.0" for i in range(n)]}
+
+    assert established(meta("2013-11-13T00:00:00Z", 93)) == {"age_years": established(meta("2013-11-13T00:00:00Z", 93))["age_years"], "stable_releases": 93}
+    assert established(meta("2024-02-26T00:00:00Z", 2)) is None
+    assert established(meta("2017-08-15T00:00:00Z", 2)) is None
+    assert established(None) is None
+
+
+def test_maven_reachability_uses_java_imports_and_never_guesses(tmp_path):
+    """A Maven package is found by its groupId in Java imports (production code only); an ecosystem without a
+    scanner is 'unknown', never 'not imported' (which once turned a used xstream into a mitigate plan)."""
+    from guardian.tools import reachability as r
+
+    r._INDEX.clear()
+    src = tmp_path / "src" / "main" / "java" / "app"
+    src.mkdir(parents=True)
+    (src / "Lesson.java").write_text("package app;\nimport com.thoughtworks.xstream.XStream;\n", encoding="utf-8")
+    it = tmp_path / "src" / "it" / "java"
+    it.mkdir(parents=True)
+    (it / "FlowIT.java").write_text("import org.apache.commons.lang3.StringUtils;\n", encoding="utf-8")
+    hit = r.reachability_import(tmp_path, "com.thoughtworks.xstream/xstream", "maven")
+    assert hit.tier == "imported" and hit.hits[0]["line"] == 2
+    assert r.reachability_import(tmp_path, "org.apache.commons/commons-lang3", "maven").tier == "not_imported"
+    assert r.reachability_import(tmp_path, "github.com/x/y", "golang").tier == "unknown"

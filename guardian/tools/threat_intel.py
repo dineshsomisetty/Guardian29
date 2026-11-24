@@ -46,7 +46,7 @@ class IntelClient:
         self.cache_dir = Path(cache_dir or os.environ.get("GUARDIAN_INTEL_CACHE") or DEFAULT_CACHE)
         self._ctx = ctx  # ToolContext: G3.5 guardrail events go to this run's trace
         self._agent = agent
-        if offline is None and ctx is not None and ctx.settings.offline:
+        if offline is None and ctx is not None and getattr(ctx.settings, "offline", False):
             offline = True
         self._made_dir = False
         self._http = httpx.Client(transport=transport, timeout=20.0,

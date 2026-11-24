@@ -32,7 +32,7 @@ class ThreatIntelArgs(BaseModel):
 
 class PackagesArgs(BaseModel):
     packages: list[str] = Field(max_length=500)
-    ecosystem: Literal["npm", "pypi"] = "npm"
+    ecosystem: Literal["npm", "pypi", "maven"] = "npm"
 
 
 class PurlsArgs(BaseModel):

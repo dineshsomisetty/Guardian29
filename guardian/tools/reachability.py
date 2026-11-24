@@ -11,14 +11,20 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage", "__pycache__", ".venv", "venv", "ftp"}
-TEST_HINTS = {"test", "tests", "spec", "specs", "__tests__", "e2e", "cypress", "fixtures", "mocks"}
+SKIP_DIRS = {"node_modules", ".git", "dist", "build", "coverage", "__pycache__", ".venv", "venv", "ftp",
+             "target", ".gradle"}
+TEST_HINTS = {"test", "tests", "spec", "specs", "__tests__", "e2e", "cypress", "fixtures", "mocks", "it",
+              "integration-test", "testfixtures"}
 JS_EXT = {".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx"}
 PY_EXT = {".py"}
+JVM_EXT = {".java", ".kt", ".scala", ".groovy"}
 MAX_FILE_BYTES = 1_000_000
 
 _JS = re.compile(r"""(?:require\(\s*|\bfrom\s+|\bimport\s+|\bimport\(\s*)['"]((?:@[\w.-]+/)?[\w.-]+)(?:/[^'"]*)?['"]""")
 _PY = re.compile(r"^\s*(?:import|from)\s+([A-Za-z_][\w]*)", re.M)
+# Java/Kotlin: `import com.thoughtworks.xstream.XStream;` -> indexed under every dotted prefix, so a Maven
+# package is found by its groupId (com.thoughtworks.xstream)
+_JVM = re.compile(r"^\s*import\s+(?:static\s+)?([A-Za-z_][\w.]*)")
 
 
 @dataclass
@@ -32,11 +38,17 @@ def _is_test_path(rel: Path) -> bool:
     if any(p.lower() in TEST_HINTS for p in rel.parts[:-1]):
         return True
     n = rel.name.lower()
-    return ".test." in n or ".spec." in n or n.startswith("test_") or n.endswith("_test.py")
+    # JVM conventions: FooTest.java, FooTests.kt, FooIT.java (failsafe integration tests), src/it/...
+    jvm = n.rsplit(".", 1)[0].endswith(("test", "tests", "it")) and n.endswith((".java", ".kt", ".scala", ".groovy"))
+    return ".test." in n or ".spec." in n or n.startswith("test_") or n.endswith("_test.py") or jvm
 
 
 def norm(name: str, ecosystem: str) -> str:
-    return name.lower().replace("-", "_") if ecosystem == "pypi" else name
+    if ecosystem == "pypi":
+        return name.lower().replace("-", "_")
+    if ecosystem == "maven":
+        return name.split("/", 1)[0]  # groupId: what Java code imports
+    return name
 
 
 _INDEX: dict[tuple[str, str, bool], tuple[dict[str, list[dict]], int]] = {}
@@ -48,7 +60,10 @@ def import_index(root: Path | str, ecosystem: str = "npm", include_tests: bool =
     key = (str(root), ecosystem, include_tests)
     if key in _INDEX:
         return _INDEX[key]
-    exts, pat = (JS_EXT, _JS) if ecosystem == "npm" else (PY_EXT, _PY)
+    exts, pat = {"npm": (JS_EXT, _JS), "pypi": (PY_EXT, _PY), "maven": (JVM_EXT, _JVM)}.get(ecosystem, (set(), None))
+    if pat is None:
+        _INDEX[key] = ({}, 0)  # no scanner for this ecosystem: unknown, never "not imported"
+        return _INDEX[key]
     index: dict[str, list[dict]] = {}
     scanned = 0
     for path in sorted(root.rglob("*")):
@@ -66,9 +81,14 @@ def import_index(root: Path | str, ecosystem: str = "npm", include_tests: bool =
         scanned += 1
         for i, line in enumerate(lines, 1):
             for m in pat.finditer(line):
-                hits = index.setdefault(norm(m.group(1), ecosystem), [])
-                if len(hits) < 5:
-                    hits.append({"file": rel.as_posix(), "line": i, "excerpt": line.strip()[:200]})
+                names = [norm(m.group(1), ecosystem)]
+                if ecosystem == "maven":
+                    parts = m.group(1).split(".")
+                    names = [".".join(parts[:k]) for k in range(2, len(parts) + 1)]
+                for name in names:
+                    hits = index.setdefault(name, [])
+                    if len(hits) < 5:
+                        hits.append({"file": rel.as_posix(), "line": i, "excerpt": line.strip()[:200]})
     _INDEX[key] = (index, scanned)
     return index, scanned
 

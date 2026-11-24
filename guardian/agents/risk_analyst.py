@@ -75,7 +75,8 @@ def package_of(f: Finding, store) -> tuple[str, str] | None:
     if f.component_purl:
         try:
             name, _, eco = parse_purl(f.component_purl)
-            return name, ("pypi" if eco.lower() == "pypi" else "npm")
+            # the real ecosystem: treating every non-pip package as npm made Maven packages "not imported"
+            return name, eco.lower()
         except ValueError:
             pass
     for eid in f.evidence_ids:
@@ -293,7 +294,7 @@ def _collect(rc: RunContext, findings: list[Finding], pkgs: dict[str, tuple[str,
     if cves:
         for e in run_tool("threat_intel", {"cves": cves}):
             (g.epss if e.kind == "epss" else g.kev)[e.facts["cve"]] = e
-    for eco in ("npm", "pypi"):
+    for eco in ("npm", "pypi", "maven"):  # other ecosystems: no import scanner, so R stays unknown
         names = sorted({p[0] for p in pkgs.values() if p and p[1] == eco
                         })
         if not names:
