@@ -274,3 +274,16 @@ limited test scope. A display label or a lower score is not a substitute for exe
 An interim report can exist while another decision is pending. That report describes
 completed work so far, not completion of every remediation. The workflow checkpoint,
 pending decision, and remaining-risk sections explain what still needs attention.
+
+## 11. Trace dependency evidence through the code
+
+| Question | Source | What to inspect |
+|---|---|---|
+| Which dependency changed? | [`unexpected_change.py`](../guardian/tools/detectors/unexpected_change.py) | `diff_manifests` compares declared specs. `diff_locks` compares resolved entries and their metadata separately. |
+| Why was a dependency flagged as outdated? | [`outdated.py`](../guardian/tools/detectors/outdated.py) | Check the installed version's deprecation, the latest release date, and the difference between major versions. |
+| Where did the policy finding come from? | [`policy.py`](../guardian/tools/policy.py) | `build_policy_input` extracts repository facts. The evaluator uses those facts and the configured rules, preserving locations when the input includes them. |
+| Which source reference supports reachability? | [`reachability.py`](../guardian/tools/reachability.py) | The import index records source locations. Function-level call matching uses the curated function list when an entry exists. |
+| What affects the score? | [`scoring.py`](../guardian/core/scoring.py) | Start with the factor values and their evidence IDs, then follow weights, the provenance modifier, and the priority override. |
+| How do the artifacts reach the report? | [`build.py`](../guardian/reporting/build.py) and [`render.py`](../guardian/reporting/render.py) | Follow the run files into the report model and compare the structured output with its HTML rendering. |
+
+For a focused regression check, run `python -m pytest -q tests/unit/test_changes_install.py tests/unit/test_policy_check.py tests/unit/test_risk_remediation.py tests/unit/test_report_complete.py` from the repository root.
