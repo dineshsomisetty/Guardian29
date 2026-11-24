@@ -1,6 +1,12 @@
 """Runtime settings from the environment (and .env). Owner: Dev1.
 
-Secrets are only read here and never logged or copied into events (G1.3).
+`load_settings()` is the single place where GUARDIAN_* / LLM_* environment variables become a frozen `Settings`
+object, which the CLI, the API and the graph then pass around. Precedence: explicit keyword overrides (CLI
+flags) > process environment > `.env` in the repo root > the defaults below.
+
+Secrets are only read here and never logged or copied into events (G1.3): the API key itself is not even part
+of `Settings` (the LLM backend reads it from the environment when it is created), and `describe()` is the
+only view that is written to the trace.
 """
 
 from __future__ import annotations
@@ -11,6 +17,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Repo root (two levels above guardian/core/); relative runs/ and the LLM cache are resolved against it.
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 # provider -> defaults. deepseek and openai_compat share the OpenAI-compatible backend.
@@ -23,14 +30,17 @@ PROVIDER_DEFAULTS = {
 
 @dataclass(frozen=True)
 class Settings:
+    """Immutable run configuration. Fields without comments are described by their name; see load_settings
+    for the environment variable behind each one."""
+
     runs_dir: Path
     llm_provider: str  # anthropic | openai_compat
     llm_model: str
-    llm_mode: str  # live | record | replay
+    llm_mode: str  # live | record | replay (see llm/provider.py: replay = recorded answers only, no network)
     llm_base_url: str | None
-    llm_cache_dir: Path
-    max_llm_findings: int
-    offline: bool
+    llm_cache_dir: Path  # recorded LLM responses (record writes, replay reads)
+    max_llm_findings: int  # cap on findings sent to the evidence analyst LLM; the rest keep their rule risk
+    offline: bool  # GUARDIAN_OFFLINE=1: no network at all, external lookups are served from caches only (G7.3)
     max_llm_tokens: int = 600_000  # G3.6 run budget (input + output tokens)
     max_plans: int = 3  # D1-05: findings taken into the remediation loop per run (sequential mode; 0 = none)
     remediation_mode: str = "batch"  # batch: every finding gets a recommendation, one decision round, combined
@@ -42,7 +52,7 @@ class Settings:
         return self.remediation_mode == "batch" and self.max_plans != 0
 
     def describe(self) -> dict:
-        """Safe-to-log view (no keys)."""
+        """Safe-to-log view (no keys): the dict written into the `agent_start` event and run summary."""
         return {
             "provider": self.llm_provider,
             "model": self.llm_model,
@@ -57,12 +67,15 @@ class Settings:
 
 
 def load_settings(**overrides) -> Settings:
-    load_dotenv(REPO_ROOT / ".env", override=False)
+    """Build `Settings` from the environment. `overrides` (None values ignored) win over everything, which is
+    how CLI flags and tests set a field. Raises ValueError for an unknown LLM mode or remediation mode, so a
+    typo fails at start-up instead of silently running live or sequential."""
+    load_dotenv(REPO_ROOT / ".env", override=False)  # override=False: a real environment variable beats .env
     env = os.environ
     runs = Path(env.get("GUARDIAN_RUNS_DIR", "runs"))
-    if not runs.is_absolute():
+    if not runs.is_absolute():  # a relative GUARDIAN_RUNS_DIR is anchored at the repo, not the current directory
         runs = REPO_ROOT / runs
-    provider = env.get("GUARDIAN_LLM_PROVIDER", "deepseek")
+    provider = env.get("GUARDIAN_LLM_PROVIDER", "deepseek")  # unknown provider -> no defaults, LLM_BASE_URL needed
     defaults = PROVIDER_DEFAULTS.get(provider, {})
     values = dict(
         runs_dir=runs,

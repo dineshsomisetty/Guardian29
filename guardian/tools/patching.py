@@ -26,6 +26,17 @@ Tools (called through the registry):
   plan_preview        (remediation) dry run: the unified diff a human approves; writes nothing
   apply_plan          (validator, write tool: needs a matching Approval, G3.3) fresh copy of the target under
                       runs/<id>/attempts/<attempt_id>/work + ops applied
+
+Pipeline use: the remediation agent builds a plan out of PatchOps and previews it; after a human approves, the
+validator applies it to a COPY and sandboxes/rescans that copy. This module never edits the original target.
+Evidence produced: `patch_diff` (unified diff excerpt, files, ops, lockfiles added) for preview and for apply, and
+`registry_metadata` for the SHA / digest lookups, which later let the validator check G4.5 (a plan may only pin
+a SHA or digest that a lookup tool really returned, not one the model invented).
+Network (G3.5): only resolve_action_sha (github.com via `git ls-remote`) and resolve_image_digest (docker
+registries via `docker buildx imagetools`), both host-checked by guardrails.network.check_url, cached under
+data/cache/intel, and cache-only when GUARDIAN_OFFLINE=1. Everything else is local text editing.
+Failure: PatchError (a ValueError) for any bad argument, missing target line or escaped path; call_tool logs it
+and the plan simply cannot be applied.
 """
 
 from __future__ import annotations
@@ -48,16 +59,18 @@ from guardian.guardrails.network import check_url
 from guardian.tools.binaries import run
 from guardian.tools.registry import ToolContext, ToolOutput
 
-DEP_SECTIONS = ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")
+DEP_SECTIONS = ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies")  # package.json keys
+# The regexes below validate every value before it is used in a pattern, a path or an argv (G3.2): they reject
+# anything that could smuggle in a shell/argv option, a path escape or a regex of the attacker's choosing.
 _NAME = re.compile(r"^(@[a-z0-9][\w.-]*/)?[a-z0-9][\w.-]*$", re.I)
 _ACTION = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(/[A-Za-z0-9_./-]+)?$")
 _REF = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9_./-]{0,99}$")
 _SHA = re.compile(r"^[0-9a-f]{40}$")
-_SHA_CACHE = REPO_ROOT / "data" / "cache" / "intel" / "action_shas.json"
+_SHA_CACHE = REPO_ROOT / "data" / "cache" / "intel" / "action_shas.json"  # "owner/repo@ref" -> {sha, ref_type}
 _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 _IMAGE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/:-]{0,199}$")  # no @, no leading dash (argv injection)
 _TAG = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$")
-DENYLIST = ".guardian/denylist.txt"
+DENYLIST = ".guardian/denylist.txt"  # block_package appends package names here, inside the patched copy only
 IMAGE_REGISTRY_HOSTS = frozenset({"registry-1.docker.io", "gcr.io", "ghcr.io"})  # G3.5 for image digest lookups
 
 
@@ -65,6 +78,8 @@ MAX_PLAN_OPS = 100  # G3.2 bound: a replacement may rename imports in many files
 
 
 class PatchError(ValueError):
+    """A patch op or tool argument is invalid, or the file it targets does not contain what the op expects."""
+
     pass
 
 
@@ -72,6 +87,8 @@ class PatchError(ValueError):
 
 
 class ActionRefArgs(BaseModel):
+    """resolve_action_sha input: a GitHub action (`owner/repo[/path]`) and the tag/branch to look up."""
+
     action: str
     ref: str
 
@@ -91,6 +108,8 @@ class ActionRefArgs(BaseModel):
 
 
 class ImageArgs(BaseModel):
+    """resolve_image_digest input: image name (optionally with registry host) and tag; no `@digest`, no `-opts`."""
+
     image: str
     tag: str
 
@@ -110,6 +129,8 @@ class ImageArgs(BaseModel):
 
 
 class PlanArgs(BaseModel):
+    """plan_preview / apply_plan input: the plan id, the attempt it is applied under (apply only) and its ops."""
+
     plan_id: str = Field(pattern=r"^pl_[0-9A-Z]{26}$")
     attempt_id: str | None = Field(default=None, pattern=r"^at_[0-9A-Z]{26}$")
     ops: list[PatchOp] = Field(min_length=1, max_length=MAX_PLAN_OPS)
@@ -120,7 +141,8 @@ class PlanArgs(BaseModel):
 
 
 def confined(root: Path, rel: str) -> Path:
-    """G6.6: resolve `rel` inside `root` or refuse."""
+    """G6.6: resolve `rel` inside `root` or refuse (so `..` or an absolute path cannot reach outside the copy;
+    the root itself is not a valid target either). Returns the resolved absolute path."""
     root = root.resolve()
     target = (root / rel).resolve()
     if not target.is_relative_to(root) or target == root:
@@ -144,11 +166,14 @@ def _dep_line(lines: list[str], name: str) -> int:
 
 
 def _check_name(name: str) -> None:
+    """Refuse anything that is not a plain (optionally scoped) npm/pip package name."""
     if not _NAME.fullmatch(name):
         raise PatchError(f"not an npm package name: {name!r}")
 
 
 def _set_version(text: str, a: dict) -> str:
+    """package.json: set the version spec of dependency `a["name"]` to `a["version"]`, editing only that line
+    (the rest of the file stays byte-identical, including indentation and key order)."""
     name, version = a["name"], str(a["version"])
     _check_name(name)
     if not re.fullmatch(r"[\w.^~<>=| -]+", version):
@@ -160,6 +185,7 @@ def _set_version(text: str, a: dict) -> str:
 
 
 def _pep503(name: str) -> str:
+    """Normalise a Python package name per PEP 503 (case-insensitive, runs of - _ . are equal)."""
     return re.sub(r"[-_.]+", "-", name).lower()
 
 
@@ -182,6 +208,8 @@ def _set_requirement(text: str, a: dict) -> str:
 
 
 def _remove(text: str, a: dict) -> str:
+    """package.json: delete the line declaring dependency `a["name"]`; if it was the last entry of its section,
+    also strip the trailing comma of the previous line so the JSON stays valid."""
     _check_name(a["name"])
     lines = text.splitlines(keepends=True)
     i = _dep_line(lines, a["name"])
@@ -194,6 +222,8 @@ def _remove(text: str, a: dict) -> str:
 
 
 def _replace(text: str, a: dict) -> str:
+    """package.json: rename dependency `name` to `new_name` (typosquat -> legitimate package), optionally with a
+    new version spec. Imports in source files are changed separately by rename_import."""
     name, new = a["name"], a["new_name"]
     _check_name(name)
     _check_name(new)
@@ -223,6 +253,8 @@ def _rename_import(text: str, a: dict) -> str:
 
 
 def _pin_action(text: str, a: dict) -> str:
+    """workflow YAML: `uses: action@ref` -> `uses: action@<40-hex sha> # ref` (the old ref is kept as a trailing
+    comment so humans still see the version). Fails if no such `uses:` line exists."""
     action, ref, sha = a["action"], a["ref"], a["sha"]
     if not _SHA.fullmatch(sha):
         raise PatchError("sha must be a 40-char commit SHA")
@@ -234,11 +266,13 @@ def _pin_action(text: str, a: dict) -> str:
 
 
 def _drop_lock_disable(text: str, a: dict) -> str:
+    """.npmrc: drop `package-lock=false` lines (the lockfiles themselves are added by _lockfiles)."""
     out = [ln for ln in text.splitlines(keepends=True) if not re.match(r"^\s*package-lock\s*=\s*false", ln)]
     return "".join(out)
 
 
 def _check_image(a: dict) -> tuple[str, str, str]:
+    """Validate image / tag / digest of an image op and return them as (image, tag, digest)."""
     image, tag, digest = str(a["image"]), str(a["tag"]), str(a["digest"])
     if not _IMAGE.fullmatch(image):
         raise PatchError(f"unexpected image name {image!r}")
@@ -250,6 +284,7 @@ def _check_image(a: dict) -> tuple[str, str, str]:
 
 
 def _is_dockerfile(rel: str) -> bool:
+    """Dockerfile, Dockerfile.dev, app.dockerfile ... (the file name only, case-insensitive)."""
     name = rel.rsplit("/", 1)[-1].lower()
     return name.startswith("dockerfile") or name.endswith(".dockerfile")
 
@@ -272,11 +307,13 @@ def _rewrite_image(text: str, rel: str, image: str, tag: str, new_ref: str) -> s
 
 
 def _pin_image(text: str, a: dict, rel: str) -> str:
+    """`image:tag` -> `image:tag@sha256:...` (same tag, now immutable)."""
     image, tag, digest = _check_image(a)
     return _rewrite_image(text, rel, image, tag, f"{image}:{tag}@{digest}")
 
 
 def _update_base(text: str, a: dict, rel: str) -> str:
+    """`image:tag` -> `image:new_tag@sha256:...`: move to a newer tag and pin its digest in one step."""
     image, tag, digest = _check_image(a)
     new_tag = str(a["new_tag"])
     if not _TAG.fullmatch(new_tag) or new_tag == tag:
@@ -285,6 +322,7 @@ def _update_base(text: str, a: dict, rel: str) -> str:
 
 
 def _remove_requirement(text: str, a: dict) -> str:
+    """requirements.txt: delete the single line declaring `name` (matched PEP 503-normalised)."""
     name = a["name"]
     _check_name(name)
     lines = text.splitlines(keepends=True)
@@ -298,6 +336,7 @@ def _remove_requirement(text: str, a: dict) -> str:
 
 
 def _denylist_add(text: str, name: str) -> str:
+    """Return the denylist text with `name` appended (and a header on a new file); unchanged if already listed."""
     _check_name(name)
     if name.lower() in {ln.strip().lower() for ln in text.splitlines()}:
         return text
@@ -305,6 +344,8 @@ def _denylist_add(text: str, name: str) -> str:
     return text + ("" if not text or text.endswith("\n") else "\n") + head + name + "\n"
 
 
+# op name -> text transformer fn(text, args) -> new text. The two special cases are handled in apply_ops:
+# _FILE_OPS also need the file name, and block_package edits two files so it has its own function.
 _TEXT_OPS = {
     "set_dependency_version": _set_version,
     "set_requirement_version": _set_requirement,
@@ -318,12 +359,18 @@ _FILE_OPS = {"pin_image_digest": _pin_image, "update_base_image": _update_base} 
 
 
 def _diff(rel: str, before: str, after: str) -> str:
+    """Unified diff of one file with 2 lines of context, labelled a/<rel> b/<rel> like `git diff`."""
     return "".join(difflib.unified_diff(before.splitlines(keepends=True), after.splitlines(keepends=True),
                                         f"a/{rel}", f"b/{rel}", n=2))
 
 
 def apply_ops(root: Path, ops: list[PatchOp], lock_source: Path | None, write: bool) -> list[dict]:
-    """Apply ops under `root`. Returns one {op, file, diff} per op. With write=False nothing is written."""
+    """Apply ops under `root`. Returns one {op, file, diff} per op. With write=False nothing is written.
+
+    `lock_source` is the directory holding the lockfiles discovery resolved (generate_lockfile copies from it).
+    Ops are applied in order against an in-memory view, so several ops on one file compose; files are only
+    written at the end, and only if every op succeeded (all-or-nothing). Files are written as bytes so line
+    endings are not translated, and an edited package.json must still parse as JSON."""
     pending: dict[str, str] = {}  # rel -> current text (several ops may touch one file)
     results = []
     def current(rel: str) -> str:
@@ -359,7 +406,8 @@ def apply_ops(root: Path, ops: list[PatchOp], lock_source: Path | None, write: b
 
 
 def _block_package(root: Path, op: PatchOp, pending: dict[str, str], current: Callable[[str], str]) -> dict:
-    """Remove the dependency from its manifest and add its name to the denylist inside the copy (two files)."""
+    """Remove the dependency from its manifest and add its name to the denylist inside the copy (two files).
+    Result carries `files` (both paths) so the evidence and the PR list the denylist too."""
     path = confined(root, op.file_path)
     rel = path.relative_to(root.resolve()).as_posix()
     name = op.args["name"]
@@ -379,6 +427,8 @@ def _block_package(root: Path, op: PatchOp, pending: dict[str, str], current: Ca
 
 
 def _lockfiles(root: Path, projects: list[str], lock_source: Path | None, write: bool) -> list[dict]:
+    """Copy the lockfiles discovery resolved (`--ignore-scripts`) into the patched copy for each project name
+    ("root" or a subfolder). Fails if discovery did not resolve one. Returns {file, lines, source} per lockfile."""
     out = []
     for proj in projects:
         rel = "package-lock.json" if proj == "root" else f"{proj}/package-lock.json"
@@ -394,6 +444,8 @@ def _lockfiles(root: Path, projects: list[str], lock_source: Path | None, write:
 
 
 def _patch_evidence(ctx: ToolContext, plan_id: str, results: list[dict], preview: bool) -> Evidence:
+    """One `patch_diff` Evidence for a set of op results. `preview` marks a dry run (local_pr only trusts the
+    non-preview one). The excerpt is capped at 20 000 chars; new lockfiles appear as one summary line each."""
     diff = "\n".join(r["diff"] for r in results)
     for r in results:
         for lf in r.get("lockfiles", []):
@@ -409,6 +461,8 @@ def _patch_evidence(ctx: ToolContext, plan_id: str, results: list[dict], preview
 
 
 def plan_preview(ctx: ToolContext, args: PlanArgs) -> ToolOutput:
+    """Dry run: apply the ops in memory against the target and return the diff a human will be asked to approve.
+    Writes nothing (the target is only read). Artifact `preview_diff` = the diff text."""
     base = ctx.repo
     results = apply_ops(base, args.ops, ctx.work_dir, write=False)
     ev = _patch_evidence(ctx, args.plan_id, results, preview=True)
@@ -417,6 +471,10 @@ def plan_preview(ctx: ToolContext, args: PlanArgs) -> ToolOutput:
 
 
 def apply_plan(ctx: ToolContext, args: PlanArgs) -> ToolOutput:
+    """Write tool (G3.3, approval required): create runs/<id>/attempts/<attempt_id>/work as a fresh copy of the
+    target and apply the plan's ops there. With `extend=True` (batch validation) the ops go onto the copy an
+    earlier plan of the same attempt already made. One attempt id = one copy, so an existing copy is refused
+    unless extending. Returns a non-preview `patch_diff` Evidence tagged with the attempt id."""
     if not args.attempt_id:
         raise PatchError("apply_plan needs an attempt_id")
     attempt_dir = ctx.run_dir / "attempts" / args.attempt_id / "work"
@@ -435,6 +493,7 @@ def apply_plan(ctx: ToolContext, args: PlanArgs) -> ToolOutput:
 
 
 def _load_cache() -> dict:
+    """The action-SHA cache as a dict; empty if missing or corrupt."""
     try:
         return json.loads(_SHA_CACHE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -442,7 +501,10 @@ def _load_cache() -> dict:
 
 
 def ls_remote(action: str, ref: str) -> tuple[str, str]:
-    """(sha, ref_type) for a tag or branch of a GitHub action repo. Peeled tag commit preferred."""
+    """(sha, ref_type) for a tag or branch of a GitHub action repo. Peeled tag commit preferred.
+
+    Annotated tags point at a tag object; `^{}` asks git for the commit it points to, which is what a workflow
+    must pin. Read-only `git ls-remote`, 60 s cap; raises PatchError if neither tag nor branch exists."""
     owner_repo = "/".join(action.split("/")[:2])
     url = f"https://github.com/{owner_repo}.git"
     out = run(["git", "ls-remote", url, f"refs/tags/{ref}", f"refs/tags/{ref}^{{}}", f"refs/heads/{ref}"],
@@ -455,6 +517,9 @@ def ls_remote(action: str, ref: str) -> tuple[str, str]:
 
 
 def resolve_action_sha(ctx: ToolContext, args: ActionRefArgs) -> ToolOutput:
+    """Tag/branch -> commit SHA for a GitHub action, as `registry_metadata` Evidence (G4.5 source for pin_action_sha).
+    Cache first; offline runs may use only the cache; otherwise the github.com host is allow-checked (G3.5)
+    before `git ls-remote` runs and the answer is cached for rehearsal/demo stability (C3)."""
     key = f"{args.action}@{args.ref}"
     cache = _load_cache()
     if key in cache:
@@ -476,16 +541,18 @@ def resolve_action_sha(ctx: ToolContext, args: ActionRefArgs) -> ToolOutput:
 
 # ---------------------------------------------------------------- image digests (D2-07b)
 
-InspectRunner = Callable[[list[str], int], "subprocess.CompletedProcess"]
+InspectRunner = Callable[[list[str], int], "subprocess.CompletedProcess"]  # (argv, timeout seconds) -> process
 _inspect_runner: InspectRunner | None = None  # tests inject a fake: no Docker, no network
 
 
 def set_inspect_runner(fn: InspectRunner | None) -> None:
+    """Test hook: replace the docker subprocess call with `fn` (None restores the real one)."""
     global _inspect_runner
     _inspect_runner = fn
 
 
 def _digest_cache_path() -> Path:
+    """data/cache/intel/image_digests.json, or under GUARDIAN_INTEL_CACHE when that env var is set."""
     base = os.environ.get("GUARDIAN_INTEL_CACHE")
     return (Path(base) if base else REPO_ROOT / "data" / "cache" / "intel") / "image_digests.json"
 
@@ -499,6 +566,7 @@ def registry_host(image: str) -> str:
 
 
 def _run_inspect(argv: list[str], timeout: int) -> subprocess.CompletedProcess:
+    """Run a docker inspect command (argv list, any exit code allowed so the caller can read stderr)."""
     if _inspect_runner is not None:
         return _inspect_runner(argv, timeout)
     from guardian.tools import binaries
@@ -523,7 +591,10 @@ def _digest_from_manifest(text: str) -> str | None:
 
 
 def inspect_digest(ref: str) -> tuple[str, str]:
-    """(digest, source command) for `image:tag`. argv only, never a shell."""
+    """(digest, source command) for `image:tag`. argv only, never a shell.
+
+    Tries `docker buildx imagetools inspect` first, then `docker manifest inspect`; each is a read-only registry
+    query (90 s cap). Raises PatchError with the last failure if neither yields a valid sha256 digest."""
     attempts = [
         (["docker", "buildx", "imagetools", "inspect", "--format", "{{json .Manifest}}", ref],
          "docker buildx imagetools inspect"),

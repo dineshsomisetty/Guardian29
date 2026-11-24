@@ -1,4 +1,15 @@
-"""D2-05 lockfile detector: lockfile generation disabled or no lockfile committed. Owner: Dev2."""
+"""D2-05 lockfile detector: lockfile generation disabled or no lockfile committed. Owner: Dev2.
+
+Called by: the detection agent (tool `detector:lockfile`).
+Why: without a committed lockfile every install resolves fresh versions, so a malicious or compromised release
+can slip in unreviewed and builds are not reproducible.
+Inputs: the ORIGINAL target repo (ctx.repo, not the work copy, because Guardian generates lockfiles in its copy),
+its npm projects (adapters/npm.find_projects) and an optional `.npmrc` containing `package-lock=false`.
+Output: at most one Finding, category `lockfile` (scope prod, project "root"), pointing at `.npmrc` (with the line)
+when generation is disabled, else at package.json. Evidence kind `file_excerpt` with facts
+{package_lock_disabled: bool, projects_without_lockfile: [project names]}.
+No network, no cache. A repo with no npm project yields no finding.
+"""
 
 from __future__ import annotations
 
@@ -8,10 +19,12 @@ from guardian.tools.registry import ToolContext, ToolOutput
 
 
 def detect(ctx: ToolContext) -> ToolOutput:
+    """Report projects lacking a lockfile and/or an .npmrc that disables lockfile generation."""
     repo = ctx.repo  # check the ORIGINAL target: the work copy has our generated lockfiles
     findings, evidence = [], []
     missing = [p.name for p in find_projects(repo) if not p.lockfile.exists()]
     npmrc = repo / ".npmrc"
+    # line number of `package-lock=false` (None if absent); used both as the flag and as the evidence location
     line = line_of(npmrc, r"^\s*package-lock\s*=\s*false") if npmrc.exists() else None
     if line or missing:
         facts = {"package_lock_disabled": bool(line), "projects_without_lockfile": missing}

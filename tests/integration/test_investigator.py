@@ -91,7 +91,7 @@ def test_graph_has_exactly_the_contract_nodes():
     assert ("evidence_analyst", "investigator") in edges and ("investigator", "risk_analyst") in edges
     assert ("evidence_analyst", "risk_analyst") not in edges
     assert {e.source for e in g.edges if e.target == "validator"} == {"record_decision"}
-    assert {e.source for e in g.edges if e.target == "validate_batch"} == {"record_batch"}
+    assert {e.source for e in g.edges if e.target == "validate_batch"} == {"record_batch", "recommend"}
     assert {e.source for e in g.edges if e.target == "reporter"} >= {"validate_batch", "recommend", "record_batch"}
 
 

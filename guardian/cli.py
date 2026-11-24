@@ -1,13 +1,30 @@
 """`python -m guardian ...` entry points. Owner: Dev1.
 
+The command-line front end of Guardian. `main(argv)` builds an argparse tree, picks the subcommand's `_cmd_*`
+function and returns its exit code (0 ok, 1 a batch target failed, 2 bad usage or a refused decision);
+guardian/__main__.py passes that to sys.exit. Runs live under runs/<run_id>/ (settings.runs_dir); every command
+that takes --run accepts a run id or "latest" (the runs/LATEST pointer). Heavy imports (the LangGraph workflow)
+are done inside each command so `--help` stays fast.
+
+Subcommands, each with a usage example:
+
   run         run the pipeline on a repo (pauses at the human gate when a plan needs a decision)
-  plans       show the plan (sequential) or the batch of recommendations (batch) waiting for decisions
-  decide      approve / reject / accept_risk the pending plan and resume the run
-  decide-batch  decide every fix of the pending batch (--approve-all or --file decisions.json) and resume
-  serve-runs  static file server for the UI (§4.2)
-  api         FastAPI + SSE (§4.4)
-  watch       re-check a finished run against fresh OSV/EPSS/KEV (continuous monitoring, D1-11)
+              python -m guardian run --repo targets/juice-shop [--compare-ref main] [--llm-mode replay]
   run --repos A B ...  batch: several targets sequentially with a shared intel cache (D1-12)
+              python -m guardian run --repos targets/a targets/b   (prints a table, writes runs/batch_*.json)
+  plans       show the plan (sequential) or the batch of recommendations (batch) waiting for decisions
+              python -m guardian plans --run latest
+  decide      approve / reject / accept_risk the pending plan and resume the run
+              python -m guardian decide --run latest --plan pl_... --plan-hash <12+ chars> --decision approve
+  validate-held validate the approved fixes held in one-at-a-time mode now, the rest keep waiting
+  decide-batch  decide every fix of the pending batch (--approve-all or --file decisions.json) and resume
+              python -m guardian decide-batch --run latest --batch bt_... --approve-all
+  serve-runs  static file server for the UI (§4.2)
+              python -m guardian serve-runs --port 8001
+  api         FastAPI + SSE (§4.4)
+              python -m guardian api --host 127.0.0.1 --port 8000
+  watch       re-check a finished run against fresh OSV/EPSS/KEV (continuous monitoring, D1-11)
+              python -m guardian watch --run latest --interval 1h [--once]
 """
 
 from __future__ import annotations
@@ -21,6 +38,10 @@ from guardian.core.config import load_settings
 
 
 def _cmd_run(args: argparse.Namespace) -> int:
+    """`run`: one --repo through the workflow, or several --repos as a batch. Exactly one of the two is required.
+
+    Prints where the output went and whether a human decision is awaited (see `_report`). Returns 2 on bad args.
+    """
     if bool(args.repo) == bool(args.repos):
         print("give exactly one of --repo <dir> or --repos <dir> [<dir> ...]", file=sys.stderr)
         return 2
@@ -41,6 +62,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 
 def _batch_row(target: str, run_dir: Path | None, error: str | None) -> dict:
+    """One summary row (target, counts, top-risk finding, status) for the batch table and batch_*.json.
+
+    Reads run_summary.json / risk.json / findings.json of the finished run; every read is best-effort, so a
+    crashed or partial run still yields a row (status "failed"/"unknown") instead of aborting the batch.
+    """
     row = {"target": target, "run_id": run_dir.name if run_dir else None, "components": None,
            "findings": {"total": 0, "by_risk": {}}, "top_risk": None, "status": "failed" if error else "unknown"}
     if error:
@@ -64,6 +90,7 @@ def _batch_row(target: str, run_dir: Path | None, error: str | None) -> dict:
 
 
 def _print_batch(rows: list[dict]) -> None:
+    """Print the batch rows as a fixed-width table (C/H/M/L = critical/high/medium/low finding counts)."""
     head = f"{'target':<18}{'components':>10}  {'C/H/M/L':<14}{'top risk':<46}status"
     print(chr(10) + head + chr(10) + "-" * len(head))
     for r in rows:
@@ -110,6 +137,7 @@ def _cmd_batch(args: argparse.Namespace, settings) -> int:
 
 
 def _cmd_watch(args: argparse.Namespace) -> int:
+    """`watch`: continuous monitoring of a finished run (see guardian/watch.py); returns 2 on a bad interval/run."""
     from guardian.watch import WatchError, parse_interval, watch_loop
 
     run_dir = _run_dir(args)
@@ -123,6 +151,7 @@ def _cmd_watch(args: argparse.Namespace) -> int:
 
 
 def _report(run_dir: Path) -> int:
+    """Tell the user where the run output is and, if the run paused at the human gate, what to type next."""
     summary = json.loads((run_dir / "run_summary.json").read_text(encoding="utf-8"))
     print(f"\nRun output: {run_dir}  (status: {summary['status']})")
     batch = summary.get("pending_batch")
@@ -137,6 +166,7 @@ def _report(run_dir: Path) -> int:
 
 
 def _run_dir(args: argparse.Namespace) -> Path:
+    """Resolve --run (a run id or "latest") to its folder under settings.runs_dir. Does not check it exists."""
     settings = load_settings()
     run_id = args.run
     if run_id == "latest":
@@ -145,6 +175,8 @@ def _run_dir(args: argparse.Namespace) -> Path:
 
 
 def _cmd_plans(args: argparse.Namespace) -> int:
+    """`plans`: show what is waiting for a human (a pending batch, else the single pending plan) and the exact
+    command to answer it. The printed plan_hash is what `decide` must be given (G5.1)."""
     from guardian.core.plans import get_pending, get_pending_batch, list_plans
 
     run_dir = _run_dir(args)
@@ -178,6 +210,7 @@ def _cmd_plans(args: argparse.Namespace) -> int:
 
 
 def _print_batch_plans(run_dir: Path, batch: dict) -> int:
+    """Print every recommendation of a pending batch (fix plans and "no alternative" notes) with decision hints."""
     from guardian.core.plans import load_plan
     from guardian.core.recs import load_recs
     from guardian.core.store import JsonStore
@@ -213,6 +246,11 @@ def _print_batch_plans(run_dir: Path, batch: dict) -> int:
 
 
 def _cmd_decide_batch(args: argparse.Namespace) -> int:
+    """`decide-batch`: build Approvals for the pending batch (all approved, or from a JSON file) and resume it.
+
+    --only / --partial decide just some fixes and leave the rest pending. The workflow re-checks the batch
+    (guardrails/approval.py), so a refusal comes back as DecisionRejected and exit code 2.
+    """
     from guardian.core.models import Approval
     from guardian.core.plans import get_pending_batch
     from guardian.graph.workflow import DecisionRejected, resume_batch
@@ -225,7 +263,7 @@ def _cmd_decide_batch(args: argparse.Namespace) -> int:
     if bool(args.approve_all) == bool(args.file):
         print("give exactly one of --approve-all or --file decisions.json", file=sys.stderr)
         return 2
-    only = list(args.only or [])
+    only = list(args.only or [])  # plan ids the user named; empty = the whole batch
     partial = bool(only) or args.partial  # one at a time: the fixes not named stay pending
     pending_ids = {i["plan_id"] for i in batch["items"]}
     if unknown := [p for p in only if p not in pending_ids]:
@@ -259,7 +297,32 @@ def _cmd_decide_batch(args: argparse.Namespace) -> int:
     return _report(run_dir)
 
 
+def _cmd_validate_held(args: argparse.Namespace) -> int:
+    """`validate-held`: validate the approved fixes that are held (one-at-a-time mode) now, while the other fixes of
+    the pending batch keep waiting for decisions. --only limits it to some plans; refusals exit with code 2."""
+    from guardian.core.plans import get_pending_batch
+    from guardian.graph.workflow import DecisionRejected, resume_validate_now
+
+    run_dir = _run_dir(args)
+    batch = get_pending_batch(run_dir)
+    if batch is None:
+        print(f"{run_dir.name} has no batch waiting for decisions", file=sys.stderr)
+        return 2
+    try:
+        run_dir = resume_validate_now(run_dir.name, batch["batch_id"], list(args.only or []) or None,
+                                      requested_by=args.by)
+    except DecisionRejected as exc:
+        print(f"validate-held refused: {exc}", file=sys.stderr)
+        return 2
+    return _report(run_dir)
+
+
 def _cmd_decide(args: argparse.Namespace) -> int:
+    """`decide`: record the human decision on the single pending plan and resume the run.
+
+    The typed --plan-hash prefix must match the pending plan (G5.1); the workflow enforces that reject and
+    accept_risk carry a comment (G5.2). Exit 2 when nothing is pending or the decision is refused.
+    """
     from guardian.core.models import Approval
     from guardian.core.plans import get_pending
     from guardian.graph.workflow import DecisionRejected, resume
@@ -285,6 +348,7 @@ def _cmd_decide(args: argparse.Namespace) -> int:
 
 
 def _cmd_serve(args: argparse.Namespace) -> int:
+    """`serve-runs`: blocking static file server for runs/ (guardian/serve.py)."""
     from guardian.serve import serve_runs
 
     serve_runs(load_settings().runs_dir, port=args.port)
@@ -292,6 +356,7 @@ def _cmd_serve(args: argparse.Namespace) -> int:
 
 
 def _cmd_api(args: argparse.Namespace) -> int:
+    """`api`: blocking FastAPI server (guardian/api/app.py); non-loopback hosts need GUARDIAN_API_TOKENS."""
     from guardian.api.app import serve_api
 
     serve_api(host=args.host, port=args.port)
@@ -299,6 +364,7 @@ def _cmd_api(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse `argv` (default sys.argv[1:]) and run the chosen subcommand; returns its process exit code."""
     p = argparse.ArgumentParser(prog="guardian", description="Software supply chain guardian")
     sub = p.add_subparsers(dest="cmd", required=True)
 
@@ -346,6 +412,12 @@ def main(argv: list[str] | None = None) -> int:
     db.add_argument("--comment", help="comment for --approve-all, or the default for entries without one")
     db.add_argument("--by", default="local-user", help="who decides (recorded in approvals.jsonl)")
     db.set_defaults(func=_cmd_decide_batch)
+
+    vh = sub.add_parser("validate-held", help="validate the held approved fixes now; the rest keep waiting (batch mode)")
+    vh.add_argument("--run", default="latest")
+    vh.add_argument("--only", nargs="+", metavar="PLAN_ID", help="just these approved plans (default: all held)")
+    vh.add_argument("--by", default="local-user", help="who asks (recorded in the audit trail)")
+    vh.set_defaults(func=_cmd_validate_held)
 
     s = sub.add_parser("serve-runs", help="serve runs/ over HTTP with CORS for the UI (§4.2)")
     s.add_argument("--port", type=int, default=8001)

@@ -224,41 +224,77 @@ export interface ValidationResult {
   log_evidence_ids: string[];
   /** true when this plan was tested together with the other approved fixes of the round */
   combined?: boolean;
+  // validation round this result belongs to (batch mode)
   round?: number | null;
+  /** why it failed when the verdict alone does not say (e.g. the file that still imports a removed package) */
+  reason?: string | null;
+  /** true when `verdict` is the shared failure of a group run that could not be blamed on this fix yet */
+  group_failure?: boolean;
 }
 
+// What the reviewer can decide on one recommendation.
 export type RecDecision = "approve" | "reject" | "accept_risk";
+// Where a recommendation stands, set by the backend: waiting for a decision, approved (waiting for the rest),
+// being tested, verified or failed in the sandbox, rejected, risk accepted, no alternative left, or handed to a
+// person.
 export type RecOutcome =
-  | "awaiting_decision" | "validating" | "verified" | "failed" | "rejected" | "accepted" | "no_alternative" | "needs_person";
+  | "awaiting_decision" | "approved" | "validating" | "verified" | "failed" | "rejected" | "accepted" | "no_alternative" | "needs_person";
 
+// A fix Guardian can offer next if the current one is rejected or fails, in the order it will try them.
 export interface RecAlternative {
   action: string;
   target_version: string | null;
   summary: string;
 }
 
+/**
+ * One row of the Remediation page (batch mode): the suggested fix for one finding or a group of findings, with
+ * its history and the decision made on it.
+ */
 export interface Recommendation {
+  // stable id of the row, used to key drafts and decisions
   rec_id: string;
   round: number;
+  // every finding this row covers: advisories on one package, and fixes that edit the same dependency, share a
+  // row
   finding_ids: string[];
+  // the finding the row is titled and ranked by
   primary_finding_id: string;
+  // 'no_alternative' means every option was used up and a person must decide
   kind: "fix" | "no_alternative";
+  // the plan being proposed now; null when there is no fix
   plan_id: string | null;
+  // hash of that plan, sent back with the decision so a plan that changed after review cannot be approved by
+  // mistake
   plan_hash: string | null;
+  // options still unused, shown as 'other options if this one does not work'
   alternatives: RecAlternative[];
+  // why there is no fix, or a note about the choice
   reason: string | null;
+  // the earlier attempt this one replaces: it failed validation or was rejected. reason_type is the reason the
+  // reviewer picked when rejecting
   previous: { plan_id: string; outcome: "failed" | "rejected"; detail: string; reason_type?: string | null } | null;
+  // the decision recorded so far, if any
   decision: RecDecision | null;
+  // where the row stands now; drives the status pill
   outcome: RecOutcome;
+  // how Guardian read the rejection reason to choose this suggestion; steer_source says whether a model (llm)
+  // or a fixed rule produced it
   steer_note?: string | null;
   steer_source?: "llm" | "rules" | null;
 }
 
+/**
+ * The recommendations of the current round. In batch mode the reviewer decides every row, then validation tests
+ * the approved fixes together.
+ */
 export interface RecommendationsFile {
   round: number;
   /** one-at-a-time debugging: increases with every submitted step */
   step?: number;
   status: "awaiting_decisions" | "validating" | "done";
+  // id of the group waiting for decisions (null when nothing is). In one-at-a-time mode it changes after every
+  // step.
   batch_id: string | null;
   items: Recommendation[];
 }

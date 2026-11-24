@@ -257,6 +257,9 @@ def test_transitive_fix_skips_parents_that_leave_an_advisory_behind(rc, monkeypa
     ("XSS payload is sanitized", False),
     ("scan of forged data deleted", False),
     ("GET all orders", False),
+    # Juice Shop insecurity.unit.test.ts: the noun "sanitization" names the hole, it is not a protective verb
+    ("can be bypassed by exploiting lack of recursive sanitization", True),
+    ("cannot be bypassed by exploiting lack of recursive sanitization", False),
 ])
 def test_tests_that_assert_an_attack_works(name, expected):
     from guardian.agents.validator import asserts_exploit

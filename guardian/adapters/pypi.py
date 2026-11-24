@@ -2,6 +2,10 @@
 
 Nothing is installed or executed: a project's dependencies are what `requirements*.txt` pins (`name==version`);
 unpinned lines are reported as such, not resolved. Syft/Grype then scan the directory / SBOM.
+
+`find_projects(root)` returns a `PipProject` per folder (depth <= 2) holding requirements*.txt files;
+`requirement_pins(path)` returns `(name, exact version or None, specifier, line)` per requirement line so a
+finding can point at the exact line; `purl` builds the package URL used to match SBOM components with advisories.
 """
 
 from __future__ import annotations
@@ -10,12 +14,16 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+# folders never searched: virtualenvs, caches, build output and tests/docs are not the project's own dependencies
 SKIP_DIRS = {"node_modules", ".git", ".venv", "venv", "__pycache__", "dist", "build", "tests", "test", "docs"}
+# one requirement line: name, optional [extras], optional version specifier (==, >=, ~=, ===, ...); no env markers
 _REQ = re.compile(r"^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*(\[[^\]]*\])?\s*((?:[<>=!~]=?|===)[^;#\s]*)?")
 
 
 @dataclass
 class PipProject:
+    """A folder with one or more requirements*.txt files (e.g. requirements.txt and requirements-dev.txt)."""
+
     name: str  # "root" | relative dir
     dir: Path
     requirements: list[Path]
@@ -27,6 +35,7 @@ def purl(name: str, version: str) -> str:
 
 
 def find_projects(root: Path) -> list[PipProject]:
+    """pip projects below `root`, one per directory that has requirements files, sorted by directory."""
     by_dir: dict[Path, list[Path]] = {}
     for req in sorted(root.rglob("requirements*.txt")):
         rel = req.parent.relative_to(root)
@@ -42,12 +51,13 @@ def requirement_pins(path: Path) -> list[tuple[str, str | None, str | None, int]
     out = []
     for i, line in enumerate(path.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
         s = line.strip()
+        # comments, pip options (-r, -e, --index-url), and VCS/URL requirements carry no name==version pin
         if not s or s.startswith(("#", "-", "git+", "http")):
             continue
         m = _REQ.match(s)
         if not m:
             continue
         spec = m.group(3)
-        version = spec[2:] if spec and spec.startswith("==") else None
+        version = spec[2:] if spec and spec.startswith("==") else None  # only "==" is an exact pin; ranges give None
         out.append((m.group(1), version, spec, i))
     return out

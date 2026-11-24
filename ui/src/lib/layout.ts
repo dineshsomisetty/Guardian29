@@ -52,9 +52,16 @@ export const SIZE: Record<NodeKind, { w: number; h: number }> = {
 
 const isPseudo = (k: NodeKind) => k === "ci" || k === "image" || k === "config";
 
-/** Which node ids survive the collapse rule. */
+/**
+ * Which node ids are drawn. The project roots are always kept; packages that have findings or sit on a route to
+ * one are kept; CI, image and config items follow the same rule; plain direct dependencies appear only when
+ * `onlyRisk` is off.
+ * `allowed` limits which findings count (the level filter): null means all of them. A package whose findings
+ * are all filtered out is treated as having none.
+ */
 export function visibleIds(graph: GraphData, findings: Finding[], onlyRisk: boolean, allowed: Set<string> | null = null): Set<string> {
   const roots = new Set(graph.roots);
+  // A node counts as risky when any of its findings is allowed.
   const counts = (n: GraphNode) => (n.finding_ids ?? []).some((id) => !allowed || allowed.has(id));
   const onPath = new Set<string>();
   for (const f of findings) for (const p of f.dependency_paths) for (const id of p) onPath.add(id);
@@ -62,6 +69,7 @@ export function visibleIds(graph: GraphData, findings: Finding[], onlyRisk: bool
   const directOf = new Set<string>();
   for (const e of graph.edges) if (roots.has(e.source)) directOf.add(e.target);
 
+  // Ids to draw.
   const keep = new Set<string>();
   for (const n of graph.nodes) {
     const hasFindings = counts(n);
@@ -141,6 +149,7 @@ export function buildVisible(graph: GraphData, findings: Finding[], onlyRisk: bo
     if (rootParent) trayOf.set(id, rootParent);
     else structural.add(id); // unreachable from a root: keep it in the layout rather than lose it
   }
+  // Edges between nodes that go through the main layout (not the grouped plain dependencies).
   const dagEdges: VisEdge[] = edges
     .filter((e) => structural.has(e.source) && structural.has(e.target))
     .map((e) => ({ ...e }));

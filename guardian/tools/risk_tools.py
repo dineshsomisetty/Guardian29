@@ -1,9 +1,23 @@
 """Evidence tools for the risk analyst and remediation agents (D1-06/D1-07, D4-03/05/09/13/14). Owner: Dev1.
 
-All tools take typed args (G3.2), only read, and return Evidence (kinds epss, kev, reachability, exposure,
-graph, provenance, osv, compat_hint). Network access (EPSS, KEV, OSV, registry) goes through IntelClient, which
-checks every URL against the G3.5 allowlist, caches on disk and serves only the cache with GUARDIAN_OFFLINE=1.
+Called by: the risk_analyst agent (threat_intel, reachability, exposure_signals, package_scope,
+provenance_signals, npm_signatures) and the remediation agent (safe_version_lookup, compat_hint) through the
+tool registry. Every tool takes a typed pydantic args model (G3.2), only reads, and returns a ToolOutput.
 Tools are batch-shaped (one call per run, one Evidence per item) so the per-agent tool budget stays small.
+
+Inputs: CVE ids, package names / purls, the work copy of the target repo, the dependency graph in the ToolContext
+(or the graph_json artifact), and the data/reachability/vulnerable_functions.yaml rules.
+Outputs, as Evidence kinds with these `facts` keys:
+  epss          {cve, epss, percentile, date}              kev  {cve, listed, date_added}
+  reachability  {package, ecosystem, tier, files_scanned, hits, called, method}; tier = imported | not_imported |
+                unknown (see tools/reachability.py); `called` lists vulnerable-function call sites
+  exposure      {package, tier network|internal|unknown, expose, imported_in_server_paths, imported_in_prod}
+  graph         {purl, scope prod|dev, direct, project}   provenance {purl, ...tools/provenance.py output}
+  osv           {purl, installed, fixed_version, candidates, latest, scanner_fixed, source, ...child fields}
+  compat_hint   {purl, from_version, to_version, semver_delta, level low|medium|high, peer_dep_changes, ...}
+Network: EPSS, KEV, OSV and the npm registry go through IntelClient (tools/threat_intel.py), which checks every
+URL against the G3.5 allowlist, caches on disk and serves only the cache with GUARDIAN_OFFLINE=1. When data is
+unavailable the tool emits fewer Evidence items (absence means "unknown", never "safe"); it does not raise.
 """
 
 from __future__ import annotations
@@ -20,26 +34,38 @@ from guardian.tools import reachability as reach
 from guardian.tools.registry import ToolContext, ToolOutput
 from guardian.tools.threat_intel import IntelClient, parse_purl, version_key
 
+# Argument validation patterns: a CVE id, and a package URL such as pkg:npm/name@1.0.0 (no whitespace).
 CVE = r"^CVE-\d{4}-\d{4,}$"
 PURL = r"^pkg:[a-z]+/[^\s]+$"
+# Directory names that usually hold server-side code; an import found under one of them (or in a file named
+# server/app/index) counts as network-facing for exposure_signals.
 SERVER_DIRS = {"routes", "server", "api", "controllers", "middleware", "lib", "app", "models", "views", "pygoat",
                "introduction", "handlers"}
 
 
 class ThreatIntelArgs(BaseModel):
+    """Arguments of the threat_intel tool: the CVE ids to look up (invalid ids are dropped)."""
+
     cves: list[str] = Field(max_length=300)
 
 
 class PackagesArgs(BaseModel):
+    """Package names (not purls) plus their ecosystem; used by the reachability and exposure tools."""
+
     packages: list[str] = Field(max_length=500)
     ecosystem: Literal["npm", "pypi", "maven"] = "npm"
 
 
 class PurlsArgs(BaseModel):
+    """Package URLs (pkg:npm/...) for tools that need exact versions (scope, provenance)."""
+
     purls: list[str] = Field(max_length=600)
 
 
 class SafeVersionArgs(BaseModel):
+    """Arguments of safe_version_lookup: the vulnerable package, its advisory ids, versions the scanner already
+    reported as fixed, and optionally a vulnerable transitive child to prove an older parent major fixes it."""
+
     purl: str = Field(pattern=PURL)
     vuln_ids: list[str] = Field(default=[], max_length=50)
     scanner_fixed: list[str] = Field(default=[], max_length=50)
@@ -54,6 +80,7 @@ def range_floor(spec: str | None) -> str | None:
     s = (spec or "").strip()
     if not s or "||" in s or s in ("*", "x", "latest") or ":" in s or "/" in s:
         return None
+    # optional ^ ~ >= = prefix, then major[.minor[.patch]] (x or * allowed), then end / space / "-" (hyphen range)
     m = re.match(r"^(?:\^|~|>=|=)?\s*v?(\d+)(?:\.(\d+|x|\*))?(?:\.(\d+|x|\*))?(?:\s|$|-)", s)
     if not m:
         return None
@@ -62,16 +89,20 @@ def range_floor(spec: str | None) -> str | None:
 
 
 class CompatArgs(BaseModel):
+    """Arguments of compat_hint: the package and the installed (from) and proposed (to) versions."""
+
     purl: str = Field(pattern=PURL)
     from_version: str = Field(max_length=64)
     to_version: str = Field(max_length=64)
 
 
 def intel(ctx: ToolContext, agent: str) -> IntelClient:
+    """An IntelClient bound to this run, so its G3.5 network guardrail events are traced under `agent`."""
     return IntelClient(ctx=ctx, agent=agent)
 
 
 def _ev(ctx: ToolContext, kind: str, tool: str, facts: dict, **kw) -> Evidence:
+    """Build an Evidence row for this run; extra keywords (file_path, line, excerpt) pass straight through."""
     return Evidence(run_id=ctx.run_id, kind=kind, source_tool=tool, facts=facts, **kw)
 
 
@@ -79,6 +110,10 @@ def _ev(ctx: ToolContext, kind: str, tool: str, facts: dict, **kw) -> Evidence:
 
 
 def threat_intel(ctx: ToolContext, args: ThreatIntelArgs) -> ToolOutput:
+    """EPSS score and CISA KEV listing for each CVE: one `epss` and one `kev` Evidence per CVE that has data.
+
+    A CVE with no EPSS row gets no epss Evidence. If the KEV catalog itself is unavailable (offline cache miss)
+    no kev Evidence is emitted at all, so "not on KEV" (listed: false) is never confused with "unknown"."""
     cves = sorted({c.upper() for c in args.cves if re.match(CVE, c.upper())})
     client = intel(ctx, "risk_analyst")
     epss = client.epss_lookup(cves)
@@ -100,6 +135,12 @@ def threat_intel(ctx: ToolContext, args: ThreatIntelArgs) -> ToolOutput:
 
 
 def reachability(ctx: ToolContext, args: PackagesArgs) -> ToolOutput:
+    """One `reachability` Evidence per package: is it imported by production code, and are known-vulnerable
+    functions actually called? Scans the work copy; test paths are excluded (see tools/reachability.py).
+
+    Tiers: imported (an import exists in prod code), not_imported (code was scanned, no import) or unknown
+    (nothing could be scanned for this ecosystem). The function-level `called` search only runs for imported
+    packages. file_path/line/excerpt point at the first call site, else the first import."""
     root = ctx.work_dir or ctx.repo
     out = []
     for name in sorted(set(args.packages)):
@@ -118,6 +159,11 @@ def reachability(ctx: ToolContext, args: PackagesArgs) -> ToolOutput:
 
 
 def _server_hit(hit: dict, ecosystem: str, has_port: bool) -> bool:
+    """Does an import hit look like server-side (network-facing) code?
+
+    Front-end directories never count. For Python, any prod import counts when the Dockerfile EXPOSEs a port
+    (no routes/ convention to rely on). For JS, the file must sit in a server-ish directory or be named
+    server/app/index."""
     parts = hit["file"].lower().split("/")
     if parts[0] in {"frontend", "client", "ui", "web"}:
         return False
@@ -127,6 +173,11 @@ def _server_hit(hit: dict, ecosystem: str, has_port: bool) -> bool:
 
 
 def exposure_signals(ctx: ToolContext, args: PackagesArgs) -> ToolOutput:
+    """One `exposure` Evidence per package: is the vulnerable code on a network-facing path?
+
+    network  = the Dockerfile EXPOSEs a port AND the package is imported from server-side code;
+    internal = sources were scanned and the package is imported only by tests, or in prod only outside server paths;
+    unknown  = anything else (no sources scanned, never imported, or no EXPOSE to prove it faces the network)."""
     root = ctx.work_dir or ctx.repo
     _, ports = dockerfile.parse(root)
     prod, scanned = reach.import_index(root, args.ecosystem, False)
@@ -154,7 +205,9 @@ def exposure_signals(ctx: ToolContext, args: PackagesArgs) -> ToolOutput:
 
 
 def package_scope(ctx: ToolContext, args: PurlsArgs) -> ToolOutput:
-    nodes: dict[str, dict] = {}
+    """`graph` Evidence {purl, scope, direct, project} per purl whose prod/dev scope is known in the dependency
+    graph (the live graph, or the graph_json artifact when resumed). Unknown scope emits nothing."""
+    nodes: dict[str, dict] = {}  # purl -> graph node attributes
     if ctx.graph is not None and hasattr(ctx.graph, "g"):
         nodes = dict(ctx.graph.g.nodes(data=True))
     elif "graph_json" in ctx.artifacts:
@@ -187,6 +240,8 @@ def npm_signatures(ctx: ToolContext) -> ToolOutput:
 
 
 def _audit_for(ctx: ToolContext, purl: str) -> dict | None:
+    """Map the stored `npm audit signatures` result onto one purl as {"signature_verified": True|False|None}.
+    None overall means the audit did not run, so provenance falls back to registry metadata alone."""
     sig = ctx.artifacts.get("npm_signatures")
     if not sig:
         return None
@@ -200,6 +255,9 @@ def _audit_for(ctx: ToolContext, purl: str) -> dict | None:
 
 
 def provenance_signals(ctx: ToolContext, args: PurlsArgs) -> ToolOutput:
+    """`provenance` Evidence per package (first 50, to bound registry calls): registry metadata combined with
+    the signature audit via tools/provenance.py. Packages with no registry data (offline miss, non-npm) are skipped.
+    facts.score_modifier is true for a failed check; the summary counts those."""
     client = intel(ctx, "risk_analyst")
     out = []
     for p in sorted(set(args.purls))[:50]:
@@ -215,24 +273,33 @@ def provenance_signals(ctx: ToolContext, args: PurlsArgs) -> ToolOutput:
 
 
 def _stable(v: str) -> bool:
+    """True for a plain x.y.z release (no pre-release suffix): only these are offered as upgrade targets."""
     return bool(re.fullmatch(r"\d+\.\d+\.\d+", v))
 
 
 def safe_version_lookup(ctx: ToolContext, args: SafeVersionArgs) -> ToolOutput:
+    """One `osv` Evidence listing upgrade candidates for a vulnerable package, oldest first.
+
+    Candidates combine OSV fixed versions, the versions the scanner reported and the registry's `latest` (when
+    stable and at/above the fix floor), keeping only versions newer than the installed one. `fixed_version` is the
+    lowest single version that clears every given advisory. For a vulnerable transitive child, candidates also
+    include older majors of the parent whose registry dependency range provably admits only fixed child
+    versions (`pulls_fixed_child`). `source` records where the fix data came from: osv+scanner, scanner or registry."""
     name, cur, eco = parse_purl(args.purl)
     client = intel(ctx, "remediation")
-    res = {"fixed_version": None, "all_fixed": [], "affected_range": None}
+    res = {"fixed_version": None, "all_fixed": [], "affected_range": None}  # empty default: no advisory ids given
     if args.vuln_ids:
         res = client.safe_version_lookup(args.purl, args.vuln_ids)
     meta = client.registry_metadata(args.purl) if eco == "npm" else None
     latest = (meta or {}).get("latest")
-    pool = {*res["all_fixed"], *args.scanner_fixed}
+    pool = {*res["all_fixed"], *args.scanner_fixed}  # every version anyone says is fixed
+    # floor: nothing below this version fixes everything (OSV answer, else the scanner's lowest fix)
     floor = res["fixed_version"] or (min(args.scanner_fixed, key=version_key) if args.scanner_fixed else None)
     cands = {v for v in pool if floor is None or version_key(v) >= version_key(floor)}
     if latest and _stable(latest) and (floor is None or version_key(latest) >= version_key(floor)):
         cands.add(latest)
-    child_ranges: dict[str, str] = {}
-    pulls_fixed: list[str] = []
+    child_ranges: dict[str, str] = {}  # parent version -> its dependency range for the vulnerable child
+    pulls_fixed: list[str] = []  # parent versions proven to pull a fixed child
     if args.child and args.child_fixed and meta:
         # an older major of the parent may already pull a fixed child: prove it from the registry's
         # dependency range (its lowest admitted version >= the child's fixed version), never assume it
@@ -243,6 +310,7 @@ def safe_version_lookup(ctx: ToolContext, args: SafeVersionArgs) -> ToolOutput:
                 if floor_v and version_key(floor_v) >= version_key(args.child_fixed):
                     pulls_fixed.append(v)
         cands |= set(pulls_fixed)
+    # drop anything not newer than what is installed (an "upgrade" to the same or older version is meaningless)
     cands = sorted((v for v in cands if cur is None or version_key(v) > version_key(cur)), key=version_key)
     pulls_fixed = [v for v in cands if v in pulls_fixed]
     source = "osv+scanner" if res["all_fixed"] else ("scanner" if args.scanner_fixed else "registry")
@@ -256,13 +324,21 @@ def safe_version_lookup(ctx: ToolContext, args: SafeVersionArgs) -> ToolOutput:
 
 
 def _semver(v: str) -> tuple[int, int, int] | None:
+    """Parse the leading major.minor.patch of a version (missing parts are 0); None if it does not start with digits."""
     m = re.match(r"^v?(\d+)(?:\.(\d+))?(?:\.(\d+))?", v)
     return (int(m.group(1)), int(m.group(2) or 0), int(m.group(3) or 0)) if m else None
 
 
 def compat_hint(ctx: ToolContext, args: CompatArgs) -> ToolOutput:
+    """One `compat_hint` Evidence rating how risky an upgrade is, from semver distance plus npm metadata.
+
+    Base level by semver_delta: major -> high, minor -> medium, patch/none -> low, unknown -> medium (a major bump
+    may break the API; patches should not). Raised to high when the target version is deprecated, and low -> medium
+    when it declares peerDependencies (the consumer must satisfy them). `engines_ok` stays None: the Node version
+    is not known here. registry_checked says whether npm metadata was actually available (false when offline)."""
     name, _, eco = parse_purl(args.purl)
     a, b = _semver(args.from_version), _semver(args.to_version)
+    # distance between the two versions: the highest component that differs
     delta = "unknown" if not (a and b) else ("major" if a[0] != b[0] else "minor" if a[1] != b[1]
                                              else "patch" if a[2] != b[2] else "none")
     meta = intel(ctx, "remediation").version_metadata(name, args.to_version) if eco == "npm" else None

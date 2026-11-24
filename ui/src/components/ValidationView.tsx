@@ -1,19 +1,35 @@
+/**
+ * Validation page: did each approved fix work in the sandbox? Shows the verdict, what was tested together, the
+ * attempt timeline, risk before and after, the checks, the package changes and raw logs.
+ */
 import { AlertTriangle, Check, CheckCircle2, ChevronDown, ChevronRight, Circle, Search, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Evidence, Finding, RemediationPlan, ValidationResult } from "../api/types";
 import { bandOf, plural } from "../lib/format";
-import { evidenceTitle, plainTitle, verdictFail } from "../lib/labels";
+import { evidenceTitle, failLine, plainTitle, verdictFail } from "../lib/labels";
 import { decisionOf, planSummary } from "../lib/plan";
 import { useStore } from "../store";
 import { useCountTween, useEvidence, useEvidenceMany } from "./hooks";
 import { Callout, EmptyState, Json, Section, Skeleton } from "./ui";
 
+// One proposed plan and its sandbox result. val is undefined until the plan has been validated, or when it
+// never ran (rejected or risk accepted).
 interface Attempt {
   plan: RemediationPlan;
   val: ValidationResult | undefined;
 }
 
+// Plain-words reason for a failed verdict.
 const failWord = verdictFail;
+
+/**
+ * The result that speaks for a plan: its latest one that is not just a shared group failure (a smaller group, the plan
+ * alone, or a pre-flight verdict), else the latest group failure (not isolated yet).
+ */
+function resultFor(planId: string, all: ValidationResult[]): ValidationResult | undefined {
+  const mine = all.filter((v) => v.plan_id === planId);
+  return [...mine].reverse().find((v) => !v.group_failure) ?? mine[mine.length - 1];
+}
 
 /** "Round 2: 5 fixes tested together" for a combined run, "tested alone" for an isolation run, nothing for older runs. */
 function testedLabel(v: ValidationResult, all: ValidationResult[]): { text: string; cls: string } | null {
@@ -28,11 +44,13 @@ function testedLabel(v: ValidationResult, all: ValidationResult[]): { text: stri
 /** Which fixes were tested in the same sandbox run, so a combined result is not mistaken for one fix's result. */
 function Rounds({ onPick, current }: { onPick: (findingId: string) => void; current: string }) {
   const { data, findingsById, riskById, plansById } = useStore();
+  // Results grouped by sandbox run (attempt_id), in round order.
   const groups = useMemo(() => {
     const by = new Map<string, ValidationResult[]>();
     for (const v of data.validation) (by.get(v.attempt_id) ?? by.set(v.attempt_id, []).get(v.attempt_id)!).push(v);
     return [...by.values()].sort((a, b) => (a[0].round ?? 0) - (b[0].round ?? 0));
   }, [data.validation]);
+  // Runs from before combined testing have no `combined` flag: nothing to explain.
   if (!data.validation.some((v) => v.combined)) return null;
   return (
     <Section title="What was tested together" lead="Approved fixes are applied to one sandbox copy and tested once, because that is what would be merged. If that fails, each fix is tested alone to find the one that broke it.">
@@ -56,7 +74,7 @@ function Rounds({ onPick, current }: { onPick: (findingId: string) => void; curr
                       <button type="button" className={`linkish${v.finding_id === current ? " on" : ""}`} aria-current={v.finding_id === current ? "true" : undefined} onClick={() => onPick(v.finding_id)}>
                         {plan ? planSummary(plan, f, band).change : v.plan_id}
                       </button>
-                      <span className={`pill ${v.verdict === "verified" ? "ok" : "bad"}`}>{v.verdict === "verified" ? "Verified" : `Failed: ${failWord(v.verdict)}`}</span>
+                      <span className={`pill ${v.verdict === "verified" ? "ok" : v.group_failure ? "" : "bad"}`}>{v.verdict === "verified" ? "Verified" : failLine(v)}</span>
                     </li>
                   );
                 })}
@@ -69,10 +87,12 @@ function Rounds({ onPick, current }: { onPick: (findingId: string) => void; curr
   );
 }
 
+/** Picks a finding (default: the first with a result) and lays out its verdict, timeline and attempt detail. */
 export default function ValidationView() {
   const { data, findingsById, riskById } = useStore();
   const ids = useMemo(() => [...new Set(data.plans.map((p) => p.finding_id))], [data.plans]);
   const [fid, setFid] = useState<string | null>(null);
+  // The selected finding, or the first that has a result.
   const current = fid && ids.includes(fid) ? fid : (ids.find((i) => data.validation.some((v) => v.finding_id === i)) ?? ids[0]);
 
   if (!ids.length)
@@ -82,9 +102,10 @@ export default function ValidationView() {
       </EmptyState>
     );
 
+  // This finding's plans in order, each paired with its validation result if there is one.
   const attempts: Attempt[] = data.plans
     .filter((p) => p.finding_id === current)
-    .map((plan) => ({ plan, val: data.validation.find((v) => v.plan_id === plan.plan_id) }));
+    .map((plan) => ({ plan, val: resultFor(plan.plan_id, data.validation) }));
   const f = findingsById.get(current);
 
   return (
@@ -118,13 +139,18 @@ export default function ValidationView() {
   );
 }
 
+/** Headline banner for a finding: verified, rejected, risk accepted, waiting, or failed. */
 function Verdict({ attempts, title, finding }: { attempts: Attempt[]; title: string; finding: Finding | undefined }) {
   const { riskById, data } = useStore();
   const last = attempts[attempts.length - 1];
-  const failed = attempts.filter((a) => a.val && a.val.verdict !== "verified");
+  // Attempts that ran in the sandbox and did not verify.
+  const failed = attempts.filter((a) => a.val && a.val.verdict !== "verified" && !a.val.group_failure);
+  // Attempts rejected before any sandbox run, so they have no result.
   const turnedDown = attempts.filter((a) => !a.val && decisionOf(a.plan.plan_id, data.approvals) === "reject");
   const ok = attempts.find((a) => a.val?.verdict === "verified");
   const okEv = useEvidenceMany(ok?.val?.log_evidence_ids ?? []);
+  // Number of expected-failure tests (they check the attack works, so they fail once it is fixed) that a person
+  // should confirm before merging.
   const review = ((okEv.items.find((e) => e.source_tool === "validator")?.facts as ValidatorFacts | undefined)?.expected_failures ?? []).length;
   if (ok?.val) {
     const sm = planSummary(ok.plan, finding, finding ? bandOf(finding, riskById) : null);
@@ -162,17 +188,25 @@ function Verdict({ attempts, title, finding }: { attempts: Attempt[]; title: str
         The fix has not been tried in the sandbox yet. It runs after the plan is approved.
       </Callout>
     );
+  if (last?.val?.group_failure)
+    return (
+      <Callout tone="gate" title={`Attempt ${last.plan.attempt}: tested only as part of a group that failed`} icon={<Circle size={20} aria-hidden />}>
+        The group of fixes failed together and this fix has not been tested on its own yet, so Guardian cannot say whether it is the cause.
+      </Callout>
+    );
   if (last?.val)
     return (
-      <Callout tone="bad" title={`Failed attempt ${last.plan.attempt}: ${failWord(last.val.verdict)}`} icon={<XCircle size={20} aria-hidden />}>
+      <Callout tone="bad" title={`Failed attempt ${last.plan.attempt}: ${last.val.reason || failWord(last.val.verdict)}`} icon={<XCircle size={20} aria-hidden />}>
         Guardian re-plans after a failure, up to three attempts, and then hands the finding to a person. Nothing was changed in your repository.
       </Callout>
     );
   return null;
 }
 
+/** Attempts in order, with a 're-plans' step after each one that failed or was rejected. */
 function Timeline({ attempts }: { attempts: Attempt[] }) {
   const { data } = useStore();
+  // Suffix saying 'tested together' or 'tested alone', when the run mixes both.
   const how = (v: ValidationResult) => {
     const t = testedLabel(v, data.validation);
     return t ? `, ${t.text.replace(/^Round \d+: /, "")}` : "";
@@ -184,7 +218,9 @@ function Timeline({ attempts }: { attempts: Attempt[] }) {
     const s = a.val
       ? a.val.verdict === "verified"
         ? { cls: "ok", label: `Verified${how(a.val)}` }
-        : { cls: "bad", label: `Failed: ${failWord(a.val.verdict)}${how(a.val)}` }
+        : a.val.group_failure
+          ? { cls: "", label: `${failLine(a.val)}${how(a.val)}` }
+          : { cls: "bad", label: `${failLine(a.val)}${how(a.val)}` }
       : decision === "reject"
         ? { cls: "bad", label: "Rejected, so not tried in the sandbox" }
         : decision === "accept_risk"
@@ -194,7 +230,8 @@ function Timeline({ attempts }: { attempts: Attempt[] }) {
             : { cls: "gate", label: "Waiting for a decision" };
     steps.push({ key: a.plan.plan_id, title: `Attempt ${a.plan.attempt}: ${what}`, sub: s.label, cls: s.cls });
     const next = attempts[i + 1];
-    const didNotStick = (a.val && a.val.verdict !== "verified") || decision === "reject";
+    // A failed or rejected attempt is followed by a re-plan step.
+    const didNotStick = (a.val && a.val.verdict !== "verified" && !a.val.group_failure) || decision === "reject";
     if (next && didNotStick) steps.push({ key: `re-${i}`, title: "Guardian re-plans", sub: "Tries a different fix", cls: "" });
   });
   return (
@@ -212,9 +249,11 @@ function Timeline({ attempts }: { attempts: Attempt[] }) {
   );
 }
 
+/** Detail for one validated attempt, with tabs when there is more than one. */
 function AttemptDetail({ attempts }: { attempts: Attempt[] }) {
   const { data } = useStore();
   const validated = attempts.filter((a) => a.val);
+  // Selected attempt tab; starts on the latest.
   const [idx, setIdx] = useState(Math.max(0, validated.length - 1));
   const a = validated[Math.min(idx, validated.length - 1)];
   if (!a || !a.val) return null;
@@ -251,7 +290,10 @@ function AttemptDetail({ attempts }: { attempts: Attempt[] }) {
   );
 }
 
+/** Risk score before and after, with the bar animating from the old value to the new one. */
 function ScoreDrop({ v }: { v: ValidationResult }) {
+  // Bar and number start at the 'before' score and move to 'after' on the next frame, so the CSS transition
+  // plays.
   const [now, setNow] = useState(v.risk_before);
   useEffect(() => {
     const id = requestAnimationFrame(() => setNow(v.risk_after));
@@ -277,23 +319,32 @@ function ScoreDrop({ v }: { v: ValidationResult }) {
   );
 }
 
+// Test counts as '3 passed, 1 failed', or 'not run' when empty.
 const tests = (t: Record<string, number>) => {
   const e = Object.entries(t);
   return e.length ? e.map(([k, n]) => `${n} ${k}`).join(", ") : "not run";
 };
 
+// Facts from the sandbox test run. failing_tests lists failing names per suite, plus new_vs_baseline: names
+// that fail only after the patch. baseline holds the counts for the unpatched project.
 interface SandboxTestFacts {
   failing_tests?: Record<string, string[]>;
   baseline?: { unit_tests?: Record<string, number>; integration_tests?: Record<string, number> } | null;
   notes?: string[];
 }
 
+// Facts from the validator. expected_failures are tests that assert the attack works, so they fail once the fix
+// works.
 interface ValidatorFacts {
   newly_failing_tests?: string[];
   expected_failures?: string[];
 }
 
-/** Test rows judged against the unpatched project: failures that happen without the fix are not the fix's. */
+/**
+ * One 'Unit tests' / 'Integration tests' row, judged against the unpatched project: failures that also happen
+ * without the fix are not the fix's fault, and expected failures are flagged for review.
+ * ok: true = good, false = problem, null = neutral (not run, or needs a look).
+ */
 function testRow(counts: Record<string, number>, phase: "test" | "integration", f: SandboxTestFacts | null, expected: Set<string>) {
   if (!Object.keys(counts).length) return { text: "Not run", ok: null as boolean | null };
   const base = phase === "test" ? f?.baseline?.unit_tests : f?.baseline?.integration_tests;
@@ -317,13 +368,17 @@ function testRow(counts: Record<string, number>, phase: "test" | "integration", 
   return { text: `${tests(counts)}${real?.length ? ` (${real.length} new ${label} failure${real.length === 1 ? "" : "s"})` : ""}`, ok: false };
 }
 
+/** The checklist: build, tests, re-scan result, new findings and confidence. */
 function Checks({ v }: { v: ValidationResult }) {
   const ev = useEvidenceMany(v.log_evidence_ids);
   const facts = (ev.items.find((e) => e.kind === "test_result" && e.source_tool === "sandbox:docker")?.facts ??
     null) as SandboxTestFacts | null;
   const vfacts = (ev.items.find((e) => e.kind === "test_result" && e.source_tool === "validator")?.facts ?? null) as ValidatorFacts | null;
+  // Tests that are expected to fail once the vulnerability is fixed.
   const expected = new Set(vfacts?.expected_failures ?? []);
   const newly = facts?.failing_tests?.new_vs_baseline ?? vfacts?.newly_failing_tests ?? [];
+  // Real regressions: new failures that are not expected ones and not the validator's own 'failing after the
+  // patch' marker.
   const broken = newly.filter((n) => !expected.has(n) && !/failing after the patch/.test(n));
   const unit = testRow(v.unit_tests, "test", facts, expected);
   const integ = testRow(v.integration_tests, "integration", facts, expected);
@@ -385,6 +440,7 @@ interface SbomFacts {
   components_after?: number;
 }
 
+/** Package inventory before and after the fix (added, removed and updated components). */
 function SbomDiff({ id }: { id: string | null }) {
   const st = useEvidence(id);
   const head = "Packages before and after";
@@ -408,6 +464,7 @@ function SbomDiff({ id }: { id: string | null }) {
     );
   const f = st.ev.facts as SbomFacts;
   const rows: { kind: string; name: string; from: string; to: string }[] = [];
+  // Turn a package URL like 'pkg:npm/name@1.0' into [name, version].
   const split = (p: string) => {
     const l = p.replace(/^pkg:[^/]+\//, "");
     const i = l.lastIndexOf("@");
@@ -452,6 +509,10 @@ function SbomDiff({ id }: { id: string | null }) {
   );
 }
 
+/**
+ * Collapsed by default: build and test logs with a tab per log, line numbers, line search and error/warning
+ * highlighting.
+ */
 function LogViewer({ ids }: { ids: string[] }) {
   const ev = useEvidenceMany(ids);
   const logs = ev.items.filter((e) => e.kind === "build_log" || e.kind === "test_result" || e.excerpt);

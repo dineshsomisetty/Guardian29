@@ -204,20 +204,26 @@ def test_combined_failure_isolates_the_culprit_and_only_it_returns(target, s, fa
     run_dir = _decide(s, "run_iso")
     plans = {p.plan_id: p for p in list_plans(run_dir)}
     v = list_validations(run_dir)
-    combined = [x for x in v if x.combined]
-    assert len(combined) == 3 and {x.verdict for x in combined} == {"failed_tests"}
-    assert len({x.attempt_id for x in combined}) == 1
-    alone = {plans[x.plan_id].action + ":" + x.plan_id: x for x in v if not x.combined}
-    assert len(alone) == 3 and len({x.attempt_id for x in alone.values()} | {combined[0].attempt_id}) == 4  # own attempts
-    by_action = {plans[x.plan_id].action: x for x in alone.values()}
-    assert by_action["replace"].verdict == "failed_tests"  # the culprit
+    first = min(v, key=lambda x: x.attempt_id)  # the first run: all 3 plans together, shared failure
+    shared = [x for x in v if x.attempt_id == first.attempt_id]
+    assert len(shared) == 3 and {x.verdict for x in shared} == {"failed_tests"}
+    assert all(x.combined and x.group_failure for x in shared)  # nobody is blamed yet
+    # bisection: the failing half is split again; the culprit ends up alone, the others verified in passing groups
+    final = {}
+    for x in v:
+        if x.attempt_id != first.attempt_id:
+            final[x.plan_id] = x  # later runs supersede (list is ordered by attempt id)
+    by_action = {plans[pid].action: x for pid, x in final.items()}
+    assert len(final) == 3 and not any(x.group_failure for x in final.values() if x.verdict == "verified")
+    assert by_action["replace"].verdict == "failed_tests" and not by_action["replace"].group_failure  # the culprit
     assert by_action["pin"].verdict == "verified"
+    alone = {plans[pid].action + ":" + pid: x for pid, x in final.items()}
     honest = [e for x in alone.values() if x.verdict == "verified"
               for e in [next(ev for ev in map(lambda i: _evidence(run_dir, i), x.log_evidence_ids)
                              if ev["source_tool"] == "validator")]]
     assert honest and all("combination is NOT verified" in " ".join(e["facts"]["known_limitations"]) for e in honest)
     msgs = [e["summary"] for e in _trace(run_dir) if e["type"] == "decision"]
-    assert any("validating each plan alone" in m for m in msgs) and any(m.startswith("Isolation: 1 plan") for m in msgs)
+    assert any("bisecting" in m for m in msgs) and any(m.startswith("Isolation: 1 plan") for m in msgs)
 
     # round 2: only the culprit comes back, with its next alternative (remove), and it knows why
     summary = _json(run_dir / "run_summary.json")
@@ -249,19 +255,22 @@ def _evidence(run_dir, evidence_id):
 def test_reject_comes_back_next_round_with_the_next_alternative(target, s, fake_llm_factory):  # noqa: F811
     run_dir = _start(target, s, fake_llm_factory, "run_rej")
     run_dir = _decide(s, "run_rej", {"typosquat": ("reject", "code imports ngy-cookie; prefer removal")})
-    v = list_validations(run_dir)
-    assert len(v) == 2 and {x.verdict for x in v} == {"verified"}  # the approved ones validated together
+    assert not list_validations(run_dir) and not (run_dir / "attempts").exists()  # approvals are held, not validated
     recs = _recs(run_dir)
     assert recs["round"] == 2 and recs["status"] == "awaiting_decisions"
+    assert {_category(run_dir, r): r["outcome"] for r in recs["items"]} == {
+        "typosquat": "awaiting_decision", "lockfile": "approved", "unpinned_ci": "approved"}
     typo = next(r for r in recs["items"] if _category(run_dir, r) == "typosquat")
-    assert typo["outcome"] == "awaiting_decision" and typo["decision"] is None
+    assert typo["decision"] is None
     assert typo["previous"] == {"plan_id": typo["previous"]["plan_id"], "outcome": "rejected",
                                 "detail": "code imports ngy-cookie; prefer removal", "reason_type": None}
     assert next(p for p in list_plans(run_dir) if p.plan_id == typo["plan_id"]).action == "remove"
     assert [a["action"] for a in typo["alternatives"]] == ["block"]
-    assert [i["rec_id"] for i in get_pending_batch(run_dir)["items"]] == [typo["rec_id"]]  # verified ones are done
+    assert [i["rec_id"] for i in get_pending_batch(run_dir)["items"]] == [typo["rec_id"]]  # only the new proposal
     assert not _reporter_runs(run_dir)
-    run_dir = _decide(s, "run_rej")
+    run_dir = _decide(s, "run_rej")  # the last open decision: all approved fixes validate together
+    v = list_validations(run_dir)
+    assert len(v) == 3 and {x.verdict for x in v} == {"verified"} and len({x.attempt_id for x in v}) == 1
     assert {r["outcome"] for r in _recs(run_dir)["items"]} == {"verified"} and len(_reporter_runs(run_dir)) == 1
     decisions = [json.loads(x)["decision"] for x in (run_dir / "approvals.jsonl").read_text().splitlines()]
     assert sorted(decisions) == ["approve", "approve", "approve", "reject"]
@@ -335,15 +344,16 @@ def test_cli_plans_and_decide_batch(target, s, fake_llm_factory, monkeypatch, ca
     assert {x.verdict for x in list_validations(run_dir)} == {"verified"}
 
 
-def test_round_two_applies_earlier_verified_fixes_underneath(target, s, fake_llm_factory):  # noqa: F811
+def test_round_two_applies_earlier_verified_fixes_underneath(target, s, fake_llm_factory, rig):  # noqa: F811
+    sandbox.set_runner(Culprit(test_exit=0))  # round 1: the `replace` fix fails, the other two verify in isolation
     run_dir = _start(target, s, fake_llm_factory, "run_carry")
-    run_dir = _decide(s, "run_carry", {"typosquat": ("reject", "prefer removal")})
-    round1 = {x.plan_id: x for x in list_validations(run_dir)}
+    run_dir = _decide(s, "run_carry")
+    round1 = {x.plan_id for x in list_validations(run_dir) if x.round == 1 and not x.group_failure and x.verdict == "verified"}
     assert len(round1) == 2
     run_dir = _decide(s, "run_carry")  # round 2: only the typosquat is new
     v2 = [x for x in list_validations(run_dir) if x.round == 2]
     assert len(v2) == 3 and all(x.combined for x in v2) and len({x.attempt_id for x in v2}) == 1  # the whole set
-    assert {x.plan_id for x in v2} >= set(round1)  # the round-1 plans are re-validated in the same attempt
+    assert {x.plan_id for x in v2} >= round1  # the round-1 plans are re-validated in the same attempt
     assert {x.verdict for x in v2} == {"verified"}
     work = run_dir / "attempts" / v2[0].attempt_id / "work"
     assert "ngy-cookie" not in (work / "package.json").read_text()
@@ -354,17 +364,21 @@ def test_round_two_applies_earlier_verified_fixes_underneath(target, s, fake_llm
     assert len((run_dir / "approvals.jsonl").read_text().splitlines()) == 4  # carried plans reuse their approvals
 
 
-class Interaction(FakeDocker):
-    """Tests fail only when BOTH the typosquat removal and the CI pin are present; each passes alone."""
+class Interaction(Culprit):
+    """The `replace` fix fails alone (Culprit); later, tests also fail when BOTH the typosquat removal and the CI pin
+    are present, though each passes alone."""
 
     def __call__(self, argv, timeout):
         if len(argv) > 1 and argv[1] == "run" and "test:server" in argv[-1]:
             mount = next((a for a in argv if a.startswith("type=bind")), "")
             if "baseline" not in mount.replace("\\", "/"):
                 src = Path(re.search(r"source=([^,]+)", mount).group(1))
-                both = ("ngy-cookie" not in (src / "package.json").read_text()
+                pkg = (src / "package.json").read_text()
+                both = ("ngy-cookie" not in pkg and "ngx-cookie" not in pkg
                         and "# v2" in (src / ".github/workflows/ci.yml").read_text())
-                self.test_exit = 1 if both else 0
+                if both:
+                    self.test_exit = 1
+                    return FakeDocker.__call__(self, argv, timeout)
         return super().__call__(argv, timeout)
 
 
@@ -372,8 +386,8 @@ def test_unresolved_interaction_with_earlier_fix_sends_back_only_the_new_one(  #
         target, s, fake_llm_factory, rig):  # noqa: F811
     sandbox.set_runner(Interaction(test_exit=0))
     run_dir = _start(target, s, fake_llm_factory, "run_inter")
-    run_dir = _decide(s, "run_inter", {"typosquat": ("reject", "prefer removal")})  # round 1 passes (no removal yet)
-    assert {x.verdict for x in list_validations(run_dir)} == {"verified"}
+    run_dir = _decide(s, "run_inter")  # round 1: replace fails (culprit), lockfile + CI pin verify
+    assert {x.verdict for x in list_validations(run_dir) if not x.group_failure} == {"failed_tests", "verified"}
     run_dir = _decide(s, "run_inter")  # round 2: remove + earlier CI pin fail together
     v2 = [x for x in list_validations(run_dir) if x.round == 2]
     assert {x.verdict for x in v2 if x.combined} == {"failed_tests"} and len([x for x in v2 if x.combined]) == 3
@@ -386,8 +400,8 @@ def test_unresolved_interaction_with_earlier_fix_sends_back_only_the_new_one(  #
     assert [i["rec_id"] for i in get_pending_batch(run_dir)["items"]] == [typo["rec_id"]]
     msgs = [e["summary"] for e in _trace(run_dir) if e["type"] == "decision"]
     assert any("interaction NOT resolved" in m for m in msgs)
-    alone = [x for x in v2 if not x.combined and x.verdict == "verified"]
-    assert len(alone) == 3
+    alone = [x for x in v2 if not x.group_failure and x.verdict == "verified"]
+    assert len(alone) == 1  # the new plan verifies on its own (carried plans are not re-run alone), yet together they fail
 
 
 # ---------------------------------------------------------------- one dependency, one recommendation
@@ -481,7 +495,7 @@ def test_reject_reason_type_steers_or_rules_out_the_next_alternative(target, s, 
     typo = next(r for r in _recs(run_dir)["items"] if _category(run_dir, r) == "typosquat")
     assert typo["kind"] == "no_alternative" and typo["previous"]["reason_type"] == "too_big"
     assert "too big" in typo["reason"].lower() and "no smaller change" in typo["reason"]
-    assert any("Rejected as 'The change is too big'" in e["summary"] for e in _trace(run_dir))
+    assert any("Read the rejection 'too big' as: prefer a smaller change" in e["summary"] for e in _trace(run_dir))
 
     run_dir = _start(target, s, fake_llm_factory, "run_rt2")
     run_dir = _decide(s, "run_rt2", {"typosquat": ("reject", "keep the package, try another way", "different_approach")})
@@ -520,37 +534,60 @@ def _plan_ids(run_dir):
     return {_category(run_dir, r): (r["plan_id"], r["plan_hash"]) for r in _recs(run_dir)["items"]}
 
 
-def test_partial_approve_validates_only_that_one_and_the_rest_stay_pending(target, s, fake_llm_factory):  # noqa: F811
+def test_partial_approve_is_held_until_the_last_decision_then_validates_together(  # noqa: F811
+        target, s, fake_llm_factory):  # noqa: F811
     run_dir = _start(target, s, fake_llm_factory, "run_part")
     before = _plan_ids(run_dir)
     old_batch = get_pending_batch(run_dir)["batch_id"]
     run_dir, _ = _decide_some(s, "run_part", {"unpinned_ci": ("approve", None, None)})
-    v = list_validations(run_dir)
-    assert len(v) == 1 and v[0].verdict == "verified" and v[0].plan_id == before["unpinned_ci"][0]
+    assert not list_validations(run_dir) and not (run_dir / "attempts").exists()  # held, nothing validates yet
     recs = _recs(run_dir)
     assert recs["step"] == 1 and recs["round"] == 1  # a partial step does not start a new round
     assert _plan_ids(run_dir) == before  # undecided items keep the same plan_id / hash
     outcomes = {_category(run_dir, r): r["outcome"] for r in recs["items"]}
-    assert outcomes == {"unpinned_ci": "verified", "typosquat": "awaiting_decision", "lockfile": "awaiting_decision"}
+    assert outcomes == {"unpinned_ci": "approved", "typosquat": "awaiting_decision", "lockfile": "awaiting_decision"}
     pending = get_pending_batch(run_dir)
-    assert pending["batch_id"] != old_batch  # a NEW batch with every item still awaiting a decision
+    assert pending["batch_id"] != old_batch  # a NEW batch with every undecided item
     assert {i["plan_id"] for i in pending["items"]} == {before["typosquat"][0], before["lockfile"][0]}
     assert _json(run_dir / "run_summary.json")["status"] == "awaiting_human" and not _reporter_runs(run_dir)
     msgs = [e for e in _trace(run_dir) if e["type"] == "decision" and "one at a time" in e["summary"]]
     assert msgs and msgs[0]["data"]["step"] == 1 and "2 still waiting" in msgs[0]["summary"]
 
-    # the second step validates its fix with the first one underneath (same attempt copy holds both)
+    # a second approval is held too: one fix is still undecided
     run_dir, _ = _decide_some(s, "run_part", {"typosquat": ("approve", None, None)})
-    v2 = [x for x in list_validations(run_dir) if x.attempt_id != v[0].attempt_id]
-    assert len(v2) == 2 and all(x.combined for x in v2) and {x.verdict for x in v2} == {"verified"}
-    work = run_dir / "attempts" / v2[0].attempt_id / "work"
+    assert not list_validations(run_dir) and _recs(run_dir)["step"] == 2
+    assert _json(run_dir / "run_summary.json")["status"] == "awaiting_human"
+
+    # the last decision (accept risk) starts ONE validation of every approved plan together, then the report
+    run_dir, _ = _decide_some(s, "run_part", {"lockfile": ("accept_risk", "handled upstream", None)})
+    v = list_validations(run_dir)
+    assert len(v) == 2 and all(x.combined for x in v) and {x.verdict for x in v} == {"verified"}
+    assert {x.plan_id for x in v} == {before["unpinned_ci"][0], before["typosquat"][0]}
+    assert len({x.attempt_id for x in v}) == 1 and len(list((run_dir / "attempts").iterdir())) == 1
+    work = run_dir / "attempts" / v[0].attempt_id / "work"
     assert "# v2" in (work / ".github/workflows/ci.yml").read_text()
     assert "ngy-cookie" not in (work / "package.json").read_text()
-    assert _recs(run_dir)["step"] == 2
-
-    # finishing the last one ends the run with exactly one report
-    run_dir, _ = _decide_some(s, "run_part", {"lockfile": ("accept_risk", "handled upstream", None)})
     assert _recs(run_dir)["step"] == 3 and _recs(run_dir)["status"] == "done"
+    assert _json(run_dir / "run_summary.json")["status"] == "done" and len(_reporter_runs(run_dir)) == 1
+
+
+def test_one_at_a_time_approve_of_one_leaves_validation_not_started(target, s, fake_llm_factory):  # noqa: F811
+    run_dir = _start(target, s, fake_llm_factory, "run_hold")
+    before = _plan_ids(run_dir)
+    run_dir, _ = _decide_some(s, "run_hold", {"typosquat": ("approve", None, None)})
+    assert not list_validations(run_dir) and not (run_dir / "attempts").exists()
+    recs = _recs(run_dir)
+    assert recs["status"] == "awaiting_decisions"
+    assert {_category(run_dir, r): r["outcome"] for r in recs["items"]}["typosquat"] == "approved"
+    assert _json(run_dir / "run_summary.json")["status"] == "awaiting_human"
+    run_dir, _ = _decide_some(s, "run_hold", {"lockfile": ("approve", None, None)})
+    assert not list_validations(run_dir)
+    run_dir, _ = _decide_some(s, "run_hold", {"unpinned_ci": ("approve", None, None)})  # the final decision
+    v = list_validations(run_dir)
+    assert len(v) == 3 and all(x.combined for x in v) and {x.verdict for x in v} == {"verified"}
+    assert {x.plan_id for x in v} == {p[0] for p in before.values()}  # every approved plan, one attempt
+    assert len({x.attempt_id for x in v}) == 1 and len(list((run_dir / "attempts").iterdir())) == 1
+    assert {r["outcome"] for r in _recs(run_dir)["items"]} == {"verified"}
     assert _json(run_dir / "run_summary.json")["status"] == "done" and len(_reporter_runs(run_dir)) == 1
 
 
@@ -571,7 +608,7 @@ def test_partial_reject_replans_only_that_item_and_keeps_a_gibberish_comment(tar
 
 
 def test_partial_submissions_are_refused_when_invalid_and_full_still_needs_every_item(  # noqa: F811
-        target, s, fake_llm_factory):
+        target, s, fake_llm_factory):  # noqa: F811
     run_dir = _start(target, s, fake_llm_factory, "run_pbad")
     batch_id, approvals = _approvals(run_dir)
     first = approvals[0]
@@ -649,11 +686,213 @@ def test_lockfile_plan_is_regenerated_from_patched_manifests(target, s, fake_llm
 
 
 def test_carried_lockfile_plan_is_regenerated_under_a_later_manifest_edit(  # noqa: F811
-        target, s, fake_llm_factory, lock_rig):
+        target, s, fake_llm_factory, lock_rig):  # noqa: F811
     run_dir = _start(target, s, fake_llm_factory, "run_lock2")
-    run_dir, _ = _decide_some(s, "run_lock2", {"lockfile": ("approve", None, None)})  # verified alone, lock as copied
-    assert lock_rig["lock_existed"] == []
-    run_dir, _ = _decide_some(s, "run_lock2", {"typosquat": ("approve", None, None)})  # replace, lockfile carried
-    v = [x for x in list_validations(run_dir) if x.round == 1 and x.combined]
+    run_dir, _ = _decide_some(s, "run_lock2", {"lockfile": ("approve", None, None)})  # held
+    run_dir, _ = _decide_some(s, "run_lock2", {"typosquat": ("approve", None, None)})  # held
+    assert not list_validations(run_dir) and lock_rig["lock_existed"] == []
+    run_dir, _ = _decide_some(s, "run_lock2", {"unpinned_ci": ("accept_risk", "later", None)})  # all decided
+    v = list_validations(run_dir)
     assert len(v) == 2 and {x.verdict for x in v} == {"verified"}  # stale locks would have failed the build
-    assert lock_rig["lock_existed"] == [False]
+    assert lock_rig["lock_existed"] == [False]  # the lockfile plan is regenerated under the replace
+    work = run_dir / "attempts" / v[0].attempt_id / "work"
+    assert "ngx-cookie" in json.loads((work / "package-lock.json").read_text())["packages"][""]["dependencies"]
+
+
+# ---------------------------------------------------------------- pre-flight: a package the source still imports
+
+
+class CountingCulprit(Culprit):
+    """Counts sandbox container runs, to show the flagged plan never reaches the sandbox."""
+
+    def __init__(self, *a, **k):
+        super().__init__(*a, **k)
+        self.package_jsons = []
+
+    def __call__(self, argv, timeout):
+        for a in argv:
+            if a.startswith("type=bind") and "source=" in a:
+                src = Path(re.search(r"source=([^,]+)", a).group(1))
+                if (src / "package.json").is_file() and "baseline" not in a.replace("\\", "/"):
+                    self.package_jsons.append((src / "package.json").read_text())
+        return super().__call__(argv, timeout)
+
+
+def test_preflight_fails_a_removal_the_source_still_imports_without_the_sandbox(  # noqa: F811
+        target, s, fake_llm_factory, rig):  # noqa: F811
+    from guardian.tools import reachability
+    reachability._INDEX.clear()
+    (target / "src").mkdir()
+    (target / "src" / "app.ts").write_text("import { C } from 'ngy-cookie';\n")
+    fake = CountingCulprit(test_exit=0)
+    sandbox.set_runner(fake)
+    run_dir = _start(target, s, fake_llm_factory, "run_pre")
+    run_dir = _decide(s, "run_pre", {"typosquat": ("reject", "prefer removal")})  # round 2: remove (still imported)
+    run_dir = _decide(s, "run_pre")
+    plans = {p.plan_id: p for p in list_plans(run_dir)}
+    v = list_validations(run_dir)
+    bad = [x for x in v if x.verdict == "still_imported"]
+    assert len(bad) == 1 and plans[bad[0].plan_id].action == "remove" and not bad[0].combined
+    assert "src/app.ts:1" in bad[0].reason and "remove or replace the imports first" in bad[0].reason
+    assert bad[0].build_ok is None and not (run_dir / "attempts" / bad[0].attempt_id).exists()  # no sandbox, no copy
+    others = [x for x in v if x is not bad[0]]
+    assert len(others) == 2 and {x.verdict for x in others} == {"verified"} and not any(x.group_failure for x in others)
+    assert fake.package_jsons and all("ngy-cookie" in pj for pj in fake.package_jsons)  # the removal was never applied in the sandbox
+    recs = _recs(run_dir)
+    typo = next(r for r in recs["items"] if _category(run_dir, r) == "typosquat")
+    assert typo["previous"]["outcome"] == "failed" and "src/app.ts:1" in typo["previous"]["detail"]
+    assert typo["outcome"] == "awaiting_decision" and typo["round"] == 3  # offered another alternative (block)
+    assert next(p for p in list_plans(run_dir) if p.plan_id == typo["plan_id"]).action == "block"
+    assert {r["outcome"] for r in recs["items"] if r is not typo} == {"verified"}
+    msgs = [e["summary"] for e in _trace(run_dir) if e["type"] == "decision"]
+    assert any(m.startswith("Pre-flight:") and "src/app.ts:1" in m for m in msgs)
+
+
+# ---------------------------------------------------------------- "validate now" (one-at-a-time mode)
+
+def _validate_now(settings, run_id, plan_ids=None, by="tester"):
+    run_dir = settings.runs_dir / run_id
+    graph_state._CONTEXTS.clear()
+    return workflow.resume_validate_now(run_id, get_pending_batch(run_dir)["batch_id"], plan_ids,
+                                        requested_by=by, settings=settings, echo=False)
+
+
+def _two_held(target, s, fake_llm_factory, run_id):  # noqa: F811
+    """CI pin + typosquat approved and held, the lockfile fix still undecided."""
+    run_dir = _start(target, s, fake_llm_factory, run_id)
+    ids = _plan_ids(run_dir)
+    run_dir, _ = _decide_some(s, run_id, {"unpinned_ci": ("approve", None, None), "typosquat": ("approve", None, None)})
+    return run_dir, ids
+
+
+def _outcomes(run_dir):
+    return {_category(run_dir, r): r["outcome"] for r in _recs(run_dir)["items"]}
+
+
+def test_validate_now_tests_only_the_chosen_held_fix_and_the_rest_keep_waiting(  # noqa: F811
+        target, s, fake_llm_factory):  # noqa: F811
+    run_dir, ids = _two_held(target, s, fake_llm_factory, "run_now")
+    assert not list_validations(run_dir)
+    step_before = _recs(run_dir)["step"]
+    old_batch = get_pending_batch(run_dir)["batch_id"]
+    ci = ids["unpinned_ci"][0]
+
+    run_dir = _validate_now(s, "run_now", [ci])
+    v = list_validations(run_dir)
+    assert {x.plan_id for x in v} == {ci} and {x.verdict for x in v} == {"verified"}
+    assert _outcomes(run_dir) == {"unpinned_ci": "verified", "typosquat": "approved", "lockfile": "awaiting_decision"}
+    recs = _recs(run_dir)
+    assert recs["step"] == step_before + 1 and recs["status"] == "awaiting_decisions"
+    pending = get_pending_batch(run_dir)  # a refreshed batch holding only the still-undecided item
+    assert pending["batch_id"] != old_batch and {i["plan_id"] for i in pending["items"]} == {ids["lockfile"][0]}
+    assert recs["batch_id"] == pending["batch_id"]
+    assert _json(run_dir / "run_summary.json")["status"] == "awaiting_human" and not _reporter_runs(run_dir)
+    ev = [e for e in _trace(run_dir) if e["type"] == "validate_now"]  # audit: who and which plans
+    assert len(ev) == 1 and ev[0]["data"]["plan_ids"] == [ci] and ev[0]["data"]["requested_by"] == "tester"
+    assert "tester" in ev[0]["summary"] and ci in ev[0]["summary"]
+
+    # the last decision validates the other held fix together with the new one, on top of the verified CI pin
+    run_dir = _decide(s, "run_now", default="approve")
+    assert {x.plan_id for x in list_validations(run_dir)} == {ci, ids["typosquat"][0], ids["lockfile"][0]}
+    assert {r["outcome"] for r in _recs(run_dir)["items"]} == {"verified"}
+    assert _json(run_dir / "run_summary.json")["status"] == "done" and len(_reporter_runs(run_dir)) == 1
+
+
+def test_validate_now_without_ids_validates_all_held_together(target, s, fake_llm_factory):  # noqa: F811
+    run_dir, ids = _two_held(target, s, fake_llm_factory, "run_now_all")
+    run_dir = _validate_now(s, "run_now_all")
+    v = list_validations(run_dir)
+    assert {x.plan_id for x in v} == {ids["unpinned_ci"][0], ids["typosquat"][0]}
+    assert all(x.combined for x in v) and len({x.attempt_id for x in v}) == 1
+    assert _outcomes(run_dir) == {"unpinned_ci": "verified", "typosquat": "verified", "lockfile": "awaiting_decision"}
+    assert not _reporter_runs(run_dir)
+
+
+def test_validate_now_failure_follows_the_retry_path(target, s, fake_llm_factory, rig):  # noqa: F811
+    sandbox.set_runner(Culprit(test_exit=0))  # the `replace` fix of the typosquat breaks the tests
+    run_dir, ids = _two_held(target, s, fake_llm_factory, "run_now_fail")
+    run_dir = _validate_now(s, "run_now_fail", [ids["typosquat"][0]])
+    v = list_validations(run_dir)
+    assert {x.plan_id for x in v} == {ids["typosquat"][0]} and v[0].verdict == "failed_tests"
+    # back for its next alternative (G5.4: attempt 2), shown in the new batch; the other held fix is untouched
+    assert _outcomes(run_dir) == {"unpinned_ci": "approved", "typosquat": "awaiting_decision",
+                                  "lockfile": "awaiting_decision"}
+    typo = next(r for r in _recs(run_dir)["items"] if _category(run_dir, r) == "typosquat")
+    assert typo["attempt"] == 2 and typo["previous"]["outcome"] == "failed" and typo["plan_id"] != ids["typosquat"][0]
+    assert typo["plan_id"] in {i["plan_id"] for i in get_pending_batch(run_dir)["items"]}
+    assert not _reporter_runs(run_dir)
+
+
+def test_validate_now_refusals(target, s, fake_llm_factory):  # noqa: F811
+    run_dir, ids = _two_held(target, s, fake_llm_factory, "run_now_bad")
+    pending = get_pending_batch(run_dir)
+    bid, ci, typo, lock = pending["batch_id"], ids["unpinned_ci"][0], ids["typosquat"][0], ids["lockfile"][0]
+
+    def check(batch_id, plans):
+        return batch.check_validate_now(run_dir, get_pending_batch(run_dir), batch_id, plans)
+
+    assert check("bt_stale", None)[0] == 409  # stale batch id
+    assert check(bid, [lock])[0] == 400  # undecided: never approved
+    assert check(bid, ["pl_UNKNOWN"])[0] == 400  # unknown plan
+    assert check(bid, [typo, typo])[0] == 400
+    assert sorted(check(bid, None)) == sorted([ci, typo])  # default: every held approved fix
+    with pytest.raises(workflow.DecisionRejected):
+        workflow.resume_validate_now("run_now_bad", "bt_stale", None, settings=s, echo=False)
+    with pytest.raises(workflow.DecisionRejected):
+        workflow.resume_validate_now("run_now_bad", bid, [lock], settings=s, echo=False)
+    assert not list_validations(run_dir) and get_pending_batch(run_dir)["batch_id"] == bid  # nothing resumed
+
+    # a withdrawn approval no longer counts (G5.1): that plan is refused, the other held one is still fine
+    a = [x for x in map(json.loads, (run_dir / "approvals.jsonl").read_text().splitlines()) if x["plan_id"] == typo][-1]
+    (run_dir / "approvals.withdrawn.jsonl").write_text(json.dumps(
+        {"withdrawn": True, "plan_id": typo, "plan_hash": a["plan_hash"], "original_ts": a["ts"]}) + "\n",
+        encoding="utf-8")
+    assert check(bid, [typo])[0] == 400
+    assert check(bid, [ci]) == [ci]
+    assert check(bid, None)[0] == 400  # the default (all held) never silently skips or includes the withdrawn one
+
+    # the graph re-checks in code: a forged resume with the withdrawn plan validates nothing
+    graph_state._CONTEXTS.clear()
+    workflow._resume("run_now_bad", s, None, False, Command(resume={
+        "batch_id": bid, "decisions": [], "partial": True, "validate_now": [typo]}), "forged validate-now")
+    assert not list_validations(run_dir) and _outcomes(run_dir)["typosquat"] == "approved"
+    assert get_pending_batch(run_dir)["batch_id"] == bid  # still waiting at the same gate
+
+
+def test_validate_now_with_nothing_held_is_a_conflict(target, s, fake_llm_factory):  # noqa: F811
+    run_dir = _start(target, s, fake_llm_factory, "run_now_none")
+    pending = get_pending_batch(run_dir)
+    assert batch.check_validate_now(run_dir, pending, pending["batch_id"], None)[0] == 409
+
+
+def test_validate_now_api_roles_conflicts_and_resume(target, s, fake_llm_factory, monkeypatch):  # noqa: F811
+    import time
+
+    from fastapi.testclient import TestClient
+
+    from guardian.api import app as api_app
+    from guardian.api.auth import TokenStore
+
+    run_dir, ids = _two_held(target, s, fake_llm_factory, "run_now_api")
+    calls = []
+    monkeypatch.setattr(workflow, "resume_validate_now", lambda *a, **kw: calls.append((a, kw)))
+    tokens = TokenStore("ana:" + "v" * 20 + ":viewer,sai:" + "s" * 20 + ":approver")
+    c = TestClient(api_app.create_app(s.runs_dir, tokens=tokens, target_roots=[s.runs_dir.parent]))
+    bid = get_pending_batch(run_dir)["batch_id"]
+    url = f"/runs/run_now_api/batches/{bid}/validate"
+    viewer, approver = {"Authorization": "Bearer " + "v" * 20}, {"Authorization": "Bearer " + "s" * 20}
+    assert c.post(url, headers=viewer).status_code == 403
+    assert c.post(f"/runs/run_now_api/batches/bt_{'X' * 26}/validate", headers=approver).status_code == 409  # stale
+    assert c.post(url, json={"plan_ids": [ids["lockfile"][0]]}, headers=approver).status_code == 400  # not approved
+    assert c.post(url, json={"plan_ids": ["pl_" + "X" * 26]}, headers=approver).status_code == 400  # unknown
+    assert not calls
+    r = c.post(url, json={"plan_ids": [ids["typosquat"][0]]}, headers=approver)
+    assert r.status_code == 202 and r.json()["requested_by"] == "sai" and r.json()["plan_ids"] == [ids["typosquat"][0]]
+    for _ in range(100):
+        if calls:
+            break
+        time.sleep(0.02)
+    assert calls and calls[0][0][:4] == ("run_now_api", bid, [ids["typosquat"][0]], "sai")
+    time.sleep(0.1)  # let the background thread finish before the next call on the same run
+    r = c.post(url, headers=approver)  # no body: every held fix
+    assert r.status_code == 202 and sorted(r.json()["plan_ids"]) == sorted([ids["unpinned_ci"][0], ids["typosquat"][0]])

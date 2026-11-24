@@ -53,19 +53,25 @@ export default function Overview() {
   const toDecide = recs && recs.status === "awaiting_decisions" ? recs.items.filter((i) => i.kind === "fix" && i.outcome === "awaiting_decision").length : 0;
   const testing = recs && recs.status === "validating" ? recs.items.filter((i) => i.outcome === "validating").length : 0;
   const result = useMemo(() => {
-    let verified: number, needs: number, noAlt = 0, accepted = 0;
+    let verified: number, needs: number, noAlt = 0, accepted = 0, fixedFindings = 0;
     if (recs) {
-      const n = (o: string) => recs.items.filter((i) => i.outcome === o).length;
-      verified = n("verified");
-      needs = n("needs_person") + n("failed") + n("rejected") + n("awaiting_decision") + n("validating");
-      noAlt = n("no_alternative");
-      accepted = n("accepted");
+      // one recommendation row can cover several findings (all advisories on a package): count fixes as rows,
+      // but accepted / no-fix / open as the FINDINGS those rows cover, so the numbers add up to the total
+      const rows = (o: string) => recs.items.filter((i) => i.outcome === o);
+      const findings = (o: string) => rows(o).reduce((sum, i) => sum + i.finding_ids.length, 0);
+      verified = rows("verified").length;
+      fixedFindings = findings("verified");
+      needs = ["needs_person", "failed", "rejected", "awaiting_decision", "validating"].reduce((s2, o) => s2 + findings(o), 0);
+      noAlt = findings("no_alternative");
+      accepted = findings("accepted");
     } else {
       verified = new Set(data.validation.filter((v) => v.verdict === "verified").map((v) => v.finding_id)).size;
       needs = (s.remediation ?? []).filter((r) => r.status && r.status !== "verified" && r.status !== "accepted").length;
     }
     const parts = [
-      verified ? `${plural(verified, "fix", "fixes")} verified in a sandbox` : "",
+      verified
+        ? `${plural(verified, "fix", "fixes")} verified in a sandbox${fixedFindings > verified ? ` (resolving ${fixedFindings} findings)` : ""}`
+        : "",
       accepted ? `risk accepted for ${plural(accepted, "finding")}` : "",
       noAlt ? `${plural(noAlt, "finding")} with no suggested fix` : "",
       needs ? `${plural(needs, "finding")} still ${needs === 1 ? "needs" : "need"} a person` : "",

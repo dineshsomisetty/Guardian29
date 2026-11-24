@@ -122,7 +122,8 @@ export type ReportLinks = { json: string | null; html: string | null } | "pendin
  */
 export function useReportLinks(src: { kind: string; runId: string }, status: string, enabled = true): ReportLinks {
   const [links, setLinks] = useState<ReportLinks>("pending");
-  const mayHave = src.kind !== "api" || status === "done";
+  // a run paused at a decision has an interim report once a fix was validated (firstAvailable checks it exists)
+  const mayHave = src.kind !== "api" || status === "done" || status === "awaiting_human";
   useEffect(() => {
     let dead = false;
     if (!enabled) return;

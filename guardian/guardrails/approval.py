@@ -2,6 +2,13 @@
 
 `plan_hash` is a SHA-256 over the canonical JSON of the plan's content (ops, target, rationale ...), so an
 approval for one plan can never be replayed onto a different or edited plan.
+`check_decision` / `check_write` guard one plan at a time (sequential mode); `check_batch` guards a whole set of
+decisions in batch mode. All three are plain code checks: no model is involved in deciding whether an approval counts.
+
+Callers: `graph.workflow.resume` / `resume_batch` check a decision before the paused graph is resumed; the API and
+CLI pre-check the same rules to give an early error; `record_decision_node` / `record_batch_node` re-check inside
+the graph, because a resume value is data from outside the process and is never trusted blindly. The validator
+passes `check_write` to the tool registry, so even a bug upstream cannot apply a patch without a matching approval.
 """
 
 from __future__ import annotations
@@ -11,11 +18,18 @@ import json
 
 from guardian.core.models import Approval, RemediationPlan
 
+# The only decisions a human can make: apply the fix, decline it (a different fix is then proposed), or
+# knowingly leave the risk in place.
 DECISIONS = {"approve", "reject", "accept_risk"}
-REASON_TYPES = {"too_big", "breaks_app", "different_approach", "other"}  # mirrors remediation.REASON_TYPES
+# Allowed reason types on a reject; mirrors the ids of remediation.REASON_TYPES (kept separate to avoid an import cycle).
+REASON_TYPES = {"too_big", "too_new", "breaks_app", "different_approach", "other"}
 
 
 def plan_hash(plan: RemediationPlan) -> str:
+    """SHA-256 of the plan's content (everything except the hash field itself).
+
+    The JSON is canonical (sorted keys, no whitespace), so the same plan always hashes the same on any machine
+    and any change to ops, target version, rationale or rollback text yields a different hash."""
     body = plan.model_dump(mode="json", exclude={"plan_hash"})
     return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
@@ -35,6 +49,7 @@ def check_decision(plan: RemediationPlan, approval: Approval) -> str | None:
     return None
 
 
+# check_write is the gate for write tools (G3.3): stricter than check_decision, since only `approve` may write.
 def check_write(plan: RemediationPlan | None, approval: Approval | None) -> str | None:
     """G3.3: a write tool may run only under an `approve` decision that matches the plan."""
     if plan is None or approval is None:
@@ -63,6 +78,7 @@ def check_batch(pending: dict | None, batch_id: str, approvals: list[Approval], 
         return f"decision for plan(s) not in this batch: {', '.join(extra)}"
     if partial and not ids:
         return "a one-at-a-time submission needs at least one decision"
+    # whole-batch mode refuses a submission that leaves any item undecided; one-at-a-time mode allows it
     if not partial and (missing := sorted(set(items) - set(ids))):
         return f"{len(missing)} plan(s) have no decision yet (every fix needs one): {', '.join(missing)}"
     for a in approvals:

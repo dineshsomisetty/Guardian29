@@ -136,8 +136,8 @@ export function whyItMatters(f: Finding, risk: RiskAssessment | undefined): stri
 // ------------------------------------------------------------------ risk factors
 
 export const FACTOR_INFO = {
-  S: { name: "Severity", weight: 0.3, help: "How damaging the flaw is on paper (CVSS score from the advisory)." },
-  E: { name: "Exploitability", weight: 0.25, help: "How likely attackers are to use it: exploit probability (EPSS) and the known-exploited list (KEV)." },
+  S: { name: "Severity", weight: 0.4, help: "How damaging the flaw is on paper (CVSS score from the advisory)." },
+  E: { name: "Exploitability", weight: 0.15, help: "How likely attackers are to use it: exploit probability (EPSS) and the known-exploited list (KEV)." },
   R: { name: "Reachability", weight: 0.2, help: "Whether your own code actually imports and uses the vulnerable package." },
   P: { name: "Used in production", weight: 0.15, help: "Whether the package ships to production or is only a development tool." },
   X: { name: "Exposure", weight: 0.1, help: "Whether the running service can be reached from outside, for example on an open network port." },
@@ -162,11 +162,18 @@ const TIER: Record<string, string> = {
 };
 export const tierLabel = (t: string) => TIER[t] ?? humanize(t);
 
-/** Score ranges per level; mirrors guardian/core/scoring.py band(). */
+/**
+ * Score range (inclusive) of each level. Mirrors guardian/core/scoring.py band(); the UI only reads the level
+ * the backend already chose, these ranges are for display (scale, 'High is 60 to 79').
+ */
 export const BAND_RANGE: Record<Risk, [number, number]> = { low: [0, 39], medium: [40, 59], high: [60, 79], critical: [80, 100] };
 export const BAND_ORDER: Risk[] = ["low", "medium", "high", "critical"];
 
-/** The weights the backend actually used: findings with no code to reach (CI, lockfile, image) move Reachability's weight onto Severity. */
+/**
+ * The factor weights the backend actually used. A finding with no package code to reach (CI action, lockfile,
+ * image) has Reachability 'not_applicable', and its weight moves onto Severity so the maximum is still 100
+ * points. The table and bar must use these, not FACTOR_INFO's defaults.
+ */
 export function weightsFor(risk: RiskAssessment): Record<FactorKey, number> {
   const w = Object.fromEntries(FACTOR_KEYS.map((k) => [k, FACTOR_INFO[k].weight])) as Record<FactorKey, number>;
   if (risk.factors.R.tier === "not_applicable") {
@@ -185,6 +192,7 @@ export function factorFinding(key: FactorKey, risk: RiskAssessment, f: Finding |
   switch (key) {
     case "S":
       if (v.tier === "cvss" && f?.cvss != null) return `CVSS ${f.cvss.toFixed(1)} from the published advisory`;
+      // Only CVEs have a CVSS score; other kinds of issue get a fixed severity weight.
       if (f && f.category !== "cve") return `Fixed weight for this kind of issue (${categoryShort(f.category)})`;
       return tierLabel(v.tier);
     case "E":
@@ -203,7 +211,11 @@ export function factorFinding(key: FactorKey, risk: RiskAssessment, f: Finding |
   }
 }
 
-/** The level the advisory alone would give, before Guardian looks at your project. */
+/**
+ * The level the advisory alone would give (standard CVSS cut-offs 9 / 7 / 4, else its severity word), before
+ * Guardian considers your project. Null for non-CVE findings, which have no advisory. This is NOT the level
+ * shown to the user, which is Guardian's own score.
+ */
 export function advisoryBand(f: Finding): Risk | null {
   if (f.category !== "cve") return null;
   if (f.cvss != null) return f.cvss >= 9 ? "critical" : f.cvss >= 7 ? "high" : f.cvss >= 4 ? "medium" : "low";
@@ -211,11 +223,13 @@ export function advisoryBand(f: Finding): Risk | null {
   return s === "critical" || s === "high" || s === "medium" || s === "low" ? s : s === "moderate" ? "medium" : null;
 }
 
+// Join words as 'a, b and c'.
 const joinWords = (xs: string[]) => (xs.length <= 1 ? (xs[0] ?? "") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /**
- * One or two sentences reconciling Guardian's level with the advisory's own rating, built from the factors only
- * (no model text), so the reader sees why a "Critical" advisory can be a High risk here, or the other way round.
+ * One or two sentences reconciling Guardian's level with the advisory's own rating, built only from the factors
+ * (no model text), so the reader sees why a Critical advisory can be a High risk here, or the other way round.
+ * The level shown everywhere is Guardian's; the advisory's appears only in this explanation.
  */
 export function scoreExplainer(f: Finding, risk: RiskAssessment): string {
   const band = risk.band;
@@ -228,6 +242,8 @@ export function scoreExplainer(f: Finding, risk: RiskAssessment): string {
   const override = risk.override_applied ? " A safety rule also raised it, because the flaw is actively exploited and reachable in production." : "";
   if (!adv) return `${name} because of the kind of issue it is and how it reaches your project. There is no published advisory score for it.${unknownNote}${override}`;
   if (adv === band) return `${name}, the same as the advisory's own rating (${advText}). Your project's context neither raises nor lowers it.${unknownNote}${override}`;
+  // lower: Guardian ranks it below the advisory. Then the reasons name what pulled it down (not imported, dev
+  // only, unlikely to be exploited, not exposed); otherwise what pushed it up.
   const lower = BAND_ORDER.indexOf(band) < BAND_ORDER.indexOf(adv);
   const reasons: string[] = [];
   if (lower) {
@@ -247,7 +263,10 @@ export function scoreExplainer(f: Finding, risk: RiskAssessment): string {
   return `The advisory rates it ${advText}. Guardian ranks it ${lower ? "lower" : "higher"}, ${name}, because ${why}.${unknownNote}${override}`;
 }
 
-/** True for the risk analyst's machine summary ("... Factors: S=0.92 (cvss) ..."), which is not for people. */
+/**
+ * True for the risk analyst's machine summary ('... Factors: S=0.92 (cvss) ...'), which is for logs, not
+ * people, so it is never shown as the explanation.
+ */
 export const isMachineSummary = (s: string | null | undefined) => !!s && /Factors:\s*S=/.test(s);
 
 // ------------------------------------------------------------------ evidence
@@ -398,6 +417,14 @@ const VERDICT_FAIL: Record<string, string> = {
   regressed: "the fix introduced new vulnerabilities or packages",
   not_resolved: "the vulnerability was still there after the fix",
   timeout: "a sandbox step ran out of time",
+  still_imported: "the package is still imported by the source code",
 };
 
 export const verdictFail = (v: string) => VERDICT_FAIL[v] ?? v.replace(/_/g, " ");
+
+/** Neutral wording for a result that is only the shared failure of a group run: nobody was blamed for it yet. */
+export const GROUP_FAILED = "Tested only as part of a group that failed";
+
+/** One line for a non-verified result: the blame is only placed when this fix was isolated (or failed pre-flight). */
+export const failLine = (v: { verdict: string; reason?: string | null; group_failure?: boolean }) =>
+  v.group_failure ? GROUP_FAILED : `Failed: ${v.reason || verdictFail(v.verdict)}`;

@@ -114,3 +114,27 @@ def test_failing_test_that_asserts_the_attack_does_not_fail_the_fix(target, sett
     run_dir = workflow.run(target, run_id="run_ex2", settings=s, llm=llm, echo=False)
     _decide(s, "run_ex2", "approve")
     assert list_validations(run_dir)[0].verdict == "failed_tests"
+
+
+def test_fast_path_skips_the_sandbox_says_so_and_is_never_high(target, settings, fake_llm_factory, rig,  # noqa: F811
+                                                                 monkeypatch):
+    """A change that cannot touch app code (eligibility itself is tested in test_sandbox_shards) runs no install /
+    build / tests: the result reports them as skipped, not passed, and cannot reach HIGH confidence."""
+    from guardian.core.store import JsonStore
+
+    fake, _ = rig
+    fake.test_exit = 0
+    monkeypatch.setattr(sandbox, "fast_path_files", lambda plans: [".github/workflows/ci.yml"])
+    s = _settings(settings, plans=3)
+    llm, _b = fake_llm_factory(lambda *a: '{"assessments": []}')
+    run_dir = workflow.run(target, run_id="run_fp", settings=s, llm=llm, echo=False)
+    fake.calls.clear()
+    _decide(s, "run_fp", "approve")
+    v = list_validations(run_dir)[0]
+    assert not any(a[1] in ("build", "run") for a in fake.calls)  # no install, build or test container
+    assert v.verdict == "verified" and v.final_confidence.value == "medium" and v.build_ok is None
+    assert v.unit_tests == {} and v.integration_tests == {} and v.artifact_rescanned
+    summary = next(e for e in JsonStore(run_dir).list_evidence() if e.evidence_id == v.log_evidence_ids[0])
+    assert summary.facts["fast_path"] is True
+    assert {"build", "unit_tests", "integration_tests"} <= set(summary.facts["checks_skipped"])
+    assert summary.facts["sandbox"].startswith("not run: this change does not touch application code")

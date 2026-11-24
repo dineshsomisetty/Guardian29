@@ -218,6 +218,8 @@ export async function loadDynamic(src: Src): Promise<Dynamic> {
   // a missing file (or a static server answering with its fallback page) means "no recommendations": sequential run
   const recUrl = src.kind === "api" ? `${root(src)}/recommendations` : `${root(src)}/recommendations.json`;
   const rawRecs = await optJson<RecommendationsFile | null>(recUrl, null);
+  // Only a file with an items array counts. Anything else (missing, or an HTML fallback page) means the run has
+  // no batch recommendations.
   const recommendations = rawRecs && Array.isArray(rawRecs.items) ? rawRecs : null;
   if (src.kind === "api") {
     [plans, validation, approvals] = await Promise.all([
@@ -286,6 +288,40 @@ export async function fetchTrace(src: Src): Promise<AgentEvent[]> {
   return u ? jsonLines<AgentEvent>(u) : [];
 }
 
+// ---------------------------------------------------------------- live activity (what is running right now)
+
+export interface ActivityStep {
+  id: string;
+  label: string;
+  kind: "tool" | "container" | "baseline" | string;
+  detail?: string | null;
+  parent?: string | null;
+  started_at: string;
+  ended_at?: string;
+  seconds?: number;
+  outcome?: string;
+}
+export interface ActivityDoc {
+  updated_at: string | null;
+  server_time?: string;
+  status?: string;
+  stale: boolean;
+  running: ActivityStep[];
+  interrupted?: ActivityStep[];
+  recent: ActivityStep[];
+}
+
+/** GET /runs/{id}/activity (API only; static runs have no live process). null when unavailable. */
+export async function fetchActivity(src: Src): Promise<ActivityDoc | null> {
+  if (src.kind !== "api") return null;
+  try {
+    const r = await timedFetch(`${API_BASE}/runs/${src.runId}/activity`, undefined, 3000);
+    return r.ok ? ((await r.json()) as ActivityDoc) : null;
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------- decision
 
 export interface DecisionResult {
@@ -326,6 +362,19 @@ async function postJson(url: string, payload: unknown, ok: string, batch: boolea
   }
 }
 
+/**
+ * "Validate now" (one-at-a-time mode): test the approved fixes that are being held, right away, while the other fixes
+ * keep waiting for decisions. planIds = the held approved plans to test (omit for all of them).
+ */
+export async function validateHeldFixes(src: Src, runId: string, batchId: string, planIds?: string[]): Promise<DecisionResult> {
+  return postJson(
+    `${API_BASE}/runs/${runId || src.runId}/batches/${encodeURIComponent(batchId)}/validate`,
+    planIds && planIds.length ? { plan_ids: planIds } : {},
+    "Validation started.",
+    true,
+  );
+}
+
 export async function postDecision(
   src: Src,
   planId: string,
@@ -334,6 +383,10 @@ export async function postDecision(
   return postJson(`${API_BASE}/runs/${src.runId}/plans/${planId}/decision`, body, "Decision recorded.", false);
 }
 
+/**
+ * One decision sent to the backend. plan_hash must match the stored plan, so a plan that changed after review
+ * is refused.
+ */
 export interface BatchDecision {
   plan_id: string;
   plan_hash: string;
@@ -345,7 +398,11 @@ export interface BatchDecision {
 
 export type RejectReason = "too_big" | "too_new" | "breaks_app" | "different_approach" | "other";
 
-/** One decision for every fix in the waiting batch; Guardian starts validation when it accepts them. */
+/**
+ * Send decisions for the waiting batch. Normally one per pending fix, and Guardian then starts validation. With
+ * partial = true only some are sent (one-at-a-time mode): the backend records them and keeps waiting for the
+ * rest.
+ */
 export async function submitBatchDecisions(
   src: Src,
   runId: string,

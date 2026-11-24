@@ -4,6 +4,11 @@
 `.github/workflows`: job `image:` / `services:` are third-party containers that run with the repository's CI
 credentials, and `include: project/ref` or `include: remote` pulls pipeline code from elsewhere. Both are
 supply-chain components; a tag or branch can be moved by whoever controls the source.
+
+`parse(root)` returns `(images, includes)`: a `CiImage` per distinct job `image:` / `services:` entry (role says
+which) and a `CiInclude` per `include: project` or `include: remote`/URL entry. Entries using `$VARIABLES` are
+skipped (resolved only at pipeline time). Files are read with PyYAML for structure, and the line number of each
+entry is found afterwards by text search because YAML loading discards positions. Used by the CI detectors.
 """
 
 from __future__ import annotations
@@ -14,13 +19,16 @@ from pathlib import Path
 
 import yaml
 
-SHA = re.compile(r"^[0-9a-f]{40}$")
+SHA = re.compile(r"^[0-9a-f]{40}$")  # a full commit SHA is the only immutable git reference
+# Top-level keys of .gitlab-ci.yml that are configuration, not job names; every other mapping is treated as a job.
 _RESERVED = {"stages", "variables", "include", "default", "workflow", "image", "services", "before_script",
              "after_script", "cache", "pages"}
 
 
 @dataclass
 class CiImage:
+    """A container image a pipeline job runs in (role "image") or alongside (role "service")."""
+
     file: str
     line: int
     raw: str
@@ -32,6 +40,8 @@ class CiImage:
 
 @dataclass
 class CiInclude:
+    """Pipeline code pulled in from another project or URL. `pinned` is true only for a full-SHA project ref."""
+
     file: str
     line: int
     raw: str
@@ -41,6 +51,7 @@ class CiInclude:
 
 
 def pipeline_files(root: Path) -> list[Path]:
+    """Pipeline YAML files: root .gitlab-ci.yml, *.gitlab-ci.yml, and anything under .gitlab/ (max 30)."""
     files = {*root.glob("*.gitlab-ci.yml"), *root.glob(".gitlab-ci.yml")}
     g = root / ".gitlab"
     if g.is_dir():
@@ -67,6 +78,7 @@ def _line_of(lines: list[str], needle: str, start: int = 0) -> tuple[int, str]:
 
 
 def _image_name(v) -> str | None:
+    """The image string from either `image: name` or the long form `image: {name: ...}`; None if neither."""
     if isinstance(v, str):
         return v.strip() or None
     if isinstance(v, dict) and isinstance(v.get("name"), str):
@@ -75,6 +87,7 @@ def _image_name(v) -> str | None:
 
 
 def parse(root: Path) -> tuple[list[CiImage], list[CiInclude]]:
+    """Collect CI images and includes from every pipeline file under `root`. Unparsable YAML files are skipped."""
     images: list[CiImage] = []
     includes: list[CiInclude] = []
     for f in pipeline_files(root):
@@ -87,8 +100,9 @@ def parse(root: Path) -> tuple[list[CiImage], list[CiInclude]]:
         if not isinstance(doc, dict):
             continue
         lines = text.splitlines()
+        # candidates holding image/services: the top level, the `default:` block, and every job-like mapping
         jobs = [doc, doc.get("default") or {}, *(v for k, v in doc.items() if k not in _RESERVED and isinstance(v, dict))]
-        seen: set[tuple[str, str]] = set()
+        seen: set[tuple[str, str]] = set()  # report each (role, image) once per file even if many jobs repeat it
         for job in jobs:
             if not isinstance(job, dict):
                 continue
