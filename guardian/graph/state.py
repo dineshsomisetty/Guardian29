@@ -23,6 +23,19 @@ class GraphState(TypedDict, total=False):
     graph_evidence_id: str | None
     finding_ids: Annotated[list[str], operator.add]
     errors: Annotated[list[str], operator.add]
+    # ADDITIVE (Dev1, D1-05): enough to rebuild the RunContext when a paused run resumes in a new process
+    repo: str
+    work_dir: str | None
+    sbom_path: str | None
+    compare_ref: str | None
+    # remediation loop (one finding at a time)
+    plan_queue: list[str]  # finding ids still to plan, in priority order
+    current: str | None  # finding being remediated
+    attempt: int  # attempt number for `current` (1-based, max 3, G5.4)
+    plan_id: str | None  # plan waiting at / coming from the human gate
+    decision: dict | None  # Approval as JSON, written by the human gate on resume
+    route: str | None  # set by record_decision / validator for the conditional edge
+    last_validation: dict | None  # previous failed attempt, so re-planning picks a different plan
 
 
 @dataclass

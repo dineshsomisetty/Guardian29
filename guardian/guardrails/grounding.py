@@ -89,7 +89,8 @@ def parse_batch(text: str) -> RawBatch:
 CVE_RE = re.compile(r"\bCVE-\d{4}-\d{4,}\b", re.I)
 GHSA_RE = re.compile(r"\bGHSA(?:-[23456789cfghjmpqrvwx]{4}){3}\b", re.I)
 PURL_RE = re.compile(r"\bpkg:[a-z]+/[^\s,;\"')]+", re.I)
-VERSION_RE = re.compile(r"(?<![\w.])v?(\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z.]+)?)(?![\w.])")
+# prerelease = dot-separated identifiers; a sentence-ending "." is not part of the version ("3.9-alpine.")
+VERSION_RE = re.compile(r"(?<![\w.])v?(\d+\.\d+(?:\.\d+)?(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?)(?![\w]|\.\w)")
 
 
 def _flatten(obj: Any, prefix: str = "") -> list[tuple[str, str]]:

@@ -31,6 +31,8 @@ class Settings:
     llm_cache_dir: Path
     max_llm_findings: int
     offline: bool
+    max_llm_tokens: int = 600_000  # G3.6 run budget (input + output tokens)
+    max_plans: int = 3  # D1-05: findings taken into the remediation loop per run
 
     def describe(self) -> dict:
         """Safe-to-log view (no keys)."""
@@ -41,6 +43,8 @@ class Settings:
             "base_url": self.llm_base_url,
             "max_llm_findings": self.max_llm_findings,
             "offline": self.offline,
+            "max_llm_tokens": self.max_llm_tokens,
+            "max_plans": self.max_plans,
         }
 
 
@@ -61,6 +65,8 @@ def load_settings(**overrides) -> Settings:
         llm_cache_dir=REPO_ROOT / "data" / "cache" / "llm",
         max_llm_findings=int(env.get("GUARDIAN_MAX_LLM_FINDINGS", "200")),
         offline=env.get("GUARDIAN_OFFLINE", "0") == "1",
+        max_llm_tokens=int(env.get("GUARDIAN_MAX_LLM_TOKENS", "600000")),
+        max_plans=int(env.get("GUARDIAN_MAX_PLANS", "3")),
     )
     values.update({k: v for k, v in overrides.items() if v is not None})
     if values["llm_mode"] not in {"live", "record", "replay"}:

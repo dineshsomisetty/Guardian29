@@ -24,8 +24,9 @@ class _Resp:
 
 
 def test_deepseek_defaults(monkeypatch):
-    monkeypatch.delenv("GUARDIAN_MODEL", raising=False)
-    monkeypatch.delenv("LLM_BASE_URL", raising=False)
+    # set to "" rather than deleted: load_settings() re-reads .env, which would bring a local value back
+    monkeypatch.setenv("GUARDIAN_MODEL", "")
+    monkeypatch.setenv("LLM_BASE_URL", "")
     monkeypatch.setenv("GUARDIAN_LLM_PROVIDER", "deepseek")
     s = load_settings()
     assert s.llm_model == "deepseek-chat" and s.llm_base_url == "https://api.deepseek.com"
@@ -76,6 +77,8 @@ def test_serve_runs_refuses_work_copy(tmp_path):
     (run / "work" / "ctf.key").write_text("secret")
     (run / "run_summary.json").write_text("{}")
     (run / ".env").write_text("K=1")
+    (run / "attempts" / "at_1" / "work").mkdir(parents=True)
+    (run / "attempts" / "at_1" / "work" / "ctf.key").write_text("secret")
     (tmp_path / "LATEST").write_text("run_x")
     RunsHandler.runs_dir = tmp_path
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), partial(RunsHandler, directory=str(tmp_path)))
@@ -85,7 +88,8 @@ def test_serve_runs_refuses_work_copy(tmp_path):
         assert urllib.request.urlopen(f"http://127.0.0.1:{port}/latest/run_summary.json").status == 200
         bypasses = ("/latest/work/ctf.key", "/run_x/work/ctf.key", "/run_x/./work/ctf.key",
                     "/run_x/%77ork/ctf.key", "/run_x/WORK/ctf.key", "/run_x//work/ctf.key",
-                    "/run_x/x/../work/ctf.key", "/run_x/.env")
+                    "/run_x/x/../work/ctf.key", "/run_x/.env",
+                    "/run_x/attempts/at_1/work/ctf.key", "/latest/Attempts/at_1/work/ctf.key")
         for path in bypasses:
             for method in ("GET", "HEAD"):
                 req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", method=method)

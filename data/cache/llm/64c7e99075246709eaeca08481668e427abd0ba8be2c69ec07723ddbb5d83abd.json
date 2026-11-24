@@ -1,0 +1,1 @@
+{"agent": "investigator", "text": "{\"action\": \"call_tool\", \"tool\": \"registry_metadata\", \"name\": \"ngy-cookie\", \"version\": \"6.0.1000\", \"path\": null, \"line\": null, \"context\": null, \"conclusion\": null, \"claims\": []}", "model": "deepseek-flash"}

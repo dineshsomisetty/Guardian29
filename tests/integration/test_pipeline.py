@@ -75,7 +75,8 @@ def test_schema_repair_retry_then_escalate(tmp_path, settings, fake_llm_factory)
     llm, backend = fake_llm_factory(lambda s, u, sc: "not json")
     run_dir = workflow.run(tmp_path, run_id="run_bad", settings=settings, llm=llm, echo=False)
     findings = _read(run_dir, "findings.json")
-    assert len(backend.calls) == 2  # one call + one repair retry
+    analyst = [c for c in backend.calls if c.startswith("Assess these")]  # the risk analyst adds its own call
+    assert len(analyst) == 2  # one call + one repair retry
     assert all(f["status"] == "escalated" and f["initial_risk"] for f in findings)
 
 

@@ -105,3 +105,142 @@ def test_mini_diff(tmp_path):
     assert ch["added"] == ["pkg:npm/mocha@1", "pkg:npm/ngy-cookie@6.0.0"]
     assert ch["removed"] == ["pkg:npm/colors@1.1", "pkg:npm/epilogue-js@0.7"]
     assert ch["changed"][0]["name"] == "express-jwt" and ch["evidence_ids"]
+
+
+def test_scanner_env_is_offline_safe(monkeypatch):
+    """G7.3: scanners never self-update; offline, Grype never refreshes its vulnerability DB."""
+    from guardian.tools.binaries import scanner_env
+
+    on = scanner_env({"PATH": "x"})
+    assert on["SYFT_CHECK_FOR_APP_UPDATE"] == on["GRYPE_CHECK_FOR_APP_UPDATE"] == "false"
+    assert "GRYPE_DB_AUTO_UPDATE" not in on
+    off = scanner_env({"PATH": "x", "GUARDIAN_OFFLINE": "1"})
+    assert off["GRYPE_DB_AUTO_UPDATE"] == "false" and off["GRYPE_DB_VALIDATE_AGE"] == "false"
+
+
+def test_osv_scan_is_cached_and_offline_safe(tmp_path, settings, monkeypatch):
+    """G7.3/G7.4: online, OSV-Scanner output is cached by lockfile content; offline, the cache is reused and
+    the binary is never started; offline without a cache the cross-check is skipped (Grype stays primary)."""
+    from dataclasses import replace
+
+    import pytest
+
+    from guardian.tools import scanners
+    from guardian.tools.registry import ToolContext
+
+    monkeypatch.setenv("GUARDIAN_INTEL_CACHE", str(tmp_path / "intel"))
+    repo = tmp_path / "app"
+    repo.mkdir()
+    (repo / "package.json").write_text('{"name": "app", "dependencies": {"a": "1.0.0"}}', encoding="utf-8")
+    (repo / "package-lock.json").write_text('{"lockfileVersion": 3, "packages": {}}', encoding="utf-8")
+    calls = []
+
+    class Proc:
+        stdout = '{"results": []}'
+
+    def fake_run(args, **kw):
+        calls.append(args)
+        return Proc()
+
+    monkeypatch.setattr(scanners, "run", fake_run)
+    monkeypatch.setattr(scanners, "find", lambda name: name)
+
+    def ctx(offline):
+        run_dir = tmp_path / f"run_{offline}"
+        run_dir.mkdir(exist_ok=True)
+        return ToolContext(run_id="r", run_dir=run_dir, repo=repo, settings=replace(settings, offline=offline),
+                           work_dir=repo)
+
+    scanners.osv_scan(ctx(False))
+    assert len(calls) == 1
+    scanners.osv_scan(ctx(True))  # same lockfiles: served from the cache
+    assert len(calls) == 1
+    (repo / "package-lock.json").write_text('{"lockfileVersion": 3, "packages": {"x": {}}}', encoding="utf-8")
+    with pytest.raises(RuntimeError, match="offline"):
+        scanners.osv_scan(ctx(True))  # changed lockfile, no cache, offline: skipped, binary not started
+    assert len(calls) == 1
+
+
+def test_sbom_only_ecosystems_get_package_nodes_and_empty_graphs_get_a_root(tmp_path):
+    """Maven (and other ecosystems without a lockfile graph here) come from the SBOM; GitHub Actions purls are
+    CI pseudo-nodes, not packages. A target with no packages still gets a root so graph.json is written."""
+    import json
+    from types import SimpleNamespace
+
+    from guardian.core.graph_build import build_graph
+    from guardian.graph.workflow import build_graph_json
+
+    sbom = tmp_path / "sbom.cdx.json"
+    sbom.write_text(json.dumps({"components": [
+        {"name": "xstream", "version": "1.4.5", "purl": "pkg:maven/com.thoughtworks.xstream/xstream@1.4.5"},
+        {"name": "checkout", "version": "v4", "purl": "pkg:github/actions/checkout@v4"}]}), encoding="utf-8")
+    ctx = SimpleNamespace(work_dir=tmp_path, repo=tmp_path, sbom_path=sbom, run_id="r", artifacts={}, graph=None)
+    g = build_graph(ctx).artifacts["graph"]
+    assert g.packages() == ["pkg:maven/com.thoughtworks.xstream/xstream@1.4.5"]
+    empty = SimpleNamespace(graph=None, artifacts={"graph_json": {"nodes": [], "edges": [], "roots": []}})
+    data = build_graph_json(empty, [])
+    assert data["roots"] == ["root"] and any(n["id"] == "root" for n in data["nodes"])
+
+
+def test_established_lookalikes_are_not_typosquats_but_young_ones_are():
+    """query-string (13 years, 93 releases) looks like querystring but is not a typosquat; ngy-cookie (2 releases)
+    and epilogue-js (9 years but 2 releases) stay flagged; no registry data keeps the flag."""
+    from guardian.tools.detectors.typosquat import established
+
+    def meta(created, n):
+        return {"time": {"created": created}, "version_list": [f"1.{i}.0" for i in range(n)]}
+
+    assert established(meta("2013-11-13T00:00:00Z", 93)) == {"age_years": established(meta("2013-11-13T00:00:00Z", 93))["age_years"], "stable_releases": 93}
+    assert established(meta("2024-02-26T00:00:00Z", 2)) is None
+    assert established(meta("2017-08-15T00:00:00Z", 2)) is None
+    assert established(None) is None
+
+
+def test_maven_reachability_uses_java_imports_and_never_guesses(tmp_path):
+    """A Maven package is found by its groupId in Java imports (production code only); an ecosystem without a
+    scanner is 'unknown', never 'not imported' (which once turned a used xstream into a mitigate plan)."""
+    from guardian.tools import reachability as r
+
+    r._INDEX.clear()
+    src = tmp_path / "src" / "main" / "java" / "app"
+    src.mkdir(parents=True)
+    (src / "Lesson.java").write_text("package app;\nimport com.thoughtworks.xstream.XStream;\n", encoding="utf-8")
+    it = tmp_path / "src" / "it" / "java"
+    it.mkdir(parents=True)
+    (it / "FlowIT.java").write_text("import org.apache.commons.lang3.StringUtils;\n", encoding="utf-8")
+    hit = r.reachability_import(tmp_path, "com.thoughtworks.xstream/xstream", "maven")
+    assert hit.tier == "imported" and hit.hits[0]["line"] == 2
+    assert r.reachability_import(tmp_path, "org.apache.commons/commons-lang3", "maven").tier == "not_imported"
+    assert r.reachability_import(tmp_path, "github.com/x/y", "golang").tier == "unknown"
+
+
+def test_osv_purls_match_grype_for_every_ecosystem(tmp_path, settings, monkeypatch):
+    """OSV names Maven packages group:artifact; an npm-style purl kept them from merging with Grype's findings
+    (WebGoat: 36 duplicate advisories) and made a used Java package look like an unimported npm one."""
+    import json as _json
+    from dataclasses import replace
+
+    from guardian.tools import scanners
+    from guardian.tools.registry import ToolContext
+
+    monkeypatch.setenv("GUARDIAN_INTEL_CACHE", str(tmp_path / "intel"))
+    repo = tmp_path / "app"
+    repo.mkdir()
+    (repo / "pom.xml").write_text("<project/>", encoding="utf-8")
+    pkgs = [("Maven", "com.thoughtworks.xstream:xstream", "1.4.5"), ("PyPI", "Django", "3.2.18"),
+            ("npm", "lodash", "4.17.20"), ("Go", "github.com/x/y", "v1.0.0")]
+    out = {"results": [{"packages": [{"package": {"name": n, "version": v, "ecosystem": e},
+                                      "vulnerabilities": [{"id": f"GHSA-{i}"}], "groups": []}
+                                     for i, (e, n, v) in enumerate(pkgs)]}]}
+
+    class Proc:
+        stdout = _json.dumps(out)
+
+    monkeypatch.setattr(scanners, "run", lambda args, **kw: Proc())
+    monkeypatch.setattr(scanners, "find", lambda name: name)
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    ctx = ToolContext(run_id="r", run_dir=run_dir, repo=repo, settings=replace(settings, offline=False), work_dir=repo)
+    purls = sorted(f.component_purl for f in scanners.osv_scan(ctx).findings)
+    assert purls == ["pkg:go/github.com/x/y@v1.0.0", "pkg:maven/com.thoughtworks.xstream/xstream@1.4.5",
+                     "pkg:npm/lodash@4.17.20", "pkg:pypi/django@3.2.18"]
