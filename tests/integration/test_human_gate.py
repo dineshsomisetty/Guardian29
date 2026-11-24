@@ -182,3 +182,32 @@ def test_resume_keeps_the_original_llm_provenance(target, settings, fake_llm_fac
     after = _summary(run_dir)
     assert after["status"] == "done"
     assert after["llm"] == before
+
+
+def test_demo_mode_sandbox_run_then_gate(target, settings, fake_llm_factory):
+    """GUARDIAN_DEMO_VALIDATOR=1: one finding enters the loop, a timed (simulated) sandbox run is shown before the
+    human gate, nothing is applied before the approval, and the validator after it skips the Docker sandbox."""
+    import time
+    from dataclasses import replace
+    s = replace(_settings(settings, plans=3), demo_validator=True, demo_sandbox_seconds=0.3)
+    llm, _ = fake_llm_factory(lambda *a: '{"assessments": []}')
+    t0 = time.monotonic()
+    run_dir = workflow.run(target, run_id="run_demo", settings=s, llm=llm, echo=False)
+    assert time.monotonic() - t0 >= 0.3
+
+    assert _summary(run_dir)["status"] == "awaiting_human"
+    assert not list_validations(run_dir) and not (run_dir / "attempts").exists()
+    trace = _trace(run_dir)
+    steps = [e for e in trace if e["type"] == "sandbox_step"]
+    assert len(steps) == 6 and all(e["agent"] == "validator" and e["data"]["simulated"] for e in steps)
+    order = [(e["agent"], e["type"]) for e in trace]
+    start = order.index(("validator", "agent_start"))
+    end = order.index(("validator", "agent_end"))
+    gate = order.index(("human_gate", "gate_wait"))
+    assert start < end < gate and order.count(("human_gate", "gate_wait")) == 1
+
+    run_dir = _decide(s, "run_demo", "approve")
+    summary = _summary(run_dir)
+    assert summary["status"] == "done" and len(summary["remediation"]) == 1
+    v = list_validations(run_dir)
+    assert len(v) == 1 and v[0].verdict == "verified" and v[0].build_ok is None

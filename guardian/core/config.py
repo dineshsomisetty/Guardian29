@@ -33,6 +33,10 @@ class Settings:
     offline: bool
     max_llm_tokens: int = 600_000  # G3.6 run budget (input + output tokens)
     max_plans: int = 3  # D1-05: findings taken into the remediation loop per run
+    # Demo mode: one critical finding, a short simulated sandbox run before the human gate, and no Docker
+    # sandbox after approval (the validator still applies the plan and re-runs the detectors for real)
+    demo_validator: bool = False
+    demo_sandbox_seconds: float = 6.0
 
     def describe(self) -> dict:
         """Safe-to-log view (no keys)."""
@@ -45,6 +49,7 @@ class Settings:
             "offline": self.offline,
             "max_llm_tokens": self.max_llm_tokens,
             "max_plans": self.max_plans,
+            "demo_validator": self.demo_validator,
         }
 
 
@@ -67,6 +72,8 @@ def load_settings(**overrides) -> Settings:
         offline=env.get("GUARDIAN_OFFLINE", "0") == "1",
         max_llm_tokens=int(env.get("GUARDIAN_MAX_LLM_TOKENS", "600000")),
         max_plans=int(env.get("GUARDIAN_MAX_PLANS", "3")),
+        demo_validator=env.get("GUARDIAN_DEMO_VALIDATOR", "0") == "1",
+        demo_sandbox_seconds=float(env.get("GUARDIAN_DEMO_SANDBOX_SECONDS", "6")),
     )
     values.update({k: v for k, v in overrides.items() if v is not None})
     if values["llm_mode"] not in {"live", "record", "replay"}:

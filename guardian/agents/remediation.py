@@ -506,8 +506,9 @@ def remediation_node(state: GraphState) -> dict:
                finding_id=f.finding_id, evidence_ids=plan.evidence_ids,
                data={"plan_id": plan.plan_id, "plan_hash": plan.plan_hash, "action": plan.action,
                      "target": plan.target_version})
-    audit.emit("human_gate", "gate_wait", f"Waiting for a human decision on plan {plan.plan_id} "
-                                         f"(guardian decide --run {state['run_id']} --plan {plan.plan_id} ...)",
-               finding_id=f.finding_id, data={"plan_id": plan.plan_id, "plan_hash": plan.plan_hash})
+    if not rc.tool_ctx.settings.demo_validator:  # demo: sandbox_preview runs first and opens the gate itself
+        audit.emit("human_gate", "gate_wait", f"Waiting for a human decision on plan {plan.plan_id} "
+                                             f"(guardian decide --run {state['run_id']} --plan {plan.plan_id} ...)",
+                   finding_id=f.finding_id, data={"plan_id": plan.plan_id, "plan_hash": plan.plan_hash})
     return {"plan_queue": queue, "current": current, "attempt": attempt, "plan_id": plan.plan_id,
             "decision": None, "route": "gate"}

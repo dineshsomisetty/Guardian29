@@ -3,7 +3,7 @@
 Graph (§2.2; the investigator is D1-08, the full §7 risk analyst D1-06 is still the Day-1 form):
 
     START -> discovery -> detection -> evidence_analyst -> investigator -> risk_analyst
-          -> [ remediation -> human_gate -> record_decision -> validator ]*  -> reporter -> END
+          -> [ remediation -> (sandbox_preview) -> human_gate -> record_decision -> validator ]*  -> reporter -> END
                  ^  reject / failed validation: re-plan (different plan)  |
                  |________________________________________________________|
 
@@ -11,6 +11,9 @@ The human gate is its own node containing only `interrupt()` (C6). State is chec
 runs/<id>/checkpoints.sqlite (thread id = run id), so a run paused at the gate is resumed later — from the CLI
 (`guardian decide`) or the API — in a new process, with the same plan_id. Every routing choice is a `decision`
 event with its reason (§2.4).
+
+Demo mode (GUARDIAN_DEMO_VALIDATOR=1): one critical finding, a ~6s simulated sandbox run (sandbox_preview) before
+the gate, and no Docker sandbox in the validator after approval.
 """
 
 from __future__ import annotations
@@ -34,6 +37,7 @@ from guardian.agents.investigator import investigator_node
 from guardian.agents.remediation import remediation_node
 from guardian.agents.reporter import remediation_outcomes, reporter_node
 from guardian.agents.risk_analyst import risk_analyst_node
+from guardian.agents.sandbox_preview import sandbox_preview_node
 from guardian.agents.validator import validator_node
 from guardian.core.audit import AuditLog
 from guardian.core.config import Settings, load_settings
@@ -82,8 +86,13 @@ def route_next(state: GraphState) -> str:
 
 def route_after_remediation(state: GraphState) -> str:
     if state.get("route") == "gate":
-        get_ctx(state["run_id"]).audit.emit("supervisor", "decision",
-                                            f"Plan {state['plan_id']} ready -> human_gate (no change without approval)")
+        rc = get_ctx(state["run_id"])
+        if rc.tool_ctx.settings.demo_validator:
+            rc.audit.emit("supervisor", "decision",
+                          f"Plan {state['plan_id']} ready -> sandbox validation (demo, nothing applied) -> human_gate")
+            return "sandbox_preview"
+        rc.audit.emit("supervisor", "decision",
+                      f"Plan {state['plan_id']} ready -> human_gate (no change without approval)")
         return "human_gate"
     return route_next(state)
 
@@ -120,7 +129,8 @@ def build_graph(checkpointer=None):
     for name, fn in [("discovery", discovery_node), ("detection", detection_node),
                      ("evidence_analyst", evidence_analyst_node), ("investigator", investigator_node),
                      ("risk_analyst", risk_analyst_node),
-                     ("remediation", remediation_node), ("human_gate", human_gate_node),
+                     ("remediation", remediation_node), ("sandbox_preview", sandbox_preview_node),
+                     ("human_gate", human_gate_node),
                      ("record_decision", record_decision_node), ("validator", validator_node),
                      ("reporter", reporter_node)]:
         g.add_node(name, fn)
@@ -130,7 +140,9 @@ def build_graph(checkpointer=None):
     g.add_edge("evidence_analyst", "investigator")
     g.add_edge("investigator", "risk_analyst")
     g.add_conditional_edges("risk_analyst", route_after_risk, ["remediation", "reporter"])
-    g.add_conditional_edges("remediation", route_after_remediation, ["human_gate", "remediation", "reporter"])
+    g.add_conditional_edges("remediation", route_after_remediation,
+                            ["sandbox_preview", "human_gate", "remediation", "reporter"])
+    g.add_edge("sandbox_preview", "human_gate")
     g.add_edge("human_gate", "record_decision")
     g.add_conditional_edges("record_decision", route_after_decision,
                             ["validator", "remediation", "human_gate", "reporter"])

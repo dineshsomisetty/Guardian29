@@ -209,7 +209,10 @@ def validator_node(state: GraphState) -> dict:
             if pol is not None:
                 det_ev += [e.evidence_id for e in pol.evidence]
                 new = sorted({*new, *_policy_regressions(store, pol.evidence)})
-        if sandbox.mode() == "off":
+        if ctx.settings.demo_validator:
+            sb = sandbox.SandboxResult(reason="demo mode (GUARDIAN_DEMO_VALIDATOR=1): Docker sandbox not run; the "
+                                              "pre-approval sandbox run was simulated")
+        elif sandbox.mode() == "off":
             sb = sandbox.SandboxResult(reason="GUARDIAN_SANDBOX=off")
         else:
             # The attempt is a fresh copy of the target, which may ship without lockfiles (Juice Shop:
