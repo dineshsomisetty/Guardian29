@@ -45,11 +45,16 @@ class Settings:
     max_plans: int = 3  # D1-05: findings taken into the remediation loop per run (sequential mode; 0 = none)
     remediation_mode: str = "batch"  # batch: every finding gets a recommendation, one decision round, combined
     #                                  validation | sequential: one plan at a time (the original loop)
+    # Demo mode: one critical finding, a short simulated sandbox run before the human gate, and no Docker
+    # sandbox after approval (the validator still applies the plan and re-runs the detectors for real)
+    demo_validator: bool = False
+    demo_sandbox_seconds: float = 6.0
 
     @property
     def batch_remediation(self) -> bool:
         """Batch mode is on (max_plans == 0 still means no remediation at all)."""
-        return self.remediation_mode == "batch" and self.max_plans != 0
+        # demo mode runs the one-plan loop (remediation -> sandbox_preview -> human gate), never batch
+        return self.remediation_mode == "batch" and self.max_plans != 0 and not self.demo_validator
 
     def describe(self) -> dict:
         """Safe-to-log view (no keys): the dict written into the `agent_start` event and run summary."""
@@ -63,6 +68,7 @@ class Settings:
             "max_llm_tokens": self.max_llm_tokens,
             "max_plans": self.max_plans,
             "remediation_mode": self.remediation_mode,
+            "demo_validator": self.demo_validator,
         }
 
 
@@ -89,6 +95,8 @@ def load_settings(**overrides) -> Settings:
         max_llm_tokens=int(env.get("GUARDIAN_MAX_LLM_TOKENS", "600000")),
         max_plans=int(env.get("GUARDIAN_MAX_PLANS", "3")),
         remediation_mode=env.get("GUARDIAN_REMEDIATION_MODE", "batch").strip().lower(),
+        demo_validator=env.get("GUARDIAN_DEMO_VALIDATOR", "0") == "1",
+        demo_sandbox_seconds=float(env.get("GUARDIAN_DEMO_SANDBOX_SECONDS", "6")),
     )
     values.update({k: v for k, v in overrides.items() if v is not None})
     if values["llm_mode"] not in {"live", "record", "replay"}:
