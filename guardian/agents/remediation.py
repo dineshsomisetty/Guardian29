@@ -376,6 +376,15 @@ def ungrounded_target(rc: RunContext, f: Finding, ops: list[PatchOp], evidence_i
     return None
 
 
+def _files_phrase(files: list[str]) -> str:
+    """'a and b', or 'frontend/package.json and 35 source files' for a long list (the diff lists them all)."""
+    if len(files) <= 3:
+        return ", ".join(files)
+    manifests = [f for f in files if f.endswith(("package.json", "requirements.txt", "Dockerfile", ".yml", ".yaml"))]
+    rest = len(files) - len(manifests)
+    return (", ".join(manifests) + (" and " if manifests else "")) + f"{rest} source files (listed in the diff)"
+
+
 def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> RemediationPlan | None:
     ctx, store, audit = rc.tool_ctx, rc.store, rc.audit
     extra: list[str] = list(cand.evidence_ids)
@@ -439,7 +448,7 @@ def build_plan(rc: RunContext, f: Finding, cand: Candidate, attempt: int) -> Rem
         target_version=target, rationale=_claims(rc, f, cand, extra),
         expected_risk_reduction=reduction, compatibility_impact=cand.compat,
         rollback=(f"Nothing is applied to the target: the patch lands in a fresh copy under runs/<run>/attempts/. "
-                  f"Discard that folder to roll back; after adoption, revert the diff of {', '.join(files)}."
+                  f"Discard that folder to roll back; after adoption, revert the diff of {_files_phrase(files)}."
                   if files else "Nothing is changed by this plan. Re-open the finding to withdraw the acceptance."),
         evidence_ids=[*f.evidence_ids, *extra],
     )
