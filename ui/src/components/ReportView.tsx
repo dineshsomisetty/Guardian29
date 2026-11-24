@@ -149,6 +149,15 @@ export default function ReportView() {
 
         {rep && rep !== "loading" && ov && (
           <>
+            {status !== "done" && (
+              <div className="callout gate" role="note"><div>
+                <strong>Interim report.</strong>{" "}
+                {status === "running"
+                  ? "Guardian is still working (for example validating a fix), so this shows the state before that step. It is rewritten when the step finishes."
+                  : "Some suggested fixes still wait for a decision. This report covers every fix validated so far and is rewritten after each validation and at the end."}
+                {ov.scanned_at && <span className="faint"> Written {when(ov.scanned_at)}.</span>}
+              </div></div>
+            )}
             <nav className="rep-toc" aria-label="Report sections">
               {SECTIONS.map(([id, label], i) => (
                 <button key={id} type="button" className="linkish" onClick={() => jump(id)}>{i + 1} {label}</button>

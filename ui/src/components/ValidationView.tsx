@@ -90,10 +90,21 @@ function Rounds({ onPick, current }: { onPick: (findingId: string) => void; curr
 /** Picks a finding (default: the first with a result) and lays out its verdict, timeline and attempt detail. */
 export default function ValidationView() {
   const { data, findingsById, riskById } = useStore();
+  // Findings with at least one plan (a valid pick from the rounds list below) ...
   const ids = useMemo(() => [...new Set(data.plans.map((p) => p.finding_id))], [data.plans]);
+  // ... but the picker lists only findings whose fix was actually tried in the sandbox, most recent attempt first
+  // (attempt ids are ULIDs, so they sort by time). Fixes still waiting for a decision live on the Remediation page.
+  const tested = useMemo(() => {
+    const last = new Map<string, string>();
+    for (const v of data.validation) {
+      if ((last.get(v.finding_id) ?? "") < v.attempt_id) last.set(v.finding_id, v.attempt_id);
+    }
+    return [...last.entries()].sort((a, b) => (a[1] < b[1] ? 1 : -1)).map(([i]) => i);
+  }, [data.validation]);
   const [fid, setFid] = useState<string | null>(null);
-  // The selected finding, or the first that has a result.
-  const current = fid && ids.includes(fid) ? fid : (ids.find((i) => data.validation.some((v) => v.finding_id === i)) ?? ids[0]);
+  // The selected finding, or the most recently tested one.
+  const current = fid && ids.includes(fid) ? fid : (tested[0] ?? ids[0]);
+  const waiting = ids.length - tested.length;
 
   if (!ids.length)
     return (
@@ -114,20 +125,28 @@ export default function ValidationView() {
         <header className="page-head">
           <h1>Validation</h1>
           <p className="muted">Did the fix work? Guardian tries every fix on a sandbox copy before anyone relies on it.</p>
-          {ids.length > 1 && (
+          {tested.length > 0 && (
             <label className="select-row">
-              <span className="muted">Finding</span>
+              <span className="muted">Tested fix</span>
               <select value={current} onChange={(e) => setFid(e.target.value)}>
-                {ids.map((i) => {
+                {/* a fix picked from the rounds list that has no result yet still needs an option to show */}
+                {!tested.includes(current) && <option value={current}>{(() => { const g = findingsById.get(current); return g ? plainTitle(g, bandOf(g, riskById)) : current; })()}</option>}
+                {tested.map((i, n) => {
                   const g = findingsById.get(i);
                   return (
                     <option key={i} value={i}>
-                      {g ? plainTitle(g, bandOf(g, riskById)) : i}
+                      {g ? plainTitle(g, bandOf(g, riskById)) : i}{n === 0 ? " (latest)" : ""}
                     </option>
                   );
                 })}
               </select>
             </label>
+          )}
+          {waiting > 0 && (
+            <p className="muted" style={{ fontSize: "var(--fs-sm)", marginTop: "var(--s2)" }}>
+              {tested.length} {tested.length === 1 ? "fix has" : "fixes have"} been tested. {waiting} other suggested{" "}
+              {waiting === 1 ? "fix is" : "fixes are"} not tested yet: approve them on the Remediation page.
+            </p>
           )}
         </header>
         <Rounds current={current} onPick={setFid} />
