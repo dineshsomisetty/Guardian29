@@ -258,6 +258,33 @@ def _image_candidates(f: Finding, facts: dict) -> list[Candidate]:
     return out
 
 
+SOURCE_EXT = (".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx")
+
+
+def importing_files(repo, manifest_rel: str, name: str, limit: int = 200) -> list[str]:
+    """Source files of the manifest's project that import `name` (tests included: they must still compile)."""
+    from pathlib import Path
+
+    from guardian.tools.patching import _module_spec
+
+    root = Path(repo)
+    project = (root / manifest_rel).parent
+    pat = re.compile(_module_spec(name), re.M)
+    out = []
+    for p in sorted(project.rglob("*")):
+        rel = p.relative_to(root)
+        if p.suffix not in SOURCE_EXT or not p.is_file() or "node_modules" in rel.parts or "dist" in rel.parts:
+            continue
+        try:
+            if pat.search(p.read_text(encoding="utf-8", errors="replace")):
+                out.append(rel.as_posix())
+        except OSError:
+            continue
+        if len(out) >= limit:
+            break
+    return out
+
+
 def candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     facts, _ = _facts(rc, f)
     out: list[Candidate] = []
@@ -275,8 +302,11 @@ def candidates(rc: RunContext, f: Finding) -> list[Candidate]:
                "similar_to", popular) if f.category is FindingCategory.TYPOSQUAT else (
             f"'{name}' was flagged by {f.detector}: {f.title[:100]}", None, None)
         if popular and not facts.get("legacy_manifest"):
+            renames = importing_files(rc.tool_ctx.repo, f.file_path, name)
             out.append(Candidate("replace", [PatchOp(op="replace_dependency", file_path=f.file_path,
-                                                     args={"name": name, "new_name": popular})],
+                                                     args={"name": name, "new_name": popular}),
+                                             *(PatchOp(op="rename_import", file_path=r,
+                                                       args={"name": name, "new_name": popular}) for r in renames)],
                                  popular, [why, (f"declared in {f.file_path} as {facts.get('range')}", "range",
                                                  facts.get("range")),
                                            (f"version range {facts.get('range')} is kept; API compatibility of "

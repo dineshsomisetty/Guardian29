@@ -465,3 +465,36 @@ def test_set_requirement_version_rewrites_one_pin_and_keeps_the_line():
         _set_requirement(text, {"name": "flask", "version": "3.0.0"})  # not declared
     with pytest.raises(PatchError):
         _set_requirement(text, {"name": "django", "version": "4.2; rm -rf /"})  # not a version
+
+
+def test_rename_import_changes_only_module_specifiers_and_stays_confined(tmp_path):
+    """Replacing a typosquat the code imports (Juice Shop: 35 files import 'ngy-cookie') must rename the imports
+    too, or the build breaks. Only exact module strings change; paths stay inside the copy."""
+    import pytest
+
+    from guardian.core.models import PatchOp
+    from guardian.tools.patching import PatchError, _rename_import, apply_ops
+
+    src = ("import { CookieService } from 'ngy-cookie'\nexport { X } from \"ngy-cookie/sub\"\n"
+           "const r = require('ngy-cookie')\nconst s = 'ngy-cookie is just text'\nimport 'ngy-cookie-extra'\n")
+    out = _rename_import(src, {"name": "ngy-cookie", "new_name": "ngx-cookie"})
+    assert out.splitlines() == ["import { CookieService } from 'ngx-cookie'", 'export { X } from "ngx-cookie/sub"',
+                                "const r = require('ngx-cookie')", "const s = 'ngy-cookie is just text'",
+                                "import 'ngy-cookie-extra'"]
+    with pytest.raises(PatchError):
+        _rename_import("const a = 1\n", {"name": "ngy-cookie", "new_name": "ngx-cookie"})
+    with pytest.raises(PatchError):
+        apply_ops(tmp_path, [PatchOp(op="rename_import", file_path="../outside.ts",
+                                     args={"name": "a-b", "new_name": "a-c"})], None, write=False)
+
+
+def test_typosquat_replace_plan_renames_imports_in_the_project(tmp_path):
+    from guardian.agents.remediation import importing_files
+
+    (tmp_path / "frontend" / "src").mkdir(parents=True)
+    (tmp_path / "frontend" / "package.json").write_text('{"dependencies": {"ngy-cookie": "^6.0.0"}}')
+    (tmp_path / "frontend" / "src" / "a.ts").write_text("import { C } from 'ngy-cookie'\n")
+    (tmp_path / "frontend" / "src" / "b.ts").write_text("const s = 'ngy-cookie'\n")  # not an import
+    (tmp_path / "frontend" / "node_modules" / "x").mkdir(parents=True)
+    (tmp_path / "frontend" / "node_modules" / "x" / "c.js").write_text("require('ngy-cookie')\n")
+    assert importing_files(tmp_path, "frontend/package.json", "ngy-cookie") == ["frontend/src/a.ts"]

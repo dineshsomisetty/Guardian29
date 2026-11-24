@@ -6,6 +6,8 @@ Ops (§5.1 PatchOp.op):
                                                              comments on the line are kept)
   remove_dependency       package.json  {name}
   replace_dependency      package.json  {name, new_name, version?}
+  rename_import           a .js/.ts source file  {name, new_name}  module strings in import/require (pairs with
+                                                             replace_dependency when code imports the package)
   pin_action_sha          workflow.yml  {action, ref, sha}
   generate_lockfile       .npmrc        {projects: [...]}   drop `package-lock=false`, add the lockfiles resolved
                                                              in discovery with --ignore-scripts
@@ -198,6 +200,24 @@ def _replace(text: str, a: dict) -> str:
     return _set_version(text, {"name": new, "version": a["version"]}) if a.get("version") else text
 
 
+def _module_spec(name: str) -> str:
+    """Regex for `name` (or `name/sub/path`) as a module string in import/require/export-from/import()."""
+    q = re.escape(name)
+    return (r"((?:\bfrom\s*|\brequire\(\s*|\bimport\(\s*|^\s*import\s+)(['\"]))" + q + r"(?=(?:/[^'\"]*)?\2)")
+
+
+def _rename_import(text: str, a: dict) -> str:
+    """Rewrite module strings `name` -> `new_name` in import/require statements of one source file (the
+    replacement for a typosquat is API-compatible). Only exact module specifiers change, never other text."""
+    name, new = a["name"], a["new_name"]
+    _check_name(name)
+    _check_name(new)
+    out, n = re.subn(_module_spec(name), lambda m: m.group(1) + new, text, flags=re.M)
+    if n == 0:
+        raise PatchError(f"no import of {name!r} in this file")
+    return out
+
+
 def _pin_action(text: str, a: dict) -> str:
     action, ref, sha = a["action"], a["ref"], a["sha"]
     if not _SHA.fullmatch(sha):
@@ -286,6 +306,7 @@ _TEXT_OPS = {
     "set_requirement_version": _set_requirement,
     "remove_dependency": _remove,
     "replace_dependency": _replace,
+    "rename_import": _rename_import,
     "pin_action_sha": _pin_action,
     "generate_lockfile": _drop_lock_disable,
 }
