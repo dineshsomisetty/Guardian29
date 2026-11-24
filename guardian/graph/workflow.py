@@ -3,7 +3,7 @@
 Graph (§2.2; the investigator is D1-08, the full §7 risk analyst D1-06 is still the Day-1 form):
 
     START -> discovery -> detection -> evidence_analyst -> investigator -> risk_analyst
-          -> [ remediation -> human_gate -> record_decision -> validator ]*  -> reporter -> END
+          -> [ remediation -> (sandbox_preview) -> human_gate -> record_decision -> validator ]*  -> reporter -> END
                  ^  reject / failed validation: re-plan (different plan)  |
                  |________________________________________________________|     (sequential mode)
           -> [ recommend -> batch_gate -> record_batch -> validate_batch ]*  -> reporter -> END   (batch mode)
@@ -27,6 +27,9 @@ Reading guide for this file, top to bottom:
 A run that reaches the gate ends the `invoke` call with an interrupt, not an exception: `_drive` records
 status "awaiting_human", `_finalize` writes the summary (including the pending plan/batch) and the process may exit.
 The `Command(resume=...)` of a later `resume` continues from the checkpoint with the human's decision as the value.
+
+Demo mode (GUARDIAN_DEMO_VALIDATOR=1): one critical finding, a ~6s simulated sandbox run (sandbox_preview) before
+the gate, and no Docker sandbox in the validator after approval.
 """
 
 from __future__ import annotations
@@ -51,6 +54,7 @@ from guardian.agents.investigator import investigator_node
 from guardian.agents.remediation import remediation_node
 from guardian.agents.reporter import remediation_outcomes, reporter_node
 from guardian.agents.risk_analyst import risk_analyst_node
+from guardian.agents.sandbox_preview import sandbox_preview_node
 from guardian.agents.validator import validator_node
 from guardian.core.audit import AuditLog
 from guardian.core.config import Settings, load_settings
@@ -104,8 +108,13 @@ def route_next(state: GraphState) -> str:
 def route_after_remediation(state: GraphState) -> str:
     """Sequential mode: a plan is ready (route "gate") -> human gate; nothing planned -> next finding or report."""
     if state.get("route") == "gate":
-        get_ctx(state["run_id"]).audit.emit("supervisor", "decision",
-                                            f"Plan {state['plan_id']} ready -> human_gate (no change without approval)")
+        rc = get_ctx(state["run_id"])
+        if rc.tool_ctx.settings.demo_validator:
+            rc.audit.emit("supervisor", "decision",
+                          f"Plan {state['plan_id']} ready -> sandbox validation (demo, nothing applied) -> human_gate")
+            return "sandbox_preview"
+        rc.audit.emit("supervisor", "decision",
+                      f"Plan {state['plan_id']} ready -> human_gate (no change without approval)")
         return "human_gate"
     return route_next(state)
 
@@ -189,7 +198,8 @@ def build_graph(checkpointer=None):
     for name, fn in [("discovery", discovery_node), ("detection", detection_node),
                      ("evidence_analyst", evidence_analyst_node), ("investigator", investigator_node),
                      ("risk_analyst", risk_analyst_node),
-                     ("remediation", remediation_node), ("human_gate", human_gate_node),
+                     ("remediation", remediation_node), ("sandbox_preview", sandbox_preview_node),
+                     ("human_gate", human_gate_node),
                      ("record_decision", record_decision_node), ("validator", validator_node),
                      ("recommend", recommend_node), ("batch_gate", batch_gate_node),
                      ("record_batch", record_batch_node), ("validate_batch", validate_batch_node),
@@ -206,7 +216,9 @@ def build_graph(checkpointer=None):
     g.add_conditional_edges("record_batch", route_after_record_batch,
                             ["validate_batch", "batch_gate", "recommend", "reporter"])
     g.add_conditional_edges("validate_batch", route_after_validate_batch, ["recommend", "reporter"])
-    g.add_conditional_edges("remediation", route_after_remediation, ["human_gate", "remediation", "reporter"])
+    g.add_conditional_edges("remediation", route_after_remediation,
+                            ["sandbox_preview", "human_gate", "remediation", "reporter"])
+    g.add_edge("sandbox_preview", "human_gate")
     g.add_edge("human_gate", "record_decision")
     g.add_conditional_edges("record_decision", route_after_decision,
                             ["validator", "remediation", "human_gate", "reporter"])

@@ -38,6 +38,7 @@ from guardian.core.models import (
     Finding,
     FindingCategory,
     FindingStatus,
+    Priority,
     RiskAssessment,
     RiskFactors,
 )
@@ -290,6 +291,17 @@ def select(findings: list[Finding], limit: int, scores: dict[str, float] | None 
     return chosen
 
 
+def demo_pick(findings: list[Finding], ranked: list[RiskAssessment], chosen: list[Finding]) -> list[Finding]:
+    """Demo mode: the single highest-scored CRITICAL finding we can plan a fix for (else the top chosen one)."""
+    by_id = {f.finding_id: f for f in findings}
+    for a in ranked:  # highest score first
+        f = by_id.get(a.finding_id)
+        if (f is not None and a.band is Priority.CRITICAL and f.status is not FindingStatus.ESCALATED
+                and (cve_plannable(f) or f.category in PLANNABLE)):
+            return [f]
+    return chosen[:1]
+
+
 # ---------------------------------------------------------------- LLM summaries (optional)
 
 
@@ -468,6 +480,12 @@ def risk_analyst_node(state: GraphState) -> dict:
     # batch mode: EVERY finding gets a recommendation (a fix, or "no alternatives" with the reason), so nothing is
     # selected here; the recommend node groups them and writes recommendations.json
     chosen = [] if batch else select(findings, limit, scores)
+    if ctx.settings.demo_validator:
+        chosen = demo_pick(findings, ranked, chosen)
+        audit.emit("supervisor", "decision",
+                   f"Demo mode (GUARDIAN_DEMO_VALIDATOR=1): remediation limited to one finding: "
+                   f"{chosen[0].title[:80] if chosen else 'none plannable'}",
+                   finding_id=chosen[0].finding_id if chosen else None)
     for f in chosen:
         f.status = FindingStatus.PLANNED
         store.update_finding(f)

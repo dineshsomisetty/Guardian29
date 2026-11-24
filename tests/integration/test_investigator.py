@@ -29,7 +29,7 @@ from guardian.tools.registry import ToolContext
 from tests.integration.test_human_gate import _decide, _summary, _trace, target  # noqa: F401
 
 NODES = {"discovery", "detection", "evidence_analyst", "investigator", "risk_analyst", "remediation",
-         "human_gate", "record_decision", "validator", "reporter",
+         "sandbox_preview", "human_gate", "record_decision", "validator", "reporter",
          "recommend", "batch_gate", "record_batch", "validate_batch"}  # + batch remediation nodes
 
 
@@ -93,6 +93,8 @@ def test_graph_has_exactly_the_contract_nodes():
     assert {e.source for e in g.edges if e.target == "validator"} == {"record_decision"}
     assert {e.source for e in g.edges if e.target == "validate_batch"} == {"record_batch", "recommend"}
     assert {e.source for e in g.edges if e.target == "reporter"} >= {"validate_batch", "recommend", "record_batch"}
+    # demo pre-approval sandbox run only ever leads to the human gate, never straight to the validator
+    assert {e.target for e in g.edges if e.source == "sandbox_preview"} == {"human_gate"}
 
 
 @pytest.mark.parametrize("node", [human_gate_node, batch_gate_node])
