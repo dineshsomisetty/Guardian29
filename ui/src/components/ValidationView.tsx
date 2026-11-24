@@ -27,7 +27,9 @@ const failWord = verdictFail;
  * alone, or a pre-flight verdict), else the latest group failure (not isolated yet).
  */
 function resultFor(planId: string, all: ValidationResult[]): ValidationResult | undefined {
-  const mine = all.filter((v) => v.plan_id === planId);
+  // Attempt IDs are time-ordered ULIDs. Do not depend on API response order.
+  const mine = all.filter((v) => v.plan_id === planId)
+    .sort((a, b) => a.attempt_id < b.attempt_id ? -1 : a.attempt_id > b.attempt_id ? 1 : 0);
   return [...mine].reverse().find((v) => !v.group_failure) ?? mine[mine.length - 1];
 }
 
@@ -172,16 +174,21 @@ function Verdict({ attempts, title, finding }: { attempts: Attempt[]; title: str
   // should confirm before merging.
   const review = ((okEv.items.find((e) => e.source_tool === "validator")?.facts as ValidatorFacts | undefined)?.expected_failures ?? []).length;
   if (ok?.val) {
+    const checksPassed = ok.val.build_ok === true
+      && (ok.val.unit_tests.passed ?? 0) > 0 && (ok.val.unit_tests.failed ?? 0) === 0
+      && (ok.val.integration_tests.passed ?? 0) > 0 && (ok.val.integration_tests.failed ?? 0) === 0;
     const sm = planSummary(ok.plan, finding, finding ? bandOf(finding, riskById) : null);
     const earlier = [
       failed.length ? `${failed.length} did not work` : "",
       turnedDown.length ? `${turnedDown.length} ${turnedDown.length === 1 ? "was" : "were"} rejected` : "",
     ].filter(Boolean);
-    const heading = review
+    const heading = review && ok.val.build_ok === true
       ? `Verified, with ${review} test${review === 1 ? "" : "s"} to review: the vulnerability is gone and the build passed`
-      : "Verified: the vulnerability is gone, and the build and tests passed in the sandbox";
+      : checksPassed
+        ? "Validated: the targeted issue is gone, and the build and recorded tests passed"
+        : "The targeted issue is gone; build or test checks are incomplete";
     return (
-      <Callout tone="ok" title={heading} icon={<CheckCircle2 size={20} aria-hidden />}>
+      <Callout tone={checksPassed || (review && ok.val.build_ok === true) ? "ok" : "info"} title={heading} icon={<CheckCircle2 size={20} aria-hidden />}>
         The fix that worked: {sm.change}. It resolves: {title}.
         {earlier.length ? ` It took ${attempts.length} attempts; of the earlier ones, ${earlier.join(" and ")}, and Guardian re-planned.` : ""}
       </Callout>

@@ -1,6 +1,6 @@
 import { Download, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
-import { loadReport } from "../api/client";
+import { downloadReport, loadReport } from "../api/client";
 import type { ReportJson } from "../api/types";
 import { bandOf, fmtDate, purlLabel } from "../lib/format";
 import { failLine, plainTitle } from "../lib/labels";
@@ -85,6 +85,7 @@ const jump = (id: string) => document.getElementById(`rep-${id}`)?.scrollIntoVie
 export default function ReportView() {
   const { src, status, openFinding, data, setView } = useStore();
   const links = useReportLinks(src, status);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [rep, setRep] = useState<ReportJson | null | "loading">("loading");
   const [allRows, setAllRows] = useState(false);
   useEffect(() => {
@@ -111,14 +112,18 @@ export default function ReportView() {
         <header className="page-head row-between">
           <div>
             <h1>Report</h1>
-            <p className="muted">The final write-up of this scan: what was found, what was done about it, and what is left.</p>
+            <p className="muted">{status === "done" ? "The final write-up" : "The available progress report"} of this scan: what was found, what was done about it, and what is left.</p>
           </div>
           <div className="row">
             {(["html", "json"] as const).map((k) => {
               const u = url(k);
               const label = k === "html" ? "Download HTML" : "Download JSON";
               return u ? (
-                <a key={k} className="btn" href={u} target="_blank" rel="noreferrer" download={`report.${k}`}>
+                <a key={k} className="btn" href={u} download={`report.${k}`} onClick={(event) => {
+                  event.preventDefault();
+                  setDownloadError(null);
+                  void downloadReport(u, `report.${k}`).catch((error: Error) => setDownloadError(error.message));
+                }}>
                   <Download size={16} aria-hidden /> {label}
                 </a>
               ) : (
@@ -129,6 +134,7 @@ export default function ReportView() {
             })}
           </div>
         </header>
+        {downloadError && <p role="alert">{downloadError}</p>}
 
         {(rep === "loading" || links === "pending") && (
           <div className="skel-rows" role="status" aria-label="Loading the report">

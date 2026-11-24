@@ -1,5 +1,6 @@
 import { Activity, ChevronDown, Download, Info, Keyboard, LogOut, Shield } from "lucide-react";
 import { useCallback, useState } from "react";
+import { downloadReport } from "../api/client";
 import { fmtDate, shortCommit } from "../lib/format";
 import { LLM_NAME, llmMode, statusText } from "../lib/labels";
 import { useStore } from "../store";
@@ -139,6 +140,7 @@ function RunDetails() {
 function ExportMenu() {
   const { src, status } = useStore();
   const [open, setOpen] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const close = useCallback(() => setOpen(false), []);
   const ref = useDismiss(open, close);
   const links = useReportLinks(src, status);
@@ -146,7 +148,11 @@ function ExportMenu() {
   const why = links === "pending" ? "checking" : links === "not_yet" ? "Available when the scan completes" : "Not generated for this scan";
   const item = (label: string, help: string, u: string | null, file: string) =>
     u ? (
-      <a className="menu-item" href={u} download={file} target="_blank" rel="noreferrer" onClick={close}>
+      <a className="menu-item" href={u} download={file} onClick={(event) => {
+        event.preventDefault();
+        setDownloadError(null);
+        void downloadReport(u, file).then(close).catch((error: Error) => setDownloadError(error.message));
+      }}>
         {label}
         <small>{help}</small>
       </a>
@@ -165,6 +171,7 @@ function ExportMenu() {
         <div className="menu-pop" role="menu">
           {item("Report (HTML)", "A readable page you can share or print", url("html"), "report.html")}
           {item("Report (JSON)", "Every finding, score and decision, for other tools", url("json"), "report.json")}
+          {downloadError && <p role="alert">{downloadError}</p>}
         </div>
       )}
     </div>

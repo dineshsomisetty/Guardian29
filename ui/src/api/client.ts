@@ -114,6 +114,20 @@ export function reportCandidates(src: Src, kind: "json" | "html"): string[] {
   return [reportUrl(src, kind)];
 }
 
+/** Download authenticated report responses instead of opening cross-origin links. */
+export async function downloadReport(url: string, filename: string): Promise<void> {
+  const response = await afetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(`Report download failed (${response.status})`);
+  const objectUrl = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+}
+
 export async function firstAvailable(urls: string[]): Promise<string | null> {
   for (const u of urls) {
     try {
