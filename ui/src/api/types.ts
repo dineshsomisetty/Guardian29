@@ -16,6 +16,22 @@ export interface RunSummary {
   findings: { total: number; by_risk: Record<Risk, number>; by_category: Record<string, number> };
   llm: { mode: string; model: string | null };
   offline: boolean;
+  remediation?: RemediationEntry[];
+  pending_plan?: PendingPlan | null;
+}
+
+export interface RemediationEntry {
+  finding_id: string;
+  title?: string;
+  category?: string;
+  status?: string;
+  attempts: { plan_id: string; action?: string; target?: string; verdict?: string; attempt_id?: string }[];
+}
+
+export interface PendingPlan {
+  plan_id: string;
+  plan_hash: string;
+  finding_id?: string;
 }
 
 export type NodeKind = "package" | "project" | "ci" | "image" | "config";
@@ -120,11 +136,124 @@ export interface AgentEvent {
   data: Record<string, unknown>;
 }
 
+export interface FactorValue {
+  value: number;
+  tier: string;
+  unknown: boolean;
+  label: ClaimLabel;
+  evidence_ids: string[];
+}
+
+export interface RiskFactors {
+  S: FactorValue;
+  E: FactorValue;
+  R: FactorValue;
+  P: FactorValue;
+  X: FactorValue;
+  provenance_modifier: number;
+  provenance_evidence_ids: string[];
+}
+
+export interface RiskAssessment {
+  finding_id: string;
+  score: number;
+  band: Risk;
+  confidence: "high" | "medium" | "low";
+  override_applied: string | null;
+  factors: RiskFactors;
+  summary: string;
+  claims: Claim[];
+}
+
+export interface PatchOp {
+  op: string;
+  file_path: string;
+  args: Record<string, unknown>;
+}
+
+export interface RemediationPlan {
+  plan_id: string;
+  plan_hash: string;
+  finding_id: string;
+  attempt: number;
+  action: string;
+  ops: PatchOp[];
+  target_version: string | null;
+  rationale: Claim[];
+  expected_risk_reduction: string;
+  compatibility_impact: {
+    from_version: string;
+    to_version: string;
+    semver_delta: string;
+    engines_ok: boolean | null;
+    peer_dep_changes: string[];
+    deprecated_target: boolean | null;
+    level: string;
+  } | null;
+  rollback: string;
+  evidence_ids: string[];
+}
+
+export interface Approval {
+  plan_id: string;
+  plan_hash: string;
+  decision: "approve" | "reject" | "accept_risk";
+  comment: string | null;
+  decided_by: string;
+  ts: string;
+}
+
+export interface ValidationResult {
+  attempt_id: string;
+  plan_id: string;
+  finding_id: string;
+  build_ok: boolean | null;
+  unit_tests: Record<string, number>;
+  integration_tests: Record<string, number>;
+  artifact_rescanned: string | null;
+  target_finding_resolved: boolean;
+  new_findings: string[];
+  sbom_diff_evidence_id: string | null;
+  detector_evidence_ids: string[];
+  risk_before: number;
+  risk_after: number;
+  verdict: string;
+  final_confidence: "high" | "medium" | "low";
+  log_evidence_ids: string[];
+}
+
+export interface ReportJson {
+  run_id: string;
+  target: string;
+  commit: string | null;
+  generated_at: string;
+  inventory: { components: number; direct: number; transitive: number };
+  ranking: string[];
+  remaining_risk: { finding_id: string; status: string; score: number }[];
+  final_confidence: string;
+  audit: { events: number; llm_calls: number; tool_calls: number };
+  guardrail_events: AgentEvent[];
+  actions: { plan: RemediationPlan; approval: Approval | null; validations: ValidationResult[] }[];
+}
+
+export interface RunListItem {
+  id: string;
+  target: string;
+  status: string;
+  mode: string | null;
+  commit: string | null;
+}
+
+export type SourceKind = "api" | "static" | "sample";
+
 export interface RunData {
-  base: string;
+  runId: string;
   summary: RunSummary;
   graph: GraphData;
   findings: Finding[];
   changes: Changes | null;
-  trace: AgentEvent[];
+  risk: RiskAssessment[];
+  plans: RemediationPlan[];
+  validation: ValidationResult[];
+  approvals: Approval[];
 }

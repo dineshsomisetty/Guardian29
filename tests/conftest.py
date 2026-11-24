@@ -30,7 +30,7 @@ class FakeBackend:
 @pytest.fixture
 def settings(tmp_path: Path):
     return load_settings(runs_dir=tmp_path / "runs", llm_mode="live", llm_cache_dir=tmp_path / "llmcache",
-                         max_llm_findings=40)
+                         max_llm_findings=40, max_plans=0)  # CP1 tests: no remediation loop
 
 
 @pytest.fixture
@@ -40,3 +40,16 @@ def fake_llm_factory(settings):
         return LLMProvider(mode, settings.llm_cache_dir, backend.model, backend=backend), backend
 
     return make
+
+
+@pytest.fixture(autouse=True)
+def _sandbox_off(monkeypatch):
+    """Tests never need Docker/Syft for the validator unless they opt in (D2-08)."""
+    monkeypatch.setenv("GUARDIAN_SANDBOX", "off")
+
+
+@pytest.fixture(autouse=True)
+def _intel_offline(monkeypatch, tmp_path):
+    """Risk/remediation intel lookups (EPSS, KEV, OSV, registry) never touch the network or the shared cache."""
+    monkeypatch.setenv("GUARDIAN_INTEL_CACHE", str(tmp_path / "intel_cache"))
+    monkeypatch.setattr("guardian.tools.threat_intel.is_offline", lambda: True)

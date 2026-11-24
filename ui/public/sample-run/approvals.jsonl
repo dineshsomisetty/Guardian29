@@ -1,0 +1,2 @@
+{"plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW", "plan_hash": "12534c13bd90510fb2ad73a907927c4e98cc2d8df1412d49b7066441616f2ea0", "decision": "approve", "comment": null, "decided_by": "reviewer", "ts": "2026-11-23T11:55:25.791Z"}
+{"plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2", "plan_hash": "9f5e2f2601f28d9ecb48b1d9d56d9458fd32be9db51ec5f999773a2c1e426b1b", "decision": "approve", "comment": "Attempt 1 broke the build; 4.17.21 is the advisory fix.", "decided_by": "reviewer", "ts": "2026-11-23T11:55:26.382Z"}

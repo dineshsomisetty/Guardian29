@@ -46,4 +46,6 @@ def discovery_node(state: GraphState) -> dict:
                f"({stats.get('direct', '?')} direct, {stats.get('transitive', '?')} transitive)",
                evidence_ids=handoff, data={"stats": stats})
     audit.emit(AGENT, "handoff", "SBOM + dependency graph -> detection", evidence_ids=handoff)
-    return {"status": "detecting", "sbom_evidence_id": sbom_ev, "graph_evidence_id": graph_ev, "errors": errors}
+    return {"status": "detecting", "sbom_evidence_id": sbom_ev, "graph_evidence_id": graph_ev, "errors": errors,
+            "work_dir": str(ctx.work_dir) if ctx.work_dir else None,
+            "sbom_path": str(ctx.sbom_path) if ctx.sbom_path else None}

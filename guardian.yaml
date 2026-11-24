@@ -1,0 +1,30 @@
+# Guardian policy + thresholds (D4-07). Read by guardian/tools/policy.py, guardian/tools/detectors/package_risk.py
+# and Dev2's `block_package` patch op (which appends to `denylist`). Override the path with GUARDIAN_CONFIG.
+version: 1
+
+# Packages that must not appear in a project. `reason` is shown in findings/reports.
+denylist:
+  - name: ngy-cookie
+    reason: Typosquat of ngx-cookie (Juice Shop "Frontend Typosquatting")
+  - name: epilogue-js
+    reason: Typosquat of epilogue (Juice Shop "Legacy Typosquatting")
+
+thresholds:
+  min_package_age_days: 7        # deny packages first published less than N days ago (a.k.a. max_package_age_days)
+  outdated_max_age_years: 2.0
+  outdated_major_behind: 2
+  release_burst_versions: 5      # >= N releases within release_burst_days -> unusual release activity
+  release_burst_days: 7
+  new_version_days: 3            # latest release published within N days -> unusual release activity
+  package_risk_max_packages: 80  # direct prod deps looked up per run (registry calls are throttled + cached)
+  package_risk_max_findings: 15  # cap per package-risk detector
+  approval_required_at: high
+
+# Scopes (or exact names) that exist only inside the organisation; a same-named PUBLIC package is dependency
+# confusion. Example: ["@acme"]. Tests and demos set this through a fixture config.
+internal_scopes: []
+
+policies:
+  require_lockfile: true
+  require_pinned_actions: true
+  require_pinned_base_images: true

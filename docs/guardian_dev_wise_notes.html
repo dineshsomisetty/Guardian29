@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardian — Dev-by-Dev Project Notes</title>
+<style>
+:root{
+  --bg:#0b0f17; --bg2:#0f1521; --panel:#141b29; --panel2:#1a2335; --line:#263147; --text:#e8eef7; --mute:#93a1b8;
+  --d1:#a78bfa; --d2:#5aa9ff; --d3:#f472b6; --d4:#fbbf24; --d5:#34d399;
+  --cyan:#22d3ee; --red:#f87171; --code:#0a0e15;
+  --ok:#34d399; --warn:#fbbf24;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:70px}
+body{margin:0;background:radial-gradient(1200px 500px at 10% -10%,#1b2540 0,transparent 60%),radial-gradient(900px 500px at 100% 0,#2a1a3a 0,transparent 55%),var(--bg);
+  color:var(--text);font:15px/1.65 -apple-system,"Segoe UI",Inter,Roboto,sans-serif}
+a{color:var(--d2);text-decoration:none}
+code,pre{font-family:Consolas,"JetBrains Mono",Menlo,monospace}
+code{background:var(--code);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:.86em;color:#cfdcff}
+main{max-width:1200px;margin:0 auto;padding:0 24px 120px}
+h1,h2,h3,h4{line-height:1.25;margin:0}
+p{margin:.5em 0}
+ul{margin:.4em 0;padding-left:1.2em} li{margin:.25em 0}
+.mute{color:var(--mute)}
+/* nav */
+.topbar{position:sticky;top:0;z-index:50;background:#0a0e15ea;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.topbar .in{max-width:1200px;margin:0 auto;padding:10px 24px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.topbar b{margin-right:8px;letter-spacing:.3px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:999px;border:1px solid var(--line);color:var(--text);font-size:13px;background:var(--panel)}
+.pill:hover{border-color:var(--c,#556);}
+.pill i{width:9px;height:9px;border-radius:50%;background:var(--c,#778);display:inline-block}
+/* hero */
+.hero{padding:56px 0 24px}
+.hero h1{font-size:46px;letter-spacing:-.5px;background:linear-gradient(90deg,var(--cyan),var(--d1) 50%,var(--d3));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{max-width:860px;color:var(--mute);font-size:17px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:26px 0 8px}
+.stat{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+.stat b{display:block;font-size:26px;letter-spacing:-.5px}
+.stat span{color:var(--mute);font-size:12.5px}
+/* sections */
+section{margin-top:56px}
+.sec-h{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.sec-h .tag{font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:3px 10px;border-radius:999px;background:var(--c,#334);color:#0b0f17}
+.sec-h h2{font-size:30px}
+.lead{color:var(--mute);max-width:900px;margin:4px 0 18px}
+.card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:14px 0}
+.card h3{font-size:18px;margin-bottom:6px}
+.card h4{font-size:14px;color:var(--mute);text-transform:uppercase;letter-spacing:.7px;margin:14px 0 4px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.devhead{border-left:5px solid var(--c);padding-left:16px}
+.badge{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--mute);margin:0 4px 4px 0}
+.badge.ok{color:var(--ok);border-color:#1f6b52}
+.badge.warn{color:var(--warn);border-color:#6b5a1f}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:8px 0}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mute);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.6px}
+.tbl{overflow:auto;border:1px solid var(--line);border-radius:12px;background:var(--panel)}
+.tbl table{margin:0}
+/* diagrams */
+.diagram{background:#0c121d;border:1px solid var(--line);border-radius:16px;padding:12px;margin:14px 0;overflow:auto}
+.diagram svg{width:100%;height:auto;display:block;min-width:720px}
+.cap{color:var(--mute);font-size:13px;margin:6px 4px 0}
+svg text{font-family:-apple-system,"Segoe UI",Inter,sans-serif;fill:#e8eef7}
+svg .s{font-size:11.5px;fill:#a9b6cc}
+svg .t{font-size:13.5px;font-weight:600}
+svg .h{font-size:12px;font-weight:700;letter-spacing:.6px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--mute);margin:6px 2px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+/* steps */
+.steps{counter-reset:s;list-style:none;padding:0;margin:8px 0}
+.steps li{counter-increment:s;position:relative;padding:8px 12px 8px 46px;border-left:2px solid var(--line);margin:0 0 0 14px}
+.steps li::before{content:counter(s);position:absolute;left:-15px;top:8px;width:28px;height:28px;border-radius:50%;background:var(--c,#556);color:#0b0f17;font-weight:800;display:grid;place-items:center;font-size:13px}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+/* bars */
+.bar{display:flex;align-items:center;gap:10px;margin:7px 0}
+.bar .n{width:190px;font-size:13.5px}
+.bar .b{height:16px;border-radius:8px;background:linear-gradient(90deg,var(--c),#ffffff55)}
+.bar .v{font-size:13px;color:var(--mute)}
+/* guardrails */
+.g{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--panel)}
+.g b{color:var(--d1);font-size:13px;letter-spacing:.5px}
+details{border:1px solid var(--line);border-radius:12px;background:var(--panel);margin:10px 0;padding:2px 14px}
+summary{cursor:pointer;padding:10px 0;font-weight:600}
+.cm td:first-child{font-family:Consolas,monospace;color:var(--mute);white-space:nowrap}
+.cm td:nth-child(2){color:var(--mute);white-space:nowrap}
+.note{border:1px solid #6b5a1f;background:#2a2410;border-radius:12px;padding:12px 16px;margin:14px 0}
+.note b{color:var(--warn)}
+footer{margin-top:70px;color:var(--mute);font-size:13px;border-top:1px solid var(--line);padding-top:16px}
+.hide{display:none!important}
+@media (max-width:700px){.hero h1{font-size:32px}.sec-h h2{font-size:24px}}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="in">
+  <b>🛡 Guardian</b>
+  <a class="pill" href="#overview" style="--c:var(--cyan)"><i></i>Big picture</a>
+  <a class="pill" href="#flow" style="--c:var(--cyan)"><i></i>Workflow</a>
+  <a class="pill" href="#dev1" style="--c:var(--d1)"><i></i>Dev1</a>
+  <a class="pill" href="#dev2" style="--c:var(--d2)"><i></i>Dev2</a>
+  <a class="pill" href="#dev3" style="--c:var(--d3)"><i></i>Dev3</a>
+  <a class="pill" href="#dev4" style="--c:var(--d4)"><i></i>Dev4</a>
+  <a class="pill" href="#dev5" style="--c:var(--d5)"><i></i>Dev5</a>
+  <a class="pill" href="#history" style="--c:var(--cyan)"><i></i>Git history</a>
+  <a class="pill" href="#proof" style="--c:var(--cyan)"><i></i>Proof &amp; limits</a>
+</div></div>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="top">
+  <h1>Guardian — notes, dev by dev</h1>
+  <p>Software Supply Chain Guardian: an agentic AI system that <b>discovers</b> what an application is built from, <b>detects</b> vulnerable and suspicious components, <b>prioritises</b> them with an explainable score, <b>proposes</b> a safe fix, waits for a <b>human</b>, then <b>validates</b> the fix in a Docker sandbox and <b>reports</b> the evidence.</p>
+  <p class="mute">Snapshot of branch <code>dev1/day1-evening</code> at commit <code>319f0e2</code> · 78 commits · 2026-11-23 → 2026-11-24 · written from the code, the docs and <code>git log</code>.</p>
+  <div class="stats">
+    <div class="stat"><b>10.1k</b><span>lines of Python in <code>guardian/</code></span></div>
+    <div class="stat"><b>6.3k</b><span>lines of React/TS in <code>ui/src</code></span></div>
+    <div class="stat"><b>262</b><span>test functions (4.9k lines)</span></div>
+    <div class="stat"><b>9</b><span>cooperating agents (3 use an LLM)</span></div>
+    <div class="stat"><b>6</b><span>real repos scanned (npm, pip, Maven)</span></div>
+    <div class="stat"><b>7</b><span>guardrail families G1–G7</span></div>
+  </div>
+</header>
+
+<!-- ============ HOW TO READ ============ -->
+<section id="overview">
+  <div class="sec-h"><span class="tag" style="--c:var(--cyan)">Big picture</span><h2>The whole system on one page</h2></div>
+  <p class="lead">Five roles, one pipeline. Every box below is coloured by the role that owns it (Dev1–Dev5, as defined in <code>GUARDIAN_PLAN.md</code> and the README's Contributors table). Facts come from <b>tools</b>; the LLM only <b>reasons</b> over stored evidence; a <b>human</b> approves every change.</p>
+
+  <div class="legend">
+    <span><i style="background:var(--d1)"></i>Dev1 · agents, orchestration, LLM, guardrails</span>
+    <span><i style="background:var(--d2)"></i>Dev2 · tools, graph, sandbox</span>
+    <span><i style="background:var(--d3)"></i>Dev3 · UI &amp; API</span>
+    <span><i style="background:var(--d4)"></i>Dev4 · intel, scoring, detectors, reports</span>
+    <span><i style="background:var(--d5)"></i>Dev5 · targets, QA, docs</span>
+  </div>
+
+  <div class="diagram">
+  <svg viewBox="0 0 1160 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="System architecture">
+    <defs>
+      <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker>
+    </defs>
+    <!-- Targets -->
+    <rect x="10" y="40" width="150" height="150" rx="14" fill="#10281f" stroke="#34d399"/>
+    <text x="85" y="66" text-anchor="middle" class="h" style="fill:#34d399">TARGET REPOS</text>
+    <text x="85" y="90" text-anchor="middle" class="s">Juice Shop · PyGoat</text>
+    <text x="85" y="108" text-anchor="middle" class="s">NodeGoat · WebGoat</text>
+    <text x="85" y="126" text-anchor="middle" class="s">vulnerable-rest-api</text>
+    <text x="85" y="144" text-anchor="middle" class="s">vuln_django_play</text>
+    <text x="85" y="172" text-anchor="middle" class="s" style="fill:#34d399">read-only · Dev5</text>
+
+    <!-- Agent layer -->
+    <rect x="190" y="20" width="620" height="270" rx="16" fill="#171433" stroke="#a78bfa"/>
+    <text x="210" y="44" class="h" style="fill:#a78bfa">AGENT LAYER · LangGraph · SQLite checkpoints (Dev1)</text>
+    <g class="t">
+      <rect x="205" y="62" width="108" height="46" rx="10" fill="#1d2a45" stroke="#5aa9ff"/><text x="259" y="82" text-anchor="middle">Discovery</text><text x="259" y="98" text-anchor="middle" class="s">tool agent</text>
+      <rect x="325" y="62" width="108" height="46" rx="10" fill="#1d2a45" stroke="#5aa9ff"/><text x="379" y="82" text-anchor="middle">Detection</text><text x="379" y="98" text-anchor="middle" class="s">tool agent</text>
+      <rect x="445" y="62" width="108" height="46" rx="10" fill="#2a2150" stroke="#a78bfa"/><text x="499" y="82" text-anchor="middle">Evidence</text><text x="499" y="98" text-anchor="middle" class="s">analyst · LLM</text>
+      <rect x="565" y="62" width="108" height="46" rx="10" fill="#2a2150" stroke="#a78bfa"/><text x="619" y="82" text-anchor="middle">Investigator</text><text x="619" y="98" text-anchor="middle" class="s">ReAct · ≤8 calls</text>
+      <rect x="685" y="62" width="108" height="46" rx="10" fill="#33290f" stroke="#fbbf24"/><text x="739" y="82" text-anchor="middle">Risk analyst</text><text x="739" y="98" text-anchor="middle" class="s">score in code</text>
+      <rect x="685" y="150" width="108" height="46" rx="10" fill="#2a2150" stroke="#a78bfa"/><text x="739" y="170" text-anchor="middle">Remediation</text><text x="739" y="186" text-anchor="middle" class="s">plan + diff + hash</text>
+      <rect x="565" y="150" width="108" height="46" rx="10" fill="#3a1630" stroke="#f472b6"/><text x="619" y="170" text-anchor="middle">Human gate</text><text x="619" y="186" text-anchor="middle" class="s">interrupt()</text>
+      <rect x="445" y="150" width="108" height="46" rx="10" fill="#1d2a45" stroke="#5aa9ff"/><text x="499" y="170" text-anchor="middle">Validator</text><text x="499" y="186" text-anchor="middle" class="s">Docker sandbox</text>
+      <rect x="325" y="150" width="108" height="46" rx="10" fill="#33290f" stroke="#fbbf24"/><text x="379" y="170" text-anchor="middle">Reporter</text><text x="379" y="186" text-anchor="middle" class="s">JSON + HTML</text>
+    </g>
+    <g stroke="#7d8ba3" stroke-width="1.6" fill="none" marker-end="url(#ar)">
+      <path d="M313 85H323"/><path d="M433 85H443"/><path d="M553 85H563"/><path d="M673 85H683"/>
+      <path d="M739 108V148"/><path d="M685 173H675"/><path d="M565 173H555"/><path d="M445 173H435"/>
+    </g>
+    <text x="205" y="232" class="s">Re-plan loop: validator failed / human rejected → remediation (max 3 attempts → escalate)</text>
+    <path d="M499 196V222H739V198" stroke="#f87171" stroke-width="1.4" fill="none" stroke-dasharray="5 4" marker-end="url(#ar)"/>
+    <text x="205" y="252" class="s">Only way to the validator: an <tspan style="fill:#f472b6">approve</tspan> decision bound to plan_id + plan_hash.</text>
+    <text x="205" y="272" class="s">Tool agents never call an LLM → facts cannot be hallucinated.</text>
+
+    <!-- Human -->
+    <rect x="830" y="150" width="150" height="70" rx="14" fill="#3a1630" stroke="#f472b6"/>
+    <text x="905" y="176" text-anchor="middle" class="t">Human approver</text>
+    <text x="905" y="196" text-anchor="middle" class="s">UI or CLI · role "approver"</text>
+    <path d="M830 185H815V130H619V148" stroke="#f472b6" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+    <text x="640" y="124" class="s" style="fill:#f472b6">decision + plan_hash</text>
+
+    <!-- LLM -->
+    <rect x="830" y="20" width="320" height="100" rx="14" fill="#171433" stroke="#a78bfa"/>
+    <text x="850" y="44" class="h" style="fill:#a78bfa">LLM PROVIDER (Dev1)</text>
+    <text x="850" y="66" class="s">DeepSeek · Anthropic · OpenAI-compatible</text>
+    <text x="850" y="84" class="s">live / record / replay cache  →  offline demo</text>
+    <text x="850" y="102" class="s">answers grounded by G4 before saved</text>
+
+    <!-- UI + API -->
+    <rect x="1000" y="150" width="150" height="130" rx="14" fill="#3a1630" stroke="#f472b6"/>
+    <text x="1075" y="174" text-anchor="middle" class="h" style="fill:#f472b6">UI + API · Dev3</text>
+    <text x="1075" y="196" text-anchor="middle" class="s">FastAPI · SSE · roles</text>
+    <text x="1075" y="214" text-anchor="middle" class="s">React · React Flow</text>
+    <text x="1075" y="232" text-anchor="middle" class="s">graph · findings</text>
+    <text x="1075" y="250" text-anchor="middle" class="s">approval · validation</text>
+    <text x="1075" y="268" text-anchor="middle" class="s">report</text>
+    <path d="M1000 185H982" stroke="#7d8ba3" stroke-width="1.6" fill="none" marker-end="url(#ar)"/>
+
+    <!-- Tools -->
+    <rect x="190" y="320" width="960" height="170" rx="16" fill="#0f2038" stroke="#5aa9ff"/>
+    <text x="210" y="344" class="h" style="fill:#5aa9ff">TOOL LAYER · registry: per-agent allowlist, typed args, budgets, approval check, host allowlist (Dev1 gate · Dev2/Dev4 tools)</text>
+    <g class="s">
+      <rect x="205" y="358" width="170" height="116" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="290" y="378" text-anchor="middle" class="t">Dev2 · facts</text>
+      <text x="290" y="398" text-anchor="middle">workspace · resolve</text><text x="290" y="414" text-anchor="middle">Syft SBOM · graph + paths</text><text x="290" y="430" text-anchor="middle">Grype + OSV scanners</text><text x="290" y="446" text-anchor="middle">npm / pip adapters</text><text x="290" y="462" text-anchor="middle">lockfile · install-script</text>
+      <rect x="385" y="358" width="170" height="116" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="470" y="378" text-anchor="middle" class="t">Dev2 · change</text>
+      <text x="470" y="398" text-anchor="middle">patch ops (diff only)</text><text x="470" y="414" text-anchor="middle">Docker sandbox</text><text x="470" y="430" text-anchor="middle">SBOM diff · rescan</text><text x="470" y="446" text-anchor="middle">local branch + PR.md</text><text x="470" y="462" text-anchor="middle">image tags / digests</text>
+      <rect x="565" y="358" width="170" height="116" rx="10" fill="#3a2f0e" stroke="#fbbf24"/><text x="650" y="378" text-anchor="middle" class="t">Dev4 · intel</text>
+      <text x="650" y="398" text-anchor="middle">EPSS · CISA KEV · OSV</text><text x="650" y="414" text-anchor="middle">registry metadata</text><text x="650" y="430" text-anchor="middle">reachability (import + fn)</text><text x="650" y="446" text-anchor="middle">exposure · compat hint</text><text x="650" y="462" text-anchor="middle">provenance (Sigstore)</text>
+      <rect x="745" y="358" width="170" height="116" rx="10" fill="#3a2f0e" stroke="#fbbf24"/><text x="830" y="378" text-anchor="middle" class="t">Dev4 · detectors</text>
+      <text x="830" y="398" text-anchor="middle">typosquat similarity</text><text x="830" y="414" text-anchor="middle">unpinned CI · tag-only image</text><text x="830" y="430" text-anchor="middle">outdated · package risk</text><text x="830" y="446" text-anchor="middle">GitHub / GitLab / Docker</text><text x="830" y="462" text-anchor="middle">policy (guardian.yaml + Rego)</text>
+      <rect x="925" y="358" width="210" height="116" rx="10" fill="#10281f" stroke="#34d399"/><text x="1030" y="378" text-anchor="middle" class="t">Dev5 · safety net</text>
+      <text x="1030" y="398" text-anchor="middle">golden file expectations</text><text x="1030" y="414" text-anchor="middle">fixtures · recorded LLM cache</text><text x="1030" y="430" text-anchor="middle">6 pinned targets</text><text x="1030" y="446" text-anchor="middle">coverage matrix · Responsible AI</text><text x="1030" y="462" text-anchor="middle">generality &amp; scale report</text>
+    </g>
+    <g stroke="#7d8ba3" stroke-width="1.6" fill="none" marker-end="url(#ar)">
+      <path d="M85 190V560H200" stroke-dasharray="4 4"/>
+      <path d="M500 290V318"/><path d="M700 290V318"/>
+    </g>
+
+    <!-- Evidence store -->
+    <rect x="190" y="520" width="960" height="100" rx="16" fill="#0f2418" stroke="#34d399"/>
+    <text x="210" y="544" class="h" style="fill:#34d399">EVIDENCE STORE · runs/&lt;run_id&gt;/ (append-only, Dev1)</text>
+    <g class="s">
+      <text x="210" y="570">sbom.cdx.json · graph.json · findings.json · evidence/*.json (created by tools only)</text>
+      <text x="210" y="588">risk.json · plans/ · approvals.jsonl · validation/ · sbom.after.cdx.json · PR.md</text>
+      <text x="210" y="606">trace.jsonl (every agent event) · audit.jsonl (append-only) · report.json · report.html · checkpoints.sqlite</text>
+    </g>
+  </svg>
+  </div>
+  <p class="cap">Dashed line: the target repo is never modified — work happens on copies under <code>runs/&lt;id&gt;/</code>. Dev3's UI/API reads the store and posts approvals back to the gate.</p>
+
+  <div class="grid3">
+    <div class="card"><h3>Tools = facts</h3><p class="mute">Syft, Grype, OSV, detectors, registry/EPSS/KEV lookups create <code>Evidence</code>. Only tools can create evidence — never the LLM.</p></div>
+    <div class="card"><h3>Agents = reasoning</h3><p class="mute">Evidence analyst, investigator and risk summary use an LLM, but every claim is grounded against stored evidence and labelled <b>VERIFIED</b> or <b>INFERRED</b> by code.</p></div>
+    <div class="card"><h3>Humans = authority</h3><p class="mute">Nothing changes until an approver accepts the exact plan hash. Nothing is pushed, merged or deployed — a verified fix becomes a local branch + <code>PR.md</code>.</p></div>
+  </div>
+</section>
+
+<!-- ============ WORKFLOW ============ -->
+<section id="flow">
+  <div class="sec-h"><span class="tag" style="--c:var(--cyan)">Workflow</span><h2>How one run flows end to end</h2></div>
+  <p class="lead">LangGraph state machine: 9 agent nodes plus a pure router (<code>record_decision</code>). Routing is plain Python and every routing choice is written to the trace as a numbered decision.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 1160 330" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Agent workflow">
+    <defs><marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker></defs>
+    <g class="t">
+      <rect x="10" y="30" width="190" height="72" rx="12" fill="#14304f" stroke="#5aa9ff"/><text x="105" y="54" text-anchor="middle">1 · Discovery</text><text x="105" y="72" text-anchor="middle" class="s">copy repo · resolve lockfiles</text><text x="105" y="88" text-anchor="middle" class="s">(--ignore-scripts) · SBOM · graph</text>
+      <rect x="225" y="30" width="190" height="72" rx="12" fill="#14304f" stroke="#5aa9ff"/><text x="320" y="54" text-anchor="middle">2 · Detection</text><text x="320" y="72" text-anchor="middle" class="s">Grype + OSV · typosquat · scripts</text><text x="320" y="88" text-anchor="middle" class="s">CI · images · changes · policy</text>
+      <rect x="440" y="30" width="190" height="72" rx="12" fill="#2a2150" stroke="#a78bfa"/><text x="535" y="54" text-anchor="middle">3 · Evidence analyst</text><text x="535" y="72" text-anchor="middle" class="s">LLM explains · grounded claims</text><text x="535" y="88" text-anchor="middle" class="s">VERIFIED / INFERRED by code</text>
+      <rect x="655" y="30" width="190" height="72" rx="12" fill="#2a2150" stroke="#a78bfa"/><text x="750" y="54" text-anchor="middle">4 · Investigator</text><text x="750" y="72" text-anchor="middle" class="s">ReAct on suspicious non-CVE</text><text x="750" y="88" text-anchor="middle" class="s">≤ 8 read-only tool calls</text>
+      <rect x="870" y="30" width="190" height="72" rx="12" fill="#3a2f0e" stroke="#fbbf24"/><text x="965" y="54" text-anchor="middle">5 · Risk analyst</text><text x="965" y="72" text-anchor="middle" class="s">score = 100×(.30S+.25E+.20R</text><text x="965" y="88" text-anchor="middle" class="s">+.15P+.10X) · LLM = summary</text>
+      <rect x="870" y="170" width="190" height="72" rx="12" fill="#2a2150" stroke="#a78bfa"/><text x="965" y="194" text-anchor="middle">6 · Remediation</text><text x="965" y="212" text-anchor="middle" class="s">target version from evidence</text><text x="965" y="228" text-anchor="middle" class="s">diff · risk drop · rollback · hash</text>
+      <rect x="655" y="170" width="190" height="72" rx="12" fill="#3a1630" stroke="#f472b6"/><text x="750" y="194" text-anchor="middle">7 · Human gate</text><text x="750" y="212" text-anchor="middle" class="s">interrupt() only · paused in</text><text x="750" y="228" text-anchor="middle" class="s">SQLite · UI / CLI decides</text>
+      <rect x="440" y="170" width="190" height="72" rx="12" fill="#14304f" stroke="#5aa9ff"/><text x="535" y="194" text-anchor="middle">8 · Validator</text><text x="535" y="212" text-anchor="middle" class="s">patch → build → test → rescan</text><text x="535" y="228" text-anchor="middle" class="s">SBOM diff · detectors · policy</text>
+      <rect x="225" y="170" width="190" height="72" rx="12" fill="#3a2f0e" stroke="#fbbf24"/><text x="320" y="194" text-anchor="middle">9 · Reporter</text><text x="320" y="212" text-anchor="middle" class="s">report.json + report.html</text><text x="320" y="228" text-anchor="middle" class="s">before/after · remaining risk</text>
+    </g>
+    <g stroke="#7d8ba3" stroke-width="1.7" fill="none" marker-end="url(#a2)">
+      <path d="M200 66H223"/><path d="M415 66H438"/><path d="M630 66H653"/><path d="M845 66H868"/>
+      <path d="M965 102V168"/><path d="M870 206H847"/><path d="M655 206H632"/><path d="M440 206H417"/>
+    </g>
+    <!-- loops -->
+    <path d="M535 242V290H965V244" stroke="#f87171" stroke-width="1.6" fill="none" stroke-dasharray="6 4" marker-end="url(#a2)"/>
+    <text x="580" y="284" class="s" style="fill:#f87171">validation failed / regressed → re-plan with last result (different plan, max 3 attempts → escalate)</text>
+    <path d="M780 170C780 135 940 135 940 168" stroke="#f472b6" stroke-width="1.6" fill="none" stroke-dasharray="6 4" marker-end="url(#a2)"/>
+    <text x="792" y="132" class="s" style="fill:#f472b6">reject → new plan</text>
+    <path d="M750 170C750 140 420 150 335 168" stroke="#34d399" stroke-width="1.5" fill="none" stroke-dasharray="4 4" marker-end="url(#a2)"/>
+    <text x="440" y="146" class="s" style="fill:#34d399">accept risk → straight to report</text>
+    <path d="M320 102C320 140 300 140 300 168" stroke="#7d8ba3" stroke-width="1.2" fill="none" stroke-dasharray="3 4"/>
+    <text x="20" y="150" class="s">no findings → straight to report</text>
+  </svg>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>One finding's journey</h3>
+      <ol class="steps" style="--c:var(--d2)">
+        <li><span class="dot" style="background:var(--d5)"></span><b>Dev5</b> pinned the target repo; golden file + fixture lockfiles define what <i>must</i> be found.</li>
+        <li><span class="dot" style="background:var(--d2)"></span><b>Dev2</b> copies the repo, resolves lockfiles without running scripts, Syft → SBOM, builds the graph with origin + integrity per node.</li>
+        <li><span class="dot" style="background:var(--d2)"></span>Grype + OSV give a CVE on a transitive package; <span class="dot" style="background:var(--d4)"></span><b>Dev4</b> detectors add typosquat / unpinned CI / tag-only image.</li>
+        <li><span class="dot" style="background:var(--d1)"></span><b>Dev1</b> dedupes, attaches dependency paths, stores findings that cite evidence ids; the LLM explains them; grounding labels every claim.</li>
+        <li><span class="dot" style="background:var(--d4)"></span>Dev4's scoring turns EPSS/KEV/reachability/exposure into an explainable 0–100 score and band.</li>
+        <li><span class="dot" style="background:var(--d1)"></span>Remediation builds a plan (diff, expected drop, rollback, <code>plan_hash</code>); the gate pauses.</li>
+        <li><span class="dot" style="background:var(--d3)"></span><b>Dev3</b> shows it in the approval view; the human approves for that hash.</li>
+        <li><span class="dot" style="background:var(--d2)"></span>Dev2's sandbox patches a fresh copy, builds + tests with <code>--network none</code>, rescans, diffs the SBOM; Dev4 re-runs detectors + policy.</li>
+        <li><span class="dot" style="background:var(--d4)"></span>Reporter writes the report; Dev3 shows before → after.</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3>Remediation actions the plan can contain</h3>
+      <p class="mute">Target values always come from evidence (G4.5), never from the model.</p>
+      <table>
+        <tr><th>Action</th><th>Example</th></tr>
+        <tr><td>Upgrade</td><td><code>express-jwt</code> 0.1.3 → 3.4.0 (pulls fixed <code>jsonwebtoken</code>); <code>Django</code> → 4.2.26</td></tr>
+        <tr><td>Replace / remove</td><td>typosquat <code>ngy-cookie</code> → real package, imports renamed too</td></tr>
+        <tr><td>Pin</td><td>GitHub Action tag → commit SHA; <code>FROM node:24</code> → digest</td></tr>
+        <tr><td>Update base image</td><td><code>node:20.19.2-bookworm-slim</code> → <code>20.19.6-…</code> (never a downgrade)</td></tr>
+        <tr><td>Block</td><td>add to <code>guardian.yaml</code> denylist</td></tr>
+        <tr><td>Generate lockfile</td><td>drop <code>package-lock=false</code>, resolve a lockfile</td></tr>
+        <tr><td>Mitigate / escalate</td><td>after 3 failed attempts or no safe plan → security review</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Risk score (Dev4's engine, called by Dev1's risk analyst)</h3>
+    <div class="bar" style="--c:var(--d2)"><span class="n">S · severity (CVSS)</span><span class="b" style="width:300px"></span><span class="v">weight 0.30</span></div>
+    <div class="bar" style="--c:var(--d3)"><span class="n">E · exploitability (EPSS pct, KEV)</span><span class="b" style="width:250px"></span><span class="v">weight 0.25</span></div>
+    <div class="bar" style="--c:var(--d1)"><span class="n">R · reachability</span><span class="b" style="width:200px"></span><span class="v">0.20 · import 0.6, called 1.0</span></div>
+    <div class="bar" style="--c:var(--d4)"><span class="n">P · production use</span><span class="b" style="width:150px"></span><span class="v">0.15 · prod 1.0, dev 0.3</span></div>
+    <div class="bar" style="--c:var(--d5)"><span class="n">X · exposure</span><span class="b" style="width:100px"></span><span class="v">0.10</span></div>
+    <p class="mute">+ up to 5 for a provenance modifier (cap 100) · KEV + reachable + prod forces at least High · confidence drops by 1 per unknown factor · every factor row carries its evidence ids. Result on Juice Shop: <code>jsonwebtoken 0.1.0</code> via <code>express-jwt 0.1.3</code> scores <b>98.17</b> (R = "called": <code>jwt.verify</code> in <code>lib/insecurity.ts</code>).</p>
+  </div>
+</section>
+
+<!-- ============ DEV1 ============ -->
+<section id="dev1" data-dev="1">
+  <div class="sec-h" style="--c:var(--d1)"><span class="tag">Dev1</span><h2>Agents, orchestration, LLM, guardrails</h2></div>
+  <p class="lead devhead" style="--c:var(--d1)">The hub. Dev1 owns the data model, the evidence store, the LangGraph workflow, all nine agents, the tool registry, the LLM provider and the guardrails. Everything else plugs into it.</p>
+  <p><span class="badge ok">Owner in README: Nibiru7899</span><span class="badge">≈ 4.3k lines of Python + 1.4k lines of guardrail/integration tests</span><span class="badge">tasks D1-01 … D1-13</span></p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>What exists in the repo</h3>
+      <table>
+        <tr><th>Path</th><th>What</th></tr>
+        <tr><td><code>core/models.py</code></td><td>The shared contract (Finding, Evidence, RiskAssessment, RemediationPlan, Approval, ValidationResult…). Additive changes only.</td></tr>
+        <tr><td><code>core/store.py · audit.py · plans.py · config.py · workspace.py</code></td><td>Append-only JSON store (second write to an evidence id raises), atomic findings, trace + audit logs, plan hashing, settings.</td></tr>
+        <tr><td><code>graph/workflow.py · state.py</code></td><td>LangGraph wiring, routers, run driver, SQLite checkpointer; JSON-only state with live objects in a per-run context.</td></tr>
+        <tr><td><code>agents/</code> (9 files, 2.1k lines)</td><td>discovery, detection, evidence_analyst, investigator, risk_analyst, remediation, human_gate, validator, reporter.</td></tr>
+        <tr><td><code>tools/registry.py</code></td><td>The only door to tools: allowlist per agent, typed args, budgets, approval check, failure isolation.</td></tr>
+        <tr><td><code>guardrails/</code></td><td>redact, untrusted (&lt;data&gt; wrapping + injection scan), grounding, approval, budgets, network allowlist.</td></tr>
+        <tr><td><code>llm/provider.py · prompts/</code></td><td>DeepSeek / Anthropic / OpenAI-compatible; live · record · replay with SHA-256 cache keys.</td></tr>
+        <tr><td><code>cli.py · serve.py · watch.py</code></td><td><code>run · watch · plans · decide · serve-runs · api</code>, <code>--repos</code> batch, continuous monitoring.</td></tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>Guardrails G1–G7 (all enforced in code, each with tests)</h3>
+      <div class="grid2" style="gap:8px">
+        <div class="g"><b>G1 · secrets</b><br>Sensitive files refused (<code>encryptionkeys/</code>, <code>*.pem</code>, <code>.env*</code>…); 9 regex families redacted before LLM/log/report.</div>
+        <div class="g"><b>G2 · untrusted text</b><br>Package metadata and excerpts only inside <code>&lt;data&gt;</code> blocks; injection patterns raise a guardrail event.</div>
+        <div class="g"><b>G3 · tools</b><br>Per-agent allowlist, typed args, budgets (G3.6 sized per validation), no publish/push/merge tool, outbound host allowlist (G3.5).</div>
+        <div class="g"><b>G4 · grounding</b><br>Schema + one repair retry; evidence ids must exist; labels set by code; fix versions only from evidence.</div>
+        <div class="g"><b>G5 · approvals</b><br>Decision bound to <code>plan_hash</code>; reject/accept need a reason; heuristic findings never "upgraded"; 3 fails → escalate.</div>
+        <div class="g"><b>G6 · sandbox</b><br>Non-root, <code>--cap-drop ALL</code>, read-only root, no secrets, <code>--network none</code> for build/test.</div>
+        <div class="g"><b>G7 · audit</b><br>Every tool call, LLM call (with cache key), guardrail hit and decision in trace + append-only audit log.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>How a tool call is guarded (the registry)</h3>
+    <div class="diagram" style="margin:8px 0">
+    <svg viewBox="0 0 1100 120" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker></defs>
+      <g class="t">
+        <rect x="5" y="30" width="120" height="56" rx="10" fill="#2a2150" stroke="#a78bfa"/><text x="65" y="54" text-anchor="middle">Agent</text><text x="65" y="72" text-anchor="middle" class="s">asks for a tool</text>
+        <rect x="165" y="30" width="130" height="56" rx="10" fill="#1c2236" stroke="#a78bfa"/><text x="230" y="54" text-anchor="middle">Allowlist</text><text x="230" y="72" text-anchor="middle" class="s">is it bound to me?</text>
+        <rect x="335" y="30" width="130" height="56" rx="10" fill="#1c2236" stroke="#a78bfa"/><text x="400" y="54" text-anchor="middle">Typed args</text><text x="400" y="72" text-anchor="middle" class="s">Pydantic schema</text>
+        <rect x="505" y="30" width="130" height="56" rx="10" fill="#1c2236" stroke="#a78bfa"/><text x="570" y="54" text-anchor="middle">Budget</text><text x="570" y="72" text-anchor="middle" class="s">calls / tokens / time</text>
+        <rect x="675" y="30" width="130" height="56" rx="10" fill="#1c2236" stroke="#a78bfa"/><text x="740" y="54" text-anchor="middle">Approval</text><text x="740" y="72" text-anchor="middle" class="s">writes need approve</text>
+        <rect x="845" y="30" width="110" height="56" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="900" y="54" text-anchor="middle">Tool runs</text><text x="900" y="72" text-anchor="middle" class="s">host allowlist</text>
+        <rect x="990" y="30" width="105" height="56" rx="10" fill="#10281f" stroke="#34d399"/><text x="1042" y="54" text-anchor="middle">Evidence</text><text x="1042" y="72" text-anchor="middle" class="s">stored + traced</text>
+      </g>
+      <g stroke="#7d8ba3" stroke-width="1.6" fill="none" marker-end="url(#a3)"><path d="M125 58H163"/><path d="M295 58H333"/><path d="M465 58H503"/><path d="M635 58H673"/><path d="M805 58H843"/><path d="M955 58H988"/></g>
+      <text x="165" y="110" class="s" style="fill:#f87171">any refusal → guardrail event in the trace, tool never runs</text>
+    </svg></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Key design decisions</h3>
+      <ul>
+        <li><b>Human gate = <code>interrupt()</code> only.</b> On resume LangGraph re-runs the node from the top; keeping the node empty keeps <code>plan_id</code> stable. A separate pure router (<code>record_decision</code>) re-checks the approval.</li>
+        <li><b>LLM never creates facts.</b> Score, band, confidence are computed in Python; the LLM writes the summary.</li>
+        <li><b>Record / replay.</b> <code>GUARDIAN_LLM_MODE=record</code> stores answers in <code>data/cache/llm</code>; replay fails closed on a missing entry → offline demo with 0 network calls.</li>
+        <li><b>No key? Still finishes.</b> Rule-based initial risk is used and the trace says which findings had no LLM review.</li>
+        <li><b>Crash-safe outputs.</b> A <code>finally</code> block always writes graph, changes, run_summary and <code>runs/LATEST</code>.</li>
+        <li><b>Re-plan must differ.</b> Remediation receives the previous <code>ValidationResult</code> and must choose another version/approach (e.g. Juice Shop <code>express-jwt</code> 8.5.1 broke <code>tsc</code> → re-plan).</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Agent behaviour in short</h3>
+      <table>
+        <tr><th>Agent</th><th>LLM?</th><th>Note</th></tr>
+        <tr><td>Evidence analyst</td><td>yes</td><td>top-ranked findings in batches of 8 on 4 threads; budget <code>GUARDIAN_MAX_LLM_FINDINGS</code></td></tr>
+        <tr><td>Investigator</td><td>yes (ReAct)</td><td>≤ 8 read-only calls: registry metadata, file excerpt, manifest diff → labelled conclusion</td></tr>
+        <tr><td>Risk analyst</td><td>summary only</td><td>gathers intel evidence, builds factors, calls <code>scoring.compute()</code></td></tr>
+        <tr><td>Remediation</td><td>no</td><td>candidates from safe-version + compat evidence; multi-file renames are all-or-nothing</td></tr>
+        <tr><td>Validator / Reporter</td><td>no</td><td>call Dev2's sandbox and Dev4's report builder</td></tr>
+        <tr><td>Watch</td><td>no</td><td>re-checks stored inventory against fresh advisories and re-scores, no re-discovery</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Highlights by phase</h3>
+    <ul>
+      <li><b>CP1 (Day 1, midday):</b> models + store + audit, LangGraph discovery → detection → evidence_analyst, LLM provider with record/replay, G1/G2/G4, <code>serve-runs</code>.</li>
+      <li><b>Day 1 evening:</b> tool registry guardrails <span class="badge">D1-04</span>, remediation loop with human gate + SQLite checkpoints <span class="badge">D1-05/13</span>, hardening of <code>serve-runs</code> (<code>work/</code> and <code>attempts/</code> copies refused by resolved path).</li>
+      <li><b>Day 2:</b> investigator ReAct + G3.5 network allowlist <span class="badge">D1-08</span>, LLM provenance kept after resume, offline replay that ignores where a fact was fetched from, G3.6 validator budget sized per validation, plan reasoning never labelled "AI inference".</li>
+    </ul>
+  </div>
+
+  <details><summary>Commit ledger for this area (from <code>git log</code>)</summary><div class="tbl"><table class="cm" id="cm1"></table></div></details>
+</section>
+
+<!-- ============ DEV2 ============ -->
+<section id="dev2" data-dev="2">
+  <div class="sec-h" style="--c:var(--d2)"><span class="tag">Dev2</span><h2>Tools, graph, adapters, sandbox</h2></div>
+  <p class="lead devhead" style="--c:var(--d2)">Produces the facts and does the changing. Everything that touches Syft, Grype, OSV-Scanner, lockfiles, Docker, patch operations and the validation sandbox.</p>
+  <p><span class="badge ok">Owner in README: Somisetty Dinesh</span><span class="badge">≈ 2.7k lines</span><span class="badge">tasks D2-01 … D2-12</span></p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Discovery chain</h3>
+      <div class="diagram" style="margin:8px 0">
+      <svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
+        <defs><marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker></defs>
+        <g class="t">
+          <rect x="5" y="30" width="170" height="70" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="90" y="54" text-anchor="middle">prepare workspace</text><text x="90" y="72" text-anchor="middle" class="s">copy → work/, strip git remote</text><text x="90" y="88" text-anchor="middle" class="s">sensitive files stay out</text>
+          <rect x="205" y="30" width="170" height="70" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="290" y="54" text-anchor="middle">resolve lockfiles</text><text x="290" y="72" text-anchor="middle" class="s">npm --package-lock-only</text><text x="290" y="88" text-anchor="middle" class="s">--ignore-scripts</text>
+          <rect x="405" y="30" width="150" height="70" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="480" y="54" text-anchor="middle">Syft SBOM</text><text x="480" y="72" text-anchor="middle" class="s">CycloneDX, dev deps</text><text x="480" y="88" text-anchor="middle" class="s">included</text>
+          <rect x="585" y="30" width="170" height="70" rx="10" fill="#14304f" stroke="#5aa9ff"/><text x="670" y="54" text-anchor="middle">graph + paths</text><text x="670" y="72" text-anchor="middle" class="s">networkx · origin · integrity</text><text x="670" y="88" text-anchor="middle" class="s">paths_to(purl)</text>
+        </g>
+        <g stroke="#7d8ba3" stroke-width="1.6" fill="none" marker-end="url(#a4)"><path d="M175 65H203"/><path d="M375 65H403"/><path d="M555 65H583"/></g>
+      </svg></div>
+      <ul>
+        <li>Edges come from each project's <code>package-lock.json</code> (Node resolution rule), not Syft's partial relationships; Syft supplies the component inventory/purls.</li>
+        <li>Juice Shop ships no lockfile → resolved lockfiles are fixtures, reused only when <code>package.json</code> is byte-identical.</li>
+        <li>Handles <code>client/</code> + <code>server/</code> layouts with no root manifest; Maven (any SBOM-only ecosystem) stays in the inventory; empty graphs never crash.</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>What exists in the repo</h3>
+      <table>
+        <tr><th>Path</th><th>What</th></tr>
+        <tr><td><code>tools/resolve.py · sbom.py · binaries.py</code></td><td>Lockfile resolution, Syft, pinned/checksummed tool binaries.</td></tr>
+        <tr><td><code>core/graph_build.py</code></td><td>SBOM + lockfile → dependency graph, paths, stats.</td></tr>
+        <tr><td><code>tools/scanners.py</code></td><td>Grype + OSV-Scanner, dedupe key (purl, id/alias), OSV purls identical to Grype's (fixed 36 WebGoat duplicates), offline = never self-update.</td></tr>
+        <tr><td><code>adapters/npm.py · pypi.py</code></td><td>Ecosystem adapters.</td></tr>
+        <tr><td><code>tools/detectors/</code> lockfile, install_scripts, unexpected_change, typosquat</td><td>Missing lockfile, install scripts (14 in Juice Shop), manifest/lockfile diffs.</td></tr>
+        <tr><td><code>tools/patching.py</code> (563 lines)</td><td>Patch ops that only touch the work copy: set/remove/replace dependency, rename imports, pin action SHA, pin image digest, update base image, block package, generate lockfile. Output is a unified diff.</td></tr>
+        <tr><td><code>tools/sandbox.py</code> (768 lines)</td><td>The Docker validation pipeline.</td></tr>
+        <tr><td><code>tools/local_pr.py · image_tags.py</code></td><td>Local branch + <code>PR.md</code>; newest explicit image release lookup.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Sandbox validation pipeline — the "verified" proof</h3>
+    <div class="diagram" style="margin:8px 0">
+    <svg viewBox="0 0 1100 250" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker></defs>
+      <g class="t">
+        <rect x="5" y="20" width="250" height="120" rx="12" fill="#14304f" stroke="#5aa9ff"/>
+        <text x="130" y="44" text-anchor="middle">Phase 1 · install</text><text x="130" y="62" text-anchor="middle" class="s" style="fill:#fbbf24">network ON · no secrets</text>
+        <text x="130" y="82" text-anchor="middle" class="s">deps image cached by lockfile hash</text><text x="130" y="98" text-anchor="middle" class="s">native addons built in container</text><text x="130" y="114" text-anchor="middle" class="s">npm audit signatures → provenance</text><text x="130" y="130" text-anchor="middle" class="s">prebuild subprojects (e.g. Angular)</text>
+        <rect x="285" y="20" width="270" height="120" rx="12" fill="#14304f" stroke="#5aa9ff"/>
+        <text x="420" y="44" text-anchor="middle">Phase 2 · build + test</text><text x="420" y="62" text-anchor="middle" class="s" style="fill:#34d399">--network none</text>
+        <text x="420" y="82" text-anchor="middle" class="s">tsc build · test:server · test:api</text><text x="420" y="98" text-anchor="middle" class="s">Django manage.py check / test</text><text x="420" y="114" text-anchor="middle" class="s">judged against UNPATCHED baseline</text><text x="420" y="130" text-anchor="middle" class="s">non-regression, not "all green"</text>
+        <rect x="585" y="20" width="240" height="120" rx="12" fill="#14304f" stroke="#5aa9ff"/>
+        <text x="705" y="44" text-anchor="middle">Phase 3 · rescan</text><text x="705" y="62" text-anchor="middle" class="s">Syft + Grype on patched copy</text>
+        <text x="705" y="82" text-anchor="middle" class="s">optional built-image rescan</text><text x="705" y="98" text-anchor="middle" class="s">(GUARDIAN_IMAGE_BUILD=1)</text><text x="705" y="114" text-anchor="middle" class="s">SBOM diff: added/removed/changed</text><text x="705" y="130" text-anchor="middle" class="s">re-run detectors + policy</text>
+        <rect x="855" y="20" width="240" height="120" rx="12" fill="#10281f" stroke="#34d399"/>
+        <text x="975" y="44" text-anchor="middle">ValidationResult</text>
+        <text x="975" y="64" text-anchor="middle" class="s">verified · failed_build · failed_tests</text><text x="975" y="80" text-anchor="middle" class="s">regressed · not_resolved · timeout</text><text x="975" y="100" text-anchor="middle" class="s">risk_before → risk_after</text><text x="975" y="116" text-anchor="middle" class="s">final confidence · logs as Evidence</text>
+      </g>
+      <g stroke="#7d8ba3" stroke-width="1.7" fill="none" marker-end="url(#a5)"><path d="M255 80H283"/><path d="M555 80H583"/><path d="M825 80H853"/></g>
+      <text x="5" y="175" class="s">Every container: non-root · CPU/memory/process/time limits · --cap-drop ALL · no-new-privileges · read-only root · only the patched copy mounted · removed after the attempt.</text>
+      <text x="5" y="197" class="s">Unpinned-copy lockfiles start from discovery's resolution; an upgrade's own dependency subtree is not flagged as "unexpected new packages".</text>
+      <text x="5" y="219" class="s">Real results — PyGoat: Django suite 54/54 · Juice Shop: unit 439/441 and API 559/580, both identical to the unpatched app (21 API tests need the internet).</text>
+    </svg></div>
+  </div>
+
+  <div class="card">
+    <h3>Day-2 bugs found by real runs (each fixed with a regression test)</h3>
+    <ul>
+      <li>Sandbox: tests judged against the unpatched baseline; node test counts parsed; native addons (<code>sqlite3</code>) rebuilt inside the container on the target's Node version; multi-project npm apps prebuild subprojects.</li>
+      <li>Validator: patched copy's lockfiles start from discovery's resolution; dependency subtree of an upgrade is not "unexpected".</li>
+      <li>Remediation (patching): typosquat replacement also renames the imports; a plan may hold a real multi-file rename, never a partial one; plan-args bound follows <code>MAX_PLAN_OPS</code>.</li>
+      <li>Scanning: OSV purls match Grype's for every ecosystem; Maven in inventory; PyGoat Django app tests now run.</li>
+    </ul>
+  </div>
+
+  <details><summary>Commit ledger for this area</summary><div class="tbl"><table class="cm" id="cm2"></table></div></details>
+</section>
+
+<!-- ============ DEV3 ============ -->
+<section id="dev3" data-dev="3">
+  <div class="sec-h" style="--c:var(--d3)"><span class="tag">Dev3</span><h2>UI and API</h2></div>
+  <p class="lead devhead" style="--c:var(--d3)">Makes the invisible visible: dependency map, findings, evidence, trace, approval, validation, report — and carries the human's decision back to the gate.</p>
+  <p><span class="badge ok">Owner in README: tarunkumar</span><span class="badge">API ≈ 490 lines · UI ≈ 6.3k lines</span><span class="badge">tasks D3-01 … D3-09</span></p>
+
+  <div class="card">
+    <h3>UI ⇄ API ⇄ run files</h3>
+    <div class="diagram" style="margin:8px 0">
+    <svg viewBox="0 0 1100 230" xmlns="http://www.w3.org/2000/svg">
+      <defs><marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker></defs>
+      <g class="t">
+        <rect x="5" y="40" width="180" height="120" rx="12" fill="#10281f" stroke="#34d399"/><text x="95" y="66" text-anchor="middle">runs/&lt;id&gt;/</text><text x="95" y="86" text-anchor="middle" class="s">graph · findings · evidence</text><text x="95" y="102" text-anchor="middle" class="s">risk · plans · validation</text><text x="95" y="118" text-anchor="middle" class="s">trace.jsonl · report.html</text>
+        <rect x="245" y="40" width="270" height="120" rx="12" fill="#3a1630" stroke="#f472b6"/><text x="380" y="66" text-anchor="middle">FastAPI (guardian/api)</text><text x="380" y="86" text-anchor="middle" class="s">bearer tokens → roles</text><text x="380" y="102" text-anchor="middle" class="s">viewer · operator · approver</text><text x="380" y="118" text-anchor="middle" class="s">runs confined to target roots</text><text x="380" y="134" text-anchor="middle" class="s">run cap → HTTP 429 · loopback-only w/o tokens</text>
+        <rect x="575" y="40" width="270" height="120" rx="12" fill="#3a1630" stroke="#f472b6"/><text x="710" y="66" text-anchor="middle">React app (Vite + TS)</text><text x="710" y="86" text-anchor="middle" class="s">Overview · Dependency map</text><text x="710" y="102" text-anchor="middle" class="s">Findings · Approval</text><text x="710" y="118" text-anchor="middle" class="s">Validation · Report</text><text x="710" y="134" text-anchor="middle" class="s">React Flow + dagre graph</text>
+        <rect x="905" y="40" width="190" height="120" rx="12" fill="#3a1630" stroke="#f472b6"/><text x="1000" y="66" text-anchor="middle">Human</text><text x="1000" y="86" text-anchor="middle" class="s">reads the case file</text><text x="1000" y="102" text-anchor="middle" class="s">Approve / Reject / Accept risk</text><text x="1000" y="118" text-anchor="middle" class="s">(reason required for last two)</text>
+      </g>
+      <g stroke="#7d8ba3" stroke-width="1.7" fill="none" marker-end="url(#a6)"><path d="M185 90H243"/><path d="M515 90H573"/><path d="M845 90H903"/></g>
+      <path d="M1000 160V205H380V162" stroke="#f472b6" stroke-width="1.6" fill="none" stroke-dasharray="6 4" marker-end="url(#a6)"/>
+      <text x="420" y="198" class="s" style="fill:#f472b6">POST /runs/{id}/plans/{plan}/decision {action, comment, plan_hash}  → resumes Dev1's gate</text>
+      <text x="245" y="224" class="s">GET /runs/{id}/events  =  SSE stream of trace.jsonl read from a byte cursor (linear, not quadratic)</text>
+    </svg></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>API routes</h3>
+      <table>
+        <tr><td><code>POST /runs</code> · <code>GET /runs</code> · <code>GET /runs/{id}</code></td><td>start / list / summary</td></tr>
+        <tr><td><code>GET …/risk · /findings/{fid} · /evidence/{eid}</code></td><td>scores, finding, proof</td></tr>
+        <tr><td><code>GET …/plans · /plans/{id} · /attempts/{a}/pr.md</code></td><td>plans and local PR text</td></tr>
+        <tr><td><code>GET …/validation · /report.html · /trace · /watch</code></td><td>validation, report, trace, monitoring</td></tr>
+        <tr><td><code>GET …/approvals</code> · <code>POST …/decision</code></td><td>decision history / decide (approver only)</td></tr>
+        <tr><td><code>GET …/events</code></td><td>live SSE</td></tr>
+        <tr><td><code>GET /auth/me</code></td><td>who am I / role</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>UI views and design</h3>
+      <ul>
+        <li><b>Six views</b> (keys 1–6): Overview, Dependency map, Findings, Approval, Validation, Report; live 9-step pipeline strip; event drawer; sign-in with roles; shortcut help.</li>
+        <li><b>Dependency map:</b> only roots, direct deps, paths to findings and pseudo-nodes (<code>ci:</code>, <code>image:</code>, <code>config:</code>) are drawn — Juice Shop shows 57 of 1,656 nodes; smooth fit, collapsed legend.</li>
+        <li><b>Approval gate:</b> fix, diff, evidence, score breakdown, rollback; decision bound to the plan hash.</li>
+        <li><b>Plain language everywhere</b> — every status and verdict has a human wording; score drops use the rounded numbers shown.</li>
+        <li>Design system recorded in <code>DESIGN.md</code> / <code>PRODUCT.md</code> ("Casefile": calm, rounded, report-like, progressive disclosure).</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="note"><b>Where the work lives:</b> Tarun's original UI + API (branch <code>dev3/D3-01-ui-scaffold</code>: a dark "command center" dashboard with Graph, Findings, Trace, Approval, Validation and Monitoring views, 4.4k + 2.6k lines) was merged into <code>main</code> as <i>history only</i>. The UI and API in the working tree today were rebuilt on the standalone CP1 base and extended by later commits (Casefile redesign, command center, token auth with roles, SSE linearisation). See <a href="#history">Git history</a>.</div>
+
+  <details><summary>Commit ledger for this area</summary><div class="tbl"><table class="cm" id="cm3"></table></div></details>
+</section>
+
+<!-- ============ DEV4 ============ -->
+<section id="dev4" data-dev="4">
+  <div class="sec-h" style="--c:var(--d4)"><span class="tag">Dev4</span><h2>Threat intel, scoring, detectors, reports</h2></div>
+  <p class="lead devhead" style="--c:var(--d4)">Turns raw findings into prioritised, explainable risk and produces the human-readable deliverables. Also all the "is this suspicious?" detectors.</p>
+  <p><span class="badge ok">Owner in README: dheeraj856</span><span class="badge">≈ 2.4k lines</span><span class="badge">tasks D4-01 … D4-14</span></p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>Detectors — what each looks for</h3>
+      <table>
+        <tr><th>Detector</th><th>Signal</th></tr>
+        <tr><td>Typosquat</td><td>Damerau-Levenshtein ≤ 1–2 vs a 342-name popular list, min length 5, swapped chars, <code>-js</code> suffix. <code>ngy-cookie</code> ≈ <code>ngx-cookie</code>; established lookalikes (≥ 5 yrs, ≥ 30 releases — <code>query-string</code>) are cleared, with the decision kept as evidence.</td></tr>
+        <tr><td>Unpinned CI</td><td>GitHub Actions <code>uses:</code> not a 40-hex SHA (7 in Juice Shop); GitLab CI jobs/services/<code>include:</code> refs.</td></tr>
+        <tr><td>Tag-only image</td><td><code>FROM node:24</code> without <code>@sha256:</code>; newer explicit release on the same line recorded as evidence.</td></tr>
+        <tr><td>Package risk</td><td>Maintainer takeover; release bursts against the package's <i>own</i> cadence (stable releases only); dependency confusion.</td></tr>
+        <tr><td>Outdated</td><td>Deprecated flag, stale publish, far behind latest major.</td></tr>
+        <tr><td>Policy-as-code</td><td><code>guardian.yaml</code> + <code>policies/guardian.rego</code>; native evaluator always, Conftest/OPA if installed; re-checked on the patched copy.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Intel &amp; context tools</h3>
+      <table>
+        <tr><td><code>threat_intel.py</code></td><td>EPSS (≤100 CVEs/call), CISA KEV, OSV, registry metadata, <code>safe_version_lookup</code>. Disk cache + throttle; <code>GUARDIAN_OFFLINE=1</code> = cache only.</td></tr>
+        <tr><td><code>reachability.py</code></td><td><b>Import level</b> for npm, pip, Maven (R = 0.6) and <b>function level</b> for reviewed advisories (R = 1.0 "called") — e.g. <code>jwt.verify</code> at <code>lib/insecurity.ts:189</code>. "Not called" is never claimed.</td></tr>
+        <tr><td><code>risk_tools.py</code></td><td>Exposure signals, compatibility hint (major → high, minor → medium, patch → low), factor assembly.</td></tr>
+        <tr><td><code>provenance.py</code></td><td>npm registry signatures + Sigstore attestations (<code>npm audit signatures</code>): Juice Shop 1,223 audited, 1,223 signatures verified, 186 attestations, 0 invalid.</td></tr>
+        <tr><td><code>core/scoring.py</code></td><td>Initial-risk rule (CVSS bands + category defaults) and the explainable 0–100 score with <code>simulate_after(plan)</code>.</td></tr>
+        <tr><td><code>reporting/</code></td><td>Pydantic <code>report.json</code> + Jinja2 <code>report.html</code>: inventory + paths, findings + evidence, ranking, actions + approvals, validation before/after, remaining/accepted risk, final confidence, audit.</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Stretch goals — all six done with real runs</h3>
+    <div class="grid3">
+      <div class="g"><b>1 · Reachability</b><br>Import + function-level (reviewed rules in <code>data/reachability/</code>).</div>
+      <div class="g"><b>2 · Automated PR</b><br>Local branch + <code>PR.md</code>, never pushed.</div>
+      <div class="g"><b>3 · Provenance</b><br>npm signatures + Sigstore attestations. Cosign for images: not done.</div>
+      <div class="g"><b>4 · Advanced package risk</b><br>Dependency confusion, maintainer change, release bursts.</div>
+      <div class="g"><b>5 · Policy-as-code</b><br>YAML + Rego, checked before and after the fix.</div>
+      <div class="g"><b>6 · Continuous monitoring</b><br><code>guardian watch --run &lt;id&gt; --interval 1h</code>.</div>
+    </div>
+  </div>
+
+  <div class="note"><b>Where the work lives:</b> Dheeraj's branch <code>dev04</code> (commit <code>492a5c4</code>, 33 files, 2.9k lines, 42 unit tests: similarity, scoring, threat intel, reachability, provenance, package risk, policy + Rego, reports) was merged as <i>history only</i>. The modules at the same paths in the working tree are the versions integrated with the agent graph (e.g. <code>reachability.py</code> grew from 71 to 195 lines with function-level rules; <code>policy.py</code> from 99 to 260). See <a href="#history">Git history</a>.</div>
+
+  <details><summary>Commit ledger for this area</summary><div class="tbl"><table class="cm" id="cm4"></table></div></details>
+</section>
+
+<!-- ============ DEV5 ============ -->
+<section id="dev5" data-dev="5">
+  <div class="sec-h" style="--c:var(--d5)"><span class="tag">Dev5</span><h2>Targets, QA, docs, demo</h2></div>
+  <p class="lead devhead" style="--c:var(--d5)">Owns the story and the safety net: what we scan, whether the results are right, how we present it, and the checklist that proves every requirement.</p>
+  <p><span class="badge ok">Owner in README: Kavya Penikalapati</span><span class="badge">tasks D5-01 … D5-08</span></p>
+
+  <div class="grid2">
+    <div class="card">
+      <h3>What exists in the repo</h3>
+      <table>
+        <tr><th>Path</th><th>What</th></tr>
+        <tr><td><code>targets/</code> + <code>scripts/fetch_targets.ps1</code></td><td>Six pinned repos: Juice Shop (<code>c9f99228d</code>), PyGoat (<code>2aa4cc1</code>), NodeGoat, WebGoat, vulnerable-rest-api, vuln_django_play.</td></tr>
+        <tr><td><code>tests/fixtures/juice-shop/</code></td><td>Resolved lockfiles (root + frontend) and legacy <code>.bak</code> manifest so runs are deterministic.</td></tr>
+        <tr><td><code>tests/golden/</code> · <code>tests/integration/test_golden.py</code></td><td>Stable matchers (category + file + line / purl) the newest real run must satisfy.</td></tr>
+        <tr><td><code>data/cache/llm/</code> (157 files)</td><td>Recorded LLM answers → reproducible offline demo.</td></tr>
+        <tr><td><code>scripts/</code></td><td><code>install_tools.ps1</code> (pinned + SHA-256-verified Syft 1.57.2 / Grype 0.122.1 / OSV 2.7.1), <code>harness.sh</code> (ruff, pytest, forbidden-pattern greps, UI build), <code>cp1_check.py</code> (83 CP1 checks), <code>check_forbidden.py</code>.</td></tr>
+        <tr><td><code>docs/</code></td><td>decisions, targets, architecture (Mermaid), responsible_ai, requirements_coverage, generality_and_scale, day1_coverage, day2_contracts, cp1 talk track.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Generality &amp; scale — same command, six repos</h3>
+      <div class="tbl"><table>
+        <tr><th>Target</th><th>Stack</th><th>Pkgs</th><th>Findings</th><th>Time</th></tr>
+        <tr><td>Juice Shop</td><td>npm + Angular, Actions, Docker</td><td>1,656</td><td>91</td><td>~65 s</td></tr>
+        <tr><td>PyGoat</td><td>pip / Django</td><td>58</td><td>470</td><td>~45 s</td></tr>
+        <tr><td>NodeGoat</td><td>npm (old)</td><td>1,091</td><td>326</td><td>127 s</td></tr>
+        <tr><td>vulnerable-rest-api</td><td>npm, no root manifest</td><td>475</td><td>275</td><td>58 s</td></tr>
+        <tr><td>vuln_django_play</td><td>pip + GitLab CI</td><td>27</td><td>57</td><td>57 s</td></tr>
+        <tr><td>WebGoat</td><td>Maven (Java)</td><td>49</td><td>57</td><td>47 s</td></tr>
+      </table></div>
+      <p class="mute">Peak memory 210–290 MB per run. Every run paused at the human gate with an evidence-backed plan.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Coverage matrix — the problem statement, line by line</h3>
+    <p class="mute"><code>docs/requirements_coverage.md</code> maps every slide line (Discover → Detect → Analyze → Remediate → Validate, guidelines, Day 1, Day 2, stretch goals, deliverables) to code, a test, or a real run. Status: all core rows ✅, all 6 stretch goals ✅, all deliverables ✅. The earlier end-to-end Juice Shop run is the headline story: approved <code>express-jwt</code> 0.1.3 → 8.5.1, sandbox <b>caught a build break</b> (<code>tsc</code> TS2349) → agent re-planned → escalated instead of shipping a bad fix.</p>
+  </div>
+
+  <div class="card">
+    <h3>Responsible AI &amp; security note — in one table</h3>
+    <div class="tbl"><table>
+      <tr><th>Concern</th><th>Control</th></tr>
+      <tr><td>Hallucination</td><td>Grounding G4 · labels set by code · fix versions only from evidence</td></tr>
+      <tr><td>Prompt injection</td><td>&lt;data&gt; wrapping · injection scan · system rule</td></tr>
+      <tr><td>Unwanted change</td><td>Human gate on plan hash · no publish/push/merge tool · local PR only</td></tr>
+      <tr><td>Secrets / code</td><td>Deny-list + redaction · keys only in <code>.env</code> · work on copies</td></tr>
+      <tr><td>Untrusted code</td><td><code>--ignore-scripts</code> · sandbox limits · <code>--network none</code> for build/test</td></tr>
+      <tr><td>Outside world</td><td>Host allowlist · cache + throttle · offline replay (0 network calls, tested)</td></tr>
+      <tr><td>Accountability</td><td>trace.jsonl + append-only audit.jsonl; authenticated approver recorded</td></tr>
+    </table></div>
+  </div>
+
+  <details><summary>Commit ledger for this area</summary><div class="tbl"><table class="cm" id="cm5"></table></div></details>
+</section>
+
+<!-- ============ GIT HISTORY ============ -->
+<section id="history">
+  <div class="sec-h"><span class="tag" style="--c:var(--cyan)">Git history</span><h2>Who committed what, and how branches came together</h2></div>
+  <p class="lead">Roles (Dev1–Dev5) are the plan's ownership areas. This section is the plain <code>git</code> record: which author made which commits and what happened to each branch.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 1160 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Branch history">
+    <defs><marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#7d8ba3"/></marker></defs>
+    <g class="s">
+      <text x="10" y="44" class="h" style="fill:#fbbf24">Somisetty Dinesh · plan</text>
+      <text x="10" y="104" class="h" style="fill:#a78bfa">Nibiru7899 · Dev1</text>
+      <text x="10" y="164" class="h" style="fill:#f472b6">tarunkumar · Dev3</text>
+      <text x="10" y="224" class="h" style="fill:#fbbf24">dheeraj856 · Dev4</text>
+      <text x="10" y="284" class="h" style="fill:#34d399">kavya Penikalapati · Dev5</text>
+    </g>
+    <g stroke-width="2" fill="none">
+      <path d="M190 40H330" stroke="#fbbf24"/><circle cx="190" cy="40" r="6" fill="#fbbf24"/><circle cx="260" cy="40" r="6" fill="#fbbf24"/>
+      <text x="170" y="22" class="s">Full Plan · Updated Plan</text>
+      <path d="M330 40C360 40 360 100 380 100" stroke="#7d8ba3"/>
+      <path d="M380 100H1120" stroke="#a78bfa"/>
+      <circle cx="380" cy="100" r="6" fill="#a78bfa"/><text x="320" y="82" class="s">CP1 skeleton</text>
+      <circle cx="480" cy="100" r="6" fill="#a78bfa"/><text x="440" y="82" class="s">standalone build</text>
+      <circle cx="600" cy="100" r="6" fill="#d9ccff"/><text x="540" y="82" class="s">PR #2 / #3 merged by Dinesh</text>
+      <circle cx="720" cy="100" r="6" fill="#a78bfa"/><text x="670" y="82" class="s">guardrails · loop · API (evening)</text>
+      <circle cx="900" cy="100" r="6" fill="#a78bfa"/><text x="840" y="82" class="s">Day 2 features &amp; fixes (~50 commits)</text>
+      <circle cx="1110" cy="100" r="7" fill="#fff"/><text x="1030" y="82" class="s">319f0e2 HEAD</text>
+      <path d="M380 160H470" stroke="#f472b6"/><circle cx="380" cy="160" r="6" fill="#f472b6"/><circle cx="470" cy="160" r="6" fill="#f472b6"/>
+      <text x="380" y="190" class="s">9aaf793 + 75aa721 · UI + API (2 commits)</text>
+      <path d="M470 160C520 160 540 100 560 100" stroke="#f472b6" stroke-dasharray="4 4"/>
+      <path d="M380 220H470" stroke="#fbbf24"/><circle cx="470" cy="220" r="6" fill="#fbbf24"/>
+      <text x="380" y="250" class="s">492a5c4 · intel, scoring, detectors, reports</text>
+      <path d="M470 220C530 220 560 100 580 100" stroke="#fbbf24" stroke-dasharray="4 4"/>
+      <path d="M380 280H470" stroke="#34d399"/><circle cx="380" cy="280" r="6" fill="#34d399"/><circle cx="470" cy="280" r="6" fill="#34d399"/>
+      <text x="380" y="310" class="s">c178212 + da28047 · pin Juice Shop, decisions</text>
+      <path d="M470 280C540 280 560 100 590 100" stroke="#34d399" stroke-dasharray="4 4"/>
+    </g>
+    <text x="640" y="170" class="s">Dashed: merged into main by <tspan style="fill:#a78bfa">3d21dcd</tspan> as history only — main's content kept.</text>
+    <text x="640" y="190" class="s">Each side branch is still in git (origin/dev3/…, origin/dev04, origin/dev5/…) if you want its version.</text>
+  </svg>
+  </div>
+
+  <div class="tbl"><table>
+    <tr><th>Author</th><th>Role</th><th>Commits</th><th>What they committed</th></tr>
+    <tr><td>Nibiru7899</td><td style="color:var(--d1)">Dev1</td><td>69</td><td>The CP1 pipeline, the standalone build, the whole Day-1-evening and Day-2 work. Every line in the current working tree for <code>guardian/</code>, <code>ui/src</code>, <code>tests/</code>, <code>scripts/</code> and docs traces back to this author (git blame: 22,590 lines, 100%).</td></tr>
+    <tr><td>Somisetty Dinesh</td><td style="color:var(--d2)">Dev2</td><td>4</td><td>Authored <code>GUARDIAN_PLAN.md</code> (Full Plan + Updated Plan) and merged PR #2 (<code>cp1-standalone</code>) and PR #3 (<code>dev1/fix-serve-work-guard</code>) into <code>main</code>. The Dev2 area code (tools, graph, sandbox) is committed under Nibiru7899.</td></tr>
+    <tr><td>tarunkumar</td><td style="color:var(--d3)">Dev3</td><td>2</td><td>Branch <code>dev3/D3-01-ui-scaffold</code>: FastAPI app + tests, React/Vite/Tailwind dashboard with graph, findings, trace, approval, validation, monitoring and evidence drawer.</td></tr>
+    <tr><td>dheeraj856</td><td style="color:var(--d4)">Dev4</td><td>1</td><td>Branch <code>dev04</code>, one big commit <code>[D4-01..D4-11]</code>: similarity, popular-package list, scoring, changes diff, threat intel, reachability, provenance, package risk, policy + Rego, reports, 42 tests.</td></tr>
+    <tr><td>kavya Penikalapati</td><td style="color:var(--d5)">Dev5</td><td>2</td><td>Branch <code>dev5/D5-01-target-baseline</code>: pinned Juice Shop baseline, resolved lockfile fixtures, <code>decisions.md</code>, <code>targets.md</code>, mentor approvals.</td></tr>
+  </table></div>
+
+  <h3 style="margin-top:28px">Timeline</h3>
+  <div class="grid3">
+    <div class="card" style="border-top:3px solid var(--d1)"><h3>Day 1 · morning–CP1</h3><ul>
+      <li>Plan v1.3 written (916 lines).</li>
+      <li>CP1 skeleton: models, store, audit, LangGraph discovery → detection → evidence analyst, LLM record/replay, G1/G2/G4.</li>
+      <li>Standalone CP1 build: tools, graph, 5-view dashboard, 48 tests, 83 CP1 checks.</li>
+      <li>Side branches from Dev3/4/5 pushed.</li></ul></div>
+    <div class="card" style="border-top:3px solid var(--d2)"><h3>Day 1 · evening</h3><ul>
+      <li>Registry guardrails, remediation loop, human gate, SQLite checkpoints.</li>
+      <li>Patch ops, install-script and compare-ref detectors.</li>
+      <li>FastAPI routes, SSE trace, decision endpoint.</li>
+      <li>Serve guard (<code>work/</code>, <code>attempts/</code>) fixes; first UI polish; contributors table.</li></ul></div>
+    <div class="card" style="border-top:3px solid var(--d4)"><h3>Day 2 · 24 Nov</h3><ul>
+      <li>Investigator, risk score, CVE remediation, Docker sandbox, reports, pip.</li>
+      <li>Token auth + roles, command-center UI, monitoring, policy-as-code, package risk.</li>
+      <li>Offline mode, base-image updates, baseline-judged tests, native addons, multi-project npm.</li>
+      <li>Stretch goals 1 &amp; 3 (function reachability, Sigstore); generality on 6 repos; G3.6 budget.</li></ul></div>
+  </div>
+
+  <details><summary>Complete commit list (all 78, oldest first)</summary><div class="tbl"><table class="cm" id="cmAll"></table></div></details>
+</section>
+
+<!-- ============ PROOF ============ -->
+<section id="proof">
+  <div class="sec-h"><span class="tag" style="--c:var(--cyan)">Proof &amp; limits</span><h2>What was shown to work — and what is honestly not done</h2></div>
+  <div class="grid2">
+    <div class="card">
+      <h3>Real runs</h3>
+      <table>
+        <tr><td>Juice Shop (DeepSeek live → replayed offline)</td><td>1,656 packages, 91 findings, top risk 98.17, paused at gate; replay: identical 91 findings, 52 LLM answers from cache, <b>0 network attempts</b>.</td></tr>
+        <tr><td>PyGoat</td><td>58 packages, 470 findings, top 88.65 (<code>django</code> 3.2.18) → plan 4.2.26; sandbox Django tests <b>54/54</b>.</td></tr>
+        <tr><td>Juice Shop sandbox</td><td><code>tsc</code> passes; unit 439/441 and API 559/580 = unpatched baseline.</td></tr>
+        <tr><td>Breaking upgrade caught</td><td><code>express-jwt</code> → 8.5.1 failed build in sandbox → re-plan → escalated.</td></tr>
+        <tr><td>Image rescan</td><td>PyGoat's own Dockerfile built in sandbox (177 s) and rescanned by Syft + Grype.</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h3>Known limitations (disclosed in the docs)</h3>
+      <ul>
+        <li>Fixes are applied for npm and pip; Maven and others are scanned, scored and prioritised only.</li>
+        <li>Function-level reachability covers reviewed demo packages, not every advisory.</li>
+        <li>Built-image rescan is opt-in (<code>GUARDIAN_IMAGE_BUILD=1</code>) because it runs the target's Dockerfile with network on.</li>
+        <li>Rego rules are mirrored by a native Python evaluator; <code>opa</code>/<code>conftest</code> only if installed.</li>
+        <li>No Cosign verification of container images; popular-package list for typosquats is hand-written (342 npm names).</li>
+        <li>LLM explanations need a provider key or a recorded replay; otherwise rule-based risk is used and the run still finishes.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card">
+    <h3>How to run it</h3>
+    <pre style="background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:13px">uv sync
+scripts/install_tools.ps1 ; scripts/fetch_targets.ps1      # pinned Syft/Grype/OSV + six targets
+copy .env.example .env                                      # add the LLM key (or use replay)
+uv run python -m guardian run --repo targets/juice-shop     # discover → … → pauses at the human gate
+uv run python -m guardian plans                             # see the pending plan
+uv run python -m guardian decide --approve                  # or use the UI / API
+uv run python -m guardian api                               # FastAPI + SSE on localhost
+uv run python -m guardian watch --run &lt;id&gt; --interval 1h     # continuous monitoring
+bash scripts/harness.sh                                     # ruff, pytest, forbidden-pattern greps, UI build</pre>
+  </div>
+</section>
+
+<footer>Generated from the repository state at <code>319f0e2</code> (branch <code>dev1/day1-evening</code>). Source documents: <code>GUARDIAN_PLAN.md</code>, <code>docs/architecture.md</code>, <code>docs/requirements_coverage.md</code>, <code>docs/generality_and_scale.md</code>, <code>docs/responsible_ai.md</code>, <code>docs/day2_contracts.md</code>, and <code>git log</code>. The older <code>guardian_dev_notes.html</code> predates the Day-2 work.</footer>
+</main>
+
+<script>
+/* [hash, date, devKey(1-5 or 0=repo), title] ; dev = which role's area the change belongs to */
+const C=[
+["33dcc4b","11-23",0,"Full Plan (Somisetty Dinesh)"],
+["ef29650","11-23",0,"Updated Plan with Fixes (Somisetty Dinesh)"],
+["6d51587","11-23",1,"feat(core): CP1 agent pipeline skeleton, LLM evidence analyst, grounding [D1-01][D1-02][D1-03]"],
+["c178212","11-23",5,"feat(targets): pin Juice Shop baseline [D5-01] (kavya Penikalapati)"],
+["da28047","11-23",5,"docs(decisions): record mentor approvals [D5-01] (kavya Penikalapati)"],
+["492a5c4","11-23",4,"feat(dev4): intel, scoring, detectors, policy and reports [D4-01..D4-11] (dheeraj856)"],
+["9aaf793","11-23",3,"feat(dev3): implement Guardian UI and API [D3-01] (tarunkumar)"],
+["75aa721","11-23",3,"feat(dev3): overhaul supply chain security dashboard UI/UX (tarunkumar)"],
+["598f28f","11-23",1,"feat: Guardian CP1 standalone build (agents, tools, graph, UI, docs)"],
+["c21f0e6","11-23",0,"Join history with main so the branch can be compared with it"],
+["d093a2c","11-23",0,"Merge PR #2 cp1-standalone (Somisetty Dinesh)"],
+["68c7986","11-23",1,"fix(serve): block work/ and sensitive files by resolved path [D1-03]"],
+["a9c4b7d","11-23",0,"Merge PR #3 dev1/fix-serve-work-guard (Somisetty Dinesh)"],
+["02507d2","11-23",2,"feat(tools): patch ops, install-script and compare-ref detectors [D2-06][D2-07]"],
+["af05239","11-23",1,"feat(guardrails): tool registry allowlist, typed args, approvals, budgets [D1-04]"],
+["332237d","11-23",1,"feat(core): remediation loop with human gate and SQLite checkpoints [D1-05][D1-13]"],
+["dc92ecc","11-23",3,"feat(api): FastAPI routes, SSE trace and decision endpoint [D3-03][D3-09]"],
+["675e321","11-23",1,"test: isolate provider defaults test from a local .env"],
+["e46f5cf","11-23",5,"docs: Day-1 remediation loop, real Juice Shop run, coverage matrix [D5-08]"],
+["4dcd816","11-23",1,"fix(serve): also refuse patched attempt copies under attempts/ [D1-03]"],
+["76a0a1b","11-23",0,"Merge origin/main into dev1/day1-evening"],
+["edf35ba","11-23",1,"fix(serve): also refuse patched attempt copies under attempts/ [D1-03]"],
+["205b1ab","11-23",3,"ui: polish dashboard spacing, graph legibility and label collisions"],
+["71021e2","11-23",1,"fix(workflow): keep the run's LLM provenance in run_summary after a resume"],
+["efdef7b","11-23",3,"ui: Casefile redesign — calm, rounded, report-like; progressive disclosure"],
+["9bec840","11-23",5,"docs: add Contributors section with per-area ownership"],
+["3d21dcd","11-23",0,"Merge dev3, dev4 and dev5 branches into main (history only; main's content kept)"],
+["3984969","11-23",1,"feat(agents): investigator ReAct node, G3.5 network allowlist, harness [D1-08]"],
+["119e40c","11-23",3,"feat(ui): security command center redesign [D3-04][D3-05][D3-06]"],
+["3a2937e","11-23",4,"feat: Day-2 risk score, CVE remediation, Docker sandbox validator, reports, pip support (spans Dev1/2/4)"],
+["e9f29b3","11-23",2,"fix: real end-to-end findings from Juice Shop and PyGoat runs (spans areas)"],
+["ab95b95","11-23",3,"feat(api): token auth with roles, target-root confinement, run cap, O(n) SSE"],
+["e7eabe4","11-23",3,"feat(ui): approachable command center, smooth graph, sign-in with roles"],
+["bc43c87","11-23",5,"docs: architecture diagram and Responsible AI & security note"],
+["28a713f","11-24",4,"feat: continuous monitoring, policy-as-code, package risk, image/block/mitigate fixes, local PR (spans Dev1/2/4)"],
+["d465d71","11-24",4,"feat: policy check on the patched copy, /trace and /watch routes, has_report"],
+["1694bc9","11-24",2,"fix(offline): scanners never self-update, OSV output cached; docs: README + requirements coverage"],
+["660af2e","11-24",4,"fix(package-risk): flag only maintainer takeovers and recent release bursts; UI labels"],
+["bc42d2f","11-24",4,"fix(package-risk): release bursts against the package's own cadence, stable releases only"],
+["7837e66","11-24",1,"fix(replay): prompts leave out where a fact was fetched from (cache vs registry)"],
+["b55ea5a","11-24",5,"docs(coverage): cite the final recorded and offline runs; commit recorded LLM responses"],
+["2bc0732","11-24",2,"fix: Maven (any SBOM-only ecosystem) in the inventory, no crash on empty graphs, Django app tests"],
+["08b9c1a","11-24",2,"fix(sandbox): judge tests against the unpatched baseline; node test counts; Maven OSV"],
+["0765dd7","11-24",1,"fix: plan reasoning is never labelled 'AI inference'"],
+["387a031","11-24",3,"fix(ui): graph legend starts collapsed; fitted nodes keep clear of the toolbar and hint line"],
+["74bfae5","11-24",2,"fix(sandbox): build native addons inside the container; deps image on the target's node version"],
+["778a98c","11-24",2,"feat(validation): judge and show tests against the unpatched baseline; disclose unrunnable suites"],
+["fb544cb","11-24",5,"docs: real sandbox results (PyGoat 54/54, Juice Shop 439/441 = baseline), WebGoat, native addons"],
+["366239d","11-24",2,"refactor(sandbox): one notes field on SandboxResult"],
+["61b4101","11-24",5,"docs(coverage): real built-image rescan on PyGoat"],
+["7e3c687","11-24",4,"feat(detection): newer explicit releases for tag-only base images (update_base_image evidence)"],
+["476c5b6","11-24",4,"feat(detection): full image releases get newer patches on their minor line"],
+["85c1f0f","11-24",4,"fix(image tags): a moving tag only gets its newest explicit release (no downgrade)"],
+["aba079c","11-24",5,"docs(coverage): base-image update done, with the real Juice Shop plans"],
+["7602bfb","11-24",3,"fix(ui): score drop sentence uses the rounded numbers shown"],
+["d78f68c","11-24",5,"chore: refresh recorded LLM responses for the demo runs"],
+["47beded","11-24",2,"feat(sandbox): multi-project npm apps; subprojects the root build builds are prebuilt in the deps image"],
+["9c8ae02","11-24",5,"docs: Juice Shop API suite runs in the sandbox (559/580 = baseline)"],
+["4d1e3a3","11-24",5,"docs(responsible-ai): disclose the frontend prebuild in the sandbox install step"],
+["9e07bfb","11-24",4,"feat(risk): function-level reachability for reviewed advisories (stretch goal 1)"],
+["01bee99","11-24",4,"docs+ui: function-level reachability (called tier) in coverage and factor labels"],
+["40c5e00","11-24",4,"feat(provenance): npm registry signatures + Sigstore attestations verified (stretch goal 3)"],
+["626cd02","11-24",5,"docs(coverage): all six stretch goals done with real runs"],
+["64946c2","11-24",5,"chore: re-record demo runs (called tier + signature evidence); top Juice Shop risk 98.17"],
+["4742ca1","11-24",3,"fix(ui): plain wording for every run/finding status and validation verdict"],
+["cfff319","11-24",3,"fix(ui): rail badges and labels fit at 1280 and 1440; readable run switcher"],
+["518bc9d","11-24",4,"feat(detection): GitLab CI as a supply-chain source (generality)"],
+["f3256da","11-24",4,"fix: generality bugs found on WebGoat and vulnerable-rest-api"],
+["1d93424","11-24",2,"fix(scanners): OSV purls match Grype's for every ecosystem (WebGoat: 36 duplicate advisories)"],
+["b10df84","11-24",5,"docs: generality and scale across six repositories"],
+["445bd46","11-24",2,"fix(validator): patched copy's lockfiles start from discovery's resolution"],
+["7e306cb","11-24",2,"fix(validator): an upgrade's own dependency subtree is not 'unexpected new packages'"],
+["bc7b0c9","11-24",2,"feat(remediation): typosquat replacement also renames the imports that use it"],
+["b121d8f","11-24",1,"fix(remediation): plans may hold a real multi-file rename; never a partial one"],
+["a6bc849","11-24",2,"test(patching): plan-args bound follows MAX_PLAN_OPS"],
+["318e28c","11-24",1,"fix(remediation): rollback text summarises long file lists (the diff lists every file)"],
+["3f24355","11-24",5,"chore: recorded LLM responses for the generality runs"],
+["319f0e2","11-24",1,"fix(G3.6): validator budget per validation, sized for real sandbox runs"]
+];
+const cols={0:"var(--cyan)",1:"var(--d1)",2:"var(--d2)",3:"var(--d3)",4:"var(--d4)",5:"var(--d5)"};
+function fill(id,list){
+  const t=document.getElementById(id);
+  t.innerHTML="<tr><th>Commit</th><th>Date</th>"+(id==="cmAll"?"<th>Area</th>":"")+"<th>What</th></tr>"+
+    list.map(c=>"<tr><td>"+c[0]+"</td><td>"+c[1]+"</td>"+(id==="cmAll"?"<td><span class='dot' style='background:"+cols[c[2]]+"'></span>"+(c[2]?("Dev"+c[2]):"repo")+"</td>":"")+"<td>"+c[3].replace(/</g,"&lt;")+"</td></tr>").join("");
+}
+for(let d=1; d<=5; d++) fill("cm"+d, C.filter(c=>c[2]===d));
+fill("cmAll", C);
+</script>
+</body>
+</html>

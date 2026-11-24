@@ -1,186 +1,123 @@
-/* Dependency graph: evidence board on the form ground. Hairlines, square corners, no shadows. */
+.graph { position: absolute; inset: 0; }
+.graph .react-flow { background: var(--canvas); --xy-background-color: var(--canvas); --xy-edge-stroke-default: rgba(255, 255, 255, 0.16); --xy-node-background-color-default: transparent; --xy-minimap-background-color-default: var(--surface); }
+.react-flow__node { cursor: pointer; transition: opacity var(--t) var(--ease); }
+.react-flow__node.is-dim { opacity: 0.2; }
+.react-flow__node-tray { cursor: default; }
+.react-flow__pane { cursor: grab; } .react-flow__pane.dragging { cursor: grabbing; }
+.gport { opacity: 0; width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; }
 
-.g-panel { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.gnode { width: 100%; height: 100%; border: 1px solid var(--line-strong); background: var(--surface); border-radius: var(--r); padding: var(--s2) var(--s3); display: flex; flex-direction: column; justify-content: center; gap: 4px; min-width: 0; transition: border-color var(--t) var(--ease), background var(--t) var(--ease); }
+.react-flow__node:hover .gnode, .react-flow__node.is-hover .gnode { background: var(--hover); border-color: rgba(255, 255, 255, 0.4); }
+.react-flow__node.is-sel .gnode { border-color: var(--text); background: var(--hover); }
+.g-row { display: flex; align-items: center; gap: var(--s2); min-width: 0; }
+.g-name { font-size: var(--fs-md); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+.g-ver { color: var(--text-2); font-size: var(--fs-xs); }
+.g-meta { gap: var(--s2); }
+.g-tag { font-size: var(--fs-xs); color: var(--text-3); }
+.g-scope { font-size: var(--fs-2xs); padding: 0 5px; line-height: 16px; border-radius: var(--r-sm); border: 1px dashed var(--line-strong); color: var(--text-3); }
+.g-more { margin-left: auto; font-size: var(--fs-xs); color: var(--text-2); background: var(--canvas); border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 7px; line-height: 18px; white-space: nowrap; }
+.g-chip { display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 10px; font-size: var(--fs-xs); font-weight: 500; flex: none; border: 1px solid; }
+.g-chip b { font-weight: 700; }
+.g-chip.r-critical { color: var(--critical-text); background: var(--critical-bg); border-color: rgba(239, 68, 68, 0.45); }
+.g-chip.r-high { color: var(--high-text); background: var(--high-bg); border-color: rgba(245, 158, 11, 0.45); }
+.g-chip.r-medium { color: var(--medium-text); background: var(--medium-bg); border-color: rgba(59, 130, 246, 0.45); }
+.g-chip.r-low { color: var(--text-2); background: var(--low-bg); border-color: var(--line-strong); }
+.g-badge { min-width: 22px; height: 20px; padding: 0 6px; border-radius: 10px; font-size: var(--fs-xs); font-weight: 600; display: inline-grid; place-items: center; color: #09090b; flex: none; }
+.g-badge.r-critical { background: var(--critical); } .g-badge.r-high { background: var(--high); } .g-badge.r-medium { background: var(--medium); color: #fff; } .g-badge.r-low { background: var(--low); }
+.gnode.has-risk.r-critical { border-color: rgba(239, 68, 68, 0.8); }
+.gnode.has-risk.r-high { border-color: rgba(245, 158, 11, 0.7); }
+.gnode.has-risk.r-medium { border-color: rgba(59, 130, 246, 0.65); }
+.g-project { align-items: flex-start; background: var(--raised); gap: 2px; }
+.g-project-kind { font-size: var(--fs-2xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-3); }
+.g-project-name { font-weight: 600; font-size: var(--fs-lg); }
+.g-project-count { color: var(--text-2); font-size: var(--fs-xs); display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
+.g-pseudo { flex-direction: row; align-items: center; gap: var(--s2); }
+.g-pseudo svg { color: var(--text-2); }
+.g-tray { background: transparent; border-style: dashed; border-color: var(--line-strong); color: var(--text-2); font-size: var(--fs-sm); justify-content: center; }
+.g-tray b { color: var(--text); font-weight: 600; }
 
-/* header ----------------------------------------------------------------- */
-.g-head { flex-wrap: wrap; align-items: center; row-gap: 10px; column-gap: 24px; }
-.g-title { display: flex; flex-direction: column; gap: 3px; min-width: 0; margin-right: auto; }
-.g-title .meta { font: 400 0.7812rem/1.4 var(--font-value); color: var(--text-2); }
+.react-flow__edge-path { stroke: rgba(255, 255, 255, 0.14); stroke-width: 1.2; transition: stroke var(--t) var(--ease), opacity var(--t) var(--ease); }
+/* a route is coloured by the worst finding it leads to; quiet until traced, then full strength */
+.react-flow__edge.e-risk .react-flow__edge-path { stroke-width: 1.6; }
+.react-flow__edge.e-critical .react-flow__edge-path { stroke: rgba(239, 68, 68, 0.55); }
+.react-flow__edge.e-high .react-flow__edge-path { stroke: rgba(245, 158, 11, 0.5); }
+.react-flow__edge.e-medium .react-flow__edge-path { stroke: rgba(59, 130, 246, 0.5); }
+.react-flow__edge.e-low .react-flow__edge-path { stroke: rgba(161, 161, 170, 0.45); }
+.react-flow__edge.e-focus .react-flow__edge-path { stroke-width: 2.8; }
+.react-flow__edge.e-focus.e-critical .react-flow__edge-path { stroke: #f87171; }
+.react-flow__edge.e-focus.e-high .react-flow__edge-path { stroke: #fbbf24; }
+.react-flow__edge.e-focus.e-medium .react-flow__edge-path { stroke: #60a5fa; }
+.react-flow__edge.e-focus.e-base .react-flow__edge-path, .react-flow__edge.e-focus.e-low .react-flow__edge-path { stroke: var(--text-2); }
+.react-flow__edge.e-dim .react-flow__edge-path { opacity: 0.1; }
 
-.g-legend {
-  list-style: none; margin: 0; padding: 0;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px;
-  font: 600 0.75rem/1 var(--font-label); letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2);
+.gpanel { display: flex; align-items: center; gap: var(--s4); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); padding: var(--s2) var(--s3); margin: var(--s3); }
+.gstat { color: var(--text-2); font-size: var(--fs-sm); white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; cursor: help; border-radius: var(--r-sm); }
+.gpanel .gseg button { height: 30px; }
+.gpanel { flex-wrap: wrap; max-width: calc(100% - 24px); }
+.gsearch { position: relative; }
+.gsearch .searchbox input { width: 200px; height: 34px; }
+.sbox-clear { position: absolute; right: 6px; width: 24px; height: 24px; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-3); border-radius: var(--r-sm); }
+.sbox-clear:hover { color: var(--text); background: var(--hover); }
+.searchbox input[type="search"]::-webkit-search-cancel-button { display: none; }
+.gresults { position: absolute; top: calc(100% + var(--s1)); left: 0; width: 320px; list-style: none; margin: 0; padding: var(--s1); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); z-index: 10; }
+.gresults button { width: 100%; display: flex; align-items: center; gap: var(--s2); padding: var(--s2) var(--s3); border: 0; background: transparent; border-radius: var(--r-sm); text-align: left; }
+.gresults button.on { background: var(--hover); }
+.gres-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gres-empty { padding: var(--s3); color: var(--text-2); font-size: var(--fs-sm); }
+
+.glegend { position: relative; }
+.glegend-pop { position: absolute; top: calc(100% + var(--s2)); right: 0; width: 340px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55); padding: var(--s3); display: grid; gap: var(--s3); font-size: var(--fs-sm); color: var(--text-2); z-index: 10; line-height: 1.5; }
+.glegend-pop ul { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s2); }
+.glegend li { display: flex; align-items: center; gap: var(--s2); line-height: 1.4; }
+.lg { display: inline-block; flex: none; }
+.lg-edge { width: 14px; height: 0; border-top: 2px solid; } .lg-edge.e-critical { border-color: #f87171; } .lg-edge.e-high { border-color: #fbbf24; margin-left: -4px; }
+.lg-box { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; margin-right: -4px; }
+.lg-box.r-critical { border-color: var(--critical); } .lg-box.r-high { border-color: var(--high); } .lg-box.r-medium { border-color: var(--medium); }
+.lg-chip { height: 18px; padding: 0 6px; border-radius: 9px; font-size: var(--fs-2xs); line-height: 16px; color: var(--high-text); background: var(--high-bg); border: 1px solid rgba(245, 158, 11, 0.45); white-space: nowrap; }
+.lg-badge { min-width: 20px; height: 18px; border-radius: 9px; background: var(--high); color: #09090b; font-size: var(--fs-2xs); font-weight: 600; display: inline-grid; place-items: center; }
+.lg-more { border: 1px solid var(--line-strong); border-radius: 9px; padding: 0 6px; font-size: var(--fs-2xs); line-height: 16px; color: var(--text-2); }
+.lg-dev { width: 22px; height: 14px; border: 1px dashed var(--line-strong); border-radius: 3px; }
+
+.gctl { display: flex; flex-direction: column; align-items: center; gap: 2px; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); padding: var(--s1); margin: var(--s3); }
+.gbtn { width: 34px; height: 34px; display: grid; place-items: center; border: 0; background: transparent; color: var(--text-2); border-radius: var(--r-sm); }
+.gbtn:hover { background: var(--hover); color: var(--text); }
+.gzoom { font-size: var(--fs-xs); color: var(--text-2); padding: 2px 0; }
+.gsep { width: 20px; height: 1px; background: var(--line); margin: 2px 0; }
+.ghint { margin: 0 0 var(--s3); padding: 6px var(--s3); background: var(--surface); border: 1px solid var(--line); border-radius: 16px; font-size: var(--fs-xs); color: var(--text-3); white-space: nowrap; }
+.react-flow__minimap { border: 1px solid var(--line-strong); border-radius: var(--r); margin: var(--s3) var(--s3) 36px; }
+.react-flow__attribution { background: transparent !important; font-size: var(--fs-2xs); margin: 0 var(--s3) var(--s2) 0 !important; padding: 0 !important; }
+.react-flow__attribution a { color: var(--text-3); text-decoration: none; }
+.react-flow__controls { display: none; }
+
+/* tracing a package: a slim bar naming it, with a way out */
+.gtrace { display: flex; align-items: center; gap: var(--s2); background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); padding: 4px 4px 4px var(--s3); margin-bottom: var(--s3); font-size: var(--fs-sm); color: var(--text-2); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.gtrace b { color: var(--text); font-weight: 600; }
+
+/* ranked list of risky packages, docked left over the canvas */
+.glist { position: absolute; z-index: 5; top: 76px; left: var(--s3); bottom: var(--s3); width: 340px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45); overflow: hidden; }
+.graph.with-list .gctl { margin-left: 364px; }
+.glist-head { padding: var(--s3) var(--s4); border-bottom: 1px solid var(--line); display: grid; gap: 2px; }
+.glist-head h2 { font-size: var(--fs-md); font-weight: 600; }
+.glist-head p { font-size: var(--fs-xs); line-height: 1.5; }
+.glist-items { list-style: none; margin: 0; padding: var(--s1); overflow: auto; flex: 1; scrollbar-width: thin; }
+.glist-empty { padding: var(--s4); font-size: var(--fs-sm); }
+.glist-item { width: 100%; display: flex; align-items: center; gap: var(--s3); padding: var(--s2) var(--s3); background: transparent; border: 1px solid transparent; border-radius: var(--r-sm); text-align: left; color: var(--text); }
+.glist-item:hover { background: var(--hover); }
+.glist-item.on { background: var(--raised); border-color: var(--line-strong); }
+.glist-score { width: 30px; flex: none; font-size: var(--fs-lg); font-weight: 600; text-align: right; }
+.glist-text { display: grid; gap: 1px; min-width: 0; }
+.glist-name { font-size: var(--fs-sm); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.glist-meta { font-size: var(--fs-xs); }
+.glist-detail { margin: 2px 0 var(--s2) calc(30px + var(--s3) + var(--s3)); padding: var(--s2) var(--s2) var(--s2) var(--s3); border-left: 1px solid var(--line-strong); display: grid; gap: var(--s2); }
+.glist-finding { width: 100%; display: grid; grid-template-columns: 24px minmax(0, 1fr) 14px; gap: var(--s2); align-items: center; background: transparent; border: 0; padding: 4px var(--s1); border-radius: var(--r-sm); font-size: var(--fs-xs); color: var(--text-2); text-align: left; }
+.glist-finding span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+.glist-finding:hover { background: var(--hover); color: var(--text); }
+.glist-more, .glist-hint { font-size: var(--fs-xs); line-height: 1.5; }
+.glist-actions { display: flex; flex-wrap: wrap; gap: var(--s1); }
+
+@media (max-width: 1360px) {
+  .gsearch .searchbox input { width: 160px; }
+  .gpanel { gap: var(--s3); }
+  .glist { width: 300px; }
+  .graph.with-list .gctl { margin-left: 324px; }
 }
-.g-legend li { display: inline-flex; align-items: center; gap: 5px; }
-.g-legend li svg { color: var(--ink); }
-.g-legend-gap { margin-left: 8px; padding-left: 14px; border-left: 1px solid var(--line); }
-.g-sw { width: 10px; height: 10px; border: 1px solid currentColor; }
-.g-sw.r-critical { color: var(--critical); background: var(--critical-wash); }
-.g-sw.r-high { color: var(--high); background: var(--high-wash); }
-.g-sw.r-medium { color: var(--medium); background: var(--medium-wash); }
-.g-sw.r-low { color: var(--low); background: var(--low-wash); }
-.g-shape { width: 16px; height: 10px; }
-.g-shape-project { background: var(--ink); }
-.g-shape-pkg { background: var(--sheet); border: 1px solid #9aa8ba; }
-.g-shape-dev { background: var(--sheet); border: 1px dashed #9aa8ba; }
-
-.g-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; position: relative; }
-.g-toggle input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
-.g-toggle-box {
-  width: 16px; height: 16px; border: 1px solid var(--text-2); background: var(--sheet);
-  display: grid; place-items: center; transition: background 160ms var(--ease-out);
-}
-.g-toggle-box::after {
-  content: ""; width: 8px; height: 8px; background: var(--ink);
-  transform: scale(0); transition: transform 160ms var(--ease-out);
-}
-.g-toggle input:checked + .g-toggle-box::after { transform: scale(1); }
-.g-toggle input:focus-visible + .g-toggle-box { outline: 2px solid #3a6fd8; outline-offset: 2px; }
-.g-toggle:hover .g-toggle-box { border-color: var(--ink); }
-.g-toggle-text { font: 700 0.8125rem/1 var(--font-label); letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); }
-
-/* empty ------------------------------------------------------------------ */
-.g-empty { flex: 1; display: grid; place-content: center; gap: 10px; text-align: center; padding: 32px; color: var(--text-2); }
-.g-empty p { max-width: 44ch; }
-.g-empty-title { font: 800 1.0625rem/1.2 var(--font-form); color: var(--ink); }
-
-/* canvas + React Flow overrides ----------------------------------------- */
-.g-canvas { flex: 1; min-height: 0; position: relative; background: var(--ground); }
-.g-canvas .react-flow { background: var(--ground); --xy-edge-stroke: #b7c2d0; }
-.g-canvas:not(.is-ready) .react-flow__viewport { visibility: hidden; }
-.g-canvas .react-flow__node {
-  /* strip React Flow's default node chrome */
-  padding: 0; border: 0; background: none; box-shadow: none; border-radius: 0;
-  transition: opacity 220ms var(--ease-out);
-}
-.g-canvas .react-flow__node:focus-visible { outline: 2px solid #3a6fd8; outline-offset: 3px; }
-.g-canvas .react-flow__node.selected,
-.g-canvas .react-flow__node:focus { box-shadow: none; }
-.g-canvas .react-flow__node.is-dim { opacity: 0.5; } /* dimmed node text ~3:1 on the ground; the red path still dominates */
-
-.g-port { opacity: 0; width: 1px !important; height: 1px !important; min-width: 0 !important; min-height: 0 !important; border: 0 !important; background: transparent !important; pointer-events: none; }
-
-/* nodes ------------------------------------------------------------------ */
-.g-node { position: relative; cursor: pointer; }
-
-.g-project {
-  width: 124px; height: 68px; padding: 10px 12px;
-  background: var(--ink); color: #fff;
-  display: flex; flex-direction: column; justify-content: center; gap: 4px;
-}
-.g-project-name { font: 700 20px/1 var(--font-label); letter-spacing: 0.1em; text-transform: uppercase; }
-.g-project-count { font: 400 12.5px/1 var(--font-value); color: var(--on-ink-muted); }
-
-.g-pkg {
-  width: 232px; height: 56px; padding: 0 12px;
-  display: flex; align-items: center; gap: 8px;
-  background: var(--sheet); border: 1px solid var(--line);
-}
-.g-pkg.is-dev { border-style: dashed; border-color: #9aa8ba; }
-.g-pkg.has-risk { border-width: 1.5px; border-style: solid; }
-.g-pkg.has-risk.is-dev { border-style: dashed; }
-.has-risk.r-critical { border-color: var(--critical); }
-.has-risk.r-high { border-color: var(--high); }
-.has-risk.r-medium { border-color: var(--medium); }
-.has-risk.r-low { border-color: var(--low); }
-
-.g-direct {
-  flex: none; display: inline-grid; place-items: center;
-  width: 16px; height: 16px; border: 1px solid var(--line);
-  font: 600 11.5px/1 var(--font-value); color: var(--text-3);
-}
-.g-pkg-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
-.g-pkg-name { font: 600 14.5px/1.15 var(--font-value); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.g-pkg-ver { font: 400 12.5px/1 var(--font-value); color: var(--text-3); }
-.g-hidden {
-  flex: none; font: 400 12.5px/1 var(--font-value); color: var(--text-3);
-  padding: 3px 4px; border: 1px solid var(--line-soft);
-}
-
-/* finding-count chip, top-right corner, sitting on the border like a stamp */
-.g-chip {
-  position: absolute; top: -9px; right: -9px;
-  min-width: 18px; height: 18px; padding: 0 4px;
-  display: inline-grid; place-items: center;
-  font: 600 11.5px/1 var(--font-value);
-  border: 1px solid currentColor;
-}
-.g-chip.r-critical { color: #fff; background: var(--critical); border-color: var(--critical); }
-.g-chip.r-high { color: var(--high); background: var(--high-wash); }
-.g-chip.r-medium { color: var(--medium); background: var(--medium-wash); }
-.g-chip.r-low { color: var(--low); background: var(--low-wash); }
-
-/* pseudo-nodes: a filing tag with the top-left corner notched off */
-.g-tag {
-  width: 232px; height: 46px; padding: 0 12px 0 16px;
-  display: flex; align-items: center; gap: 7px;
-  background: var(--sheet); border: 1px solid var(--text-2);
-}
-.g-tag.has-risk { border-width: 1.5px; }
-.g-tag::before {
-  /* notch: a ground-coloured triangle over the corner, its hypotenuse drawn as a hairline */
-  content: ""; position: absolute; top: -1px; left: -1px; width: 12px; height: 12px;
-  background: linear-gradient(135deg, var(--ground) 0 calc(50% - 0.5px), currentColor calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px));
-  color: var(--text-2);
-}
-.g-tag.has-risk::before { top: -1.5px; left: -1.5px; }
-.g-tag.r-critical::before { color: var(--critical); }
-.g-tag.r-high::before { color: var(--high); }
-.g-tag.r-medium::before { color: var(--medium); }
-.g-tag.r-low::before { color: var(--low); }
-.g-tag-icon { flex: none; color: var(--ink); }
-.g-tag-kind { flex: none; font: 700 11.5px/1 var(--font-label); letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
-.g-tag-name { font: 400 14px/1.2 var(--font-value); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-
-/* tray caption over the grid of plain direct deps */
-.g-tray {
-  width: 956px; height: 34px; padding: 0 2px;
-  display: flex; align-items: baseline; gap: 14px;
-  border-bottom: 1px solid var(--text-3);
-  cursor: default;
-}
-.g-tray-title { font: 700 15px/34px var(--font-label); letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); }
-.g-tray-meta { font: 400 12.5px/34px var(--font-value); color: var(--text-3); }
-.g-canvas .react-flow__node-tray { cursor: default; }
-
-/* selected node: drawn round with an ink hairline, like circling an exhibit */
-.react-flow__node.is-sel .g-node { outline: 1px solid var(--ink); outline-offset: 4px; }
-
-/* edges ------------------------------------------------------------------ */
-.g-edge { stroke: #b7c2d0; stroke-width: 1; transition: opacity 220ms var(--ease-out); }
-.g-edge.is-dim { opacity: 0.28; }
-.g-edge-under { opacity: 0.5; }
-.g-edge-path {
-  stroke: var(--critical); stroke-width: 2.5; stroke-linecap: square;
-  stroke-dasharray: 1; stroke-dashoffset: 1;
-  animation-name: g-draw;
-  animation-timing-function: var(--ease-out);
-  animation-fill-mode: forwards;
-}
-@keyframes g-draw { to { stroke-dashoffset: 0; } }
-.no-motion .g-edge-path { animation: none; stroke-dashoffset: 0; }
-@media (prefers-reduced-motion: reduce) {
-  .g-edge-path { animation: none !important; stroke-dashoffset: 0; }
-}
-
-/* controls ------------------------------------------------------ */
-.g-canvas .react-flow__controls {
-  box-shadow: none; border: 1px solid var(--line); border-radius: 0; background: var(--sheet);
-  margin: 16px;
-}
-.g-canvas .react-flow__controls-button {
-  width: 32px; height: 32px; padding: 0;
-  background: var(--sheet); border: 0; border-bottom: 1px solid var(--line); border-radius: 0;
-  color: var(--ink); transition: background 160ms var(--ease-out);
-}
-.g-canvas .react-flow__controls-button:last-child { border-bottom: 0; }
-.g-canvas .react-flow__controls-button:hover { background: var(--low-wash); }
-.g-canvas .react-flow__controls-button svg { fill: var(--ink); max-width: 12px; max-height: 12px; }
-.g-canvas .react-flow__controls-button:disabled svg { fill: #b7c2d0; }
-
-
-/* keep React Flow's attribution (MIT), quiet and in the world's type */
-.react-flow__attribution { background: transparent; font: 10px var(--font-form); color: var(--text-3); }
-.react-flow__attribution a { color: var(--text-3); }
-

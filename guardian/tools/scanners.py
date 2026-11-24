@@ -86,28 +86,72 @@ def _osv_fixed(vuln: dict, name: str) -> list[str]:
     return sorted(set(out))
 
 
+def _osv_cache_path(work, locks):
+    """OSV-Scanner output cached by the content of the scanned lockfiles (G7.4), so an offline run sees the
+    same advisories as the recorded online run (and therefore the same LLM prompts in replay)."""
+    import hashlib
+    import os
+    from pathlib import Path
+
+    from guardian.core.config import REPO_ROOT
+
+    h = hashlib.sha256()
+    for lf in sorted(locks, key=lambda p: p.relative_to(work).as_posix()):
+        h.update(lf.relative_to(work).as_posix().encode() + b"\0" + lf.read_bytes() + b"\0")
+    root = Path(os.environ.get("GUARDIAN_INTEL_CACHE") or REPO_ROOT / "data" / "cache" / "intel")
+    return root / "osv-scanner" / f"{h.hexdigest()[:32]}.json"
+
+
 def osv_scan(ctx: ToolContext) -> ToolOutput:
     work = ctx.work_dir or ctx.repo
     locks = [p.lockfile for p in find_projects(work) if p.lockfile.exists()]
+    # pip: OSV-Scanner reads requirements.txt as a lockfile (pinned lines are what it can match)
+    from guardian.adapters import pypi
+
+    locks += [r for proj in pypi.find_projects(work) for r in proj.requirements]
+    # Maven: OSV-Scanner reads pom.xml (top level and one module level down; never target/ build output)
+    locks += [p for p in [work / "pom.xml", *sorted(work.glob("*/pom.xml"))]
+              if p.is_file() and "target" not in p.relative_to(work).parts]
     if not locks:
-        raise RuntimeError("no lockfiles for OSV")
-    args = [find("osv-scanner"), "scan", "source", "--format", "json"]
-    for lf in locks:
-        args += ["-L", str(lf)]
-    proc = run(args, timeout=600, ok_codes=(0, 1))
+        raise RuntimeError("no lockfiles or requirements files for OSV")
+    cache = _osv_cache_path(work, locks)
+    if cache.is_file():
+        stdout = cache.read_text(encoding="utf-8")
+    elif ctx.settings.offline:
+        # OSV-Scanner always queries api.osv.dev: offline with no cached result, skip (Grype stays primary)
+        raise RuntimeError("offline (GUARDIAN_OFFLINE=1) and no cached OSV result for these lockfiles: skipped")
+    else:
+        args = [find("osv-scanner"), "scan", "source", "--format", "json"]
+        for lf in locks:
+            args += ["-L", str(lf)]
+        stdout = run(args, timeout=600, ok_codes=(0, 1)).stdout
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        cache.write_text(stdout, encoding="utf-8")
     raw_path = ctx.run_dir / "osv.json"
-    raw_path.write_text(proc.stdout, encoding="utf-8")
-    data = json.loads(proc.stdout or "{}")
+    raw_path.write_text(stdout, encoding="utf-8")
+    data = json.loads(stdout or "{}")
     tool = "osv-scanner@2.7.1"
     evidence = [Evidence(run_id=ctx.run_id, kind="osv", source_tool=tool, facts={"results": len(data.get("results", []))},
                          artifact_path="osv.json", sha256=sha256_file(raw_path))]
     findings = []
-    from guardian.adapters.npm import purl as mk_purl
+    from guardian.adapters.npm import purl as npm_purl
+
+    def mk_purl(name: str, version: str, ecosystem: str) -> str:
+        """The same purl Syft/Grype use, so OSV results merge with Grype's (dedupe by purl + id/alias)."""
+        eco = ecosystem.lower()
+        if eco == "pypi":
+            return pypi.purl(name, version)
+        if eco == "maven":  # OSV names Maven packages group:artifact
+            group, _, artifact = name.partition(":")
+            return f"pkg:maven/{group}/{artifact}@{version}" if artifact else f"pkg:maven/{name}@{version}"
+        if eco in ("npm", ""):
+            return npm_purl(name, version)
+        return f"pkg:{eco}/{name}@{version}"  # go, crates.io, ... : never mislabelled as npm
 
     for res in data.get("results", []):
         for pkg in res.get("packages", []):
             info = pkg.get("package", {})
-            p = mk_purl(info.get("name", ""), info.get("version", ""))
+            p = mk_purl(info.get("name", ""), info.get("version", ""), info.get("ecosystem", "npm"))
             meta = _node_meta(ctx, p)
             groups = pkg.get("groups", [])
             for vuln in pkg.get("vulnerabilities", []):

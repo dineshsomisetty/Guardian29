@@ -1,39 +1,81 @@
 {
-  "run_id": "run_20261123_172422",
-  "target": "juice-shop",
-  "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
-  "started_at": "2026-11-23T11:54:22.466108+00:00",
-  "finished_at": "2026-11-23T11:55:15.014029+00:00",
-  "status": "done",
-  "sbom": {
-    "file": "sbom.cdx.json",
-    "components": 1656,
-    "direct": 154,
-    "transitive": 1502
+ "run_id": "run_20261123_172422",
+ "target": "juice-shop",
+ "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+ "started_at": "2026-11-23T11:54:22.466108+00:00",
+ "finished_at": "2026-11-23T11:55:15.014029+00:00",
+ "status": "awaiting_human",
+ "sbom": {
+  "file": "sbom.cdx.json",
+  "components": 1656,
+  "direct": 154,
+  "transitive": 1502
+ },
+ "projects": [
+  "frontend",
+  "root"
+ ],
+ "findings": {
+  "total": 72,
+  "by_risk": {
+   "critical": 7,
+   "high": 21,
+   "medium": 38,
+   "low": 6
   },
-  "projects": [
-    "frontend",
-    "root"
-  ],
-  "findings": {
-    "total": 72,
-    "by_risk": {
-      "critical": 7,
-      "high": 21,
-      "medium": 38,
-      "low": 6
+  "by_category": {
+   "cve": 57,
+   "lockfile": 1,
+   "typosquat": 2,
+   "unpinned_ci": 7,
+   "untrusted_image": 5
+  }
+ },
+ "llm": {
+  "mode": "replay",
+  "model": "deepseek-chat"
+ },
+ "offline": false,
+ "pending_plan": {
+  "plan_id": "pl_1RNJ47E65GH2BH8VGS9ZM5H3BV",
+  "plan_hash": "e6e33c5f0eb6478bcd5139d5fea78a00ad53e8594249fc9a8b16ac8713529846",
+  "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV"
+ },
+ "remediation": [
+  {
+   "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+   "title": "lodash",
+   "category": "cve",
+   "status": "verified",
+   "attempts": [
+    {
+     "plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW",
+     "action": "upgrade",
+     "target": "4.17.5",
+     "verdict": "failed_build",
+     "attempt_id": "at_GQ8H7QEZZS1A0ZWSK9TPRM7N0M"
     },
-    "by_category": {
-      "cve": 57,
-      "lockfile": 1,
-      "typosquat": 2,
-      "unpinned_ci": 7,
-      "untrusted_image": 5
+    {
+     "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+     "action": "upgrade",
+     "target": "4.17.21",
+     "verdict": "verified",
+     "attempt_id": "at_NS7C0JGQ4SR4QVH3H63J9FHVMC"
     }
+   ]
   },
-  "llm": {
-    "mode": "record",
-    "model": "deepseek-chat"
-  },
-  "offline": false
+  {
+   "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+   "title": "moment",
+   "category": "cve",
+   "status": "awaiting_human",
+   "attempts": [
+    {
+     "plan_id": "pl_1RNJ47E65GH2BH8VGS9ZM5H3BV",
+     "action": "upgrade",
+     "target": "2.29.2"
+    }
+   ]
+  }
+ ]
 }

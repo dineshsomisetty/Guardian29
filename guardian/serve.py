@@ -46,13 +46,14 @@ class RunsHandler(SimpleHTTPRequestHandler):
 
     def denied(self, fs_path: str) -> bool:
         """G1.1, decided on the resolved file path (after URL decoding, `.`/`..`, case and symlinks), not on
-        the raw URL: refuse anything outside runs/, any run's `work/` copy, and sensitive file names."""
+        the raw URL: refuse anything outside runs/, any run's `work/` or `attempts/` copy, and sensitive file names."""
         root = Path(self.directory).resolve()
         target = Path(fs_path).resolve()
         if not target.is_relative_to(root):
             return True
         rel = target.relative_to(root)
-        if len(rel.parts) >= 2 and rel.parts[1].casefold() == "work":
+        # the work copy and every patched attempt copy (attempts/<id>/work) hold the target's files
+        if any(part.casefold() in {"work", "attempts"} for part in rel.parts[1:]):
             return True
         return is_denied(rel)
 
