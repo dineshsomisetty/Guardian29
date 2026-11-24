@@ -498,3 +498,18 @@ def test_typosquat_replace_plan_renames_imports_in_the_project(tmp_path):
     (tmp_path / "frontend" / "node_modules" / "x").mkdir(parents=True)
     (tmp_path / "frontend" / "node_modules" / "x" / "c.js").write_text("require('ngy-cookie')\n")
     assert importing_files(tmp_path, "frontend/package.json", "ngy-cookie") == ["frontend/src/a.ts"]
+
+
+def test_plan_ops_bound_fits_a_real_rename_and_still_bounds(tmp_path):
+    """G3.2 capped plans at 20 ops, which blocked the 36-op ngy-cookie replacement and made remediation fall back
+    to 'remove' (which would break the same 35 imports). The bound is 100 and still enforced."""
+    import pytest
+    from pydantic import ValidationError
+
+    from guardian.core.models import PatchOp
+    from guardian.tools.patching import MAX_PLAN_OPS, PlanArgs
+
+    op = PatchOp(op="rename_import", file_path="a.ts", args={"name": "a-b", "new_name": "a-c"})
+    assert len(PlanArgs(plan_id="pl_" + "A" * 26, ops=[op] * 36).ops) == 36
+    with pytest.raises(ValidationError):
+        PlanArgs(plan_id="pl_" + "A" * 26, ops=[op] * (MAX_PLAN_OPS + 1))

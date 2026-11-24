@@ -61,6 +61,9 @@ DENYLIST = ".guardian/denylist.txt"
 IMAGE_REGISTRY_HOSTS = frozenset({"registry-1.docker.io", "gcr.io", "ghcr.io"})  # G3.5 for image digest lookups
 
 
+MAX_PLAN_OPS = 100  # G3.2 bound: a replacement may rename imports in many files (Juice Shop: 35)
+
+
 class PatchError(ValueError):
     pass
 
@@ -109,7 +112,7 @@ class ImageArgs(BaseModel):
 class PlanArgs(BaseModel):
     plan_id: str = Field(pattern=r"^pl_[0-9A-Z]{26}$")
     attempt_id: str | None = Field(default=None, pattern=r"^at_[0-9A-Z]{26}$")
-    ops: list[PatchOp] = Field(min_length=1, max_length=20)
+    ops: list[PatchOp] = Field(min_length=1, max_length=MAX_PLAN_OPS)
 
 
 # ---------------------------------------------------------------- helpers

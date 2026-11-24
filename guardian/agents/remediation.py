@@ -261,7 +261,7 @@ def _image_candidates(f: Finding, facts: dict) -> list[Candidate]:
 SOURCE_EXT = (".js", ".mjs", ".cjs", ".jsx", ".ts", ".tsx")
 
 
-def importing_files(repo, manifest_rel: str, name: str, limit: int = 200) -> list[str]:
+def importing_files(repo, manifest_rel: str, name: str, limit: int = 500) -> list[str]:
     """Source files of the manifest's project that import `name` (tests included: they must still compile)."""
     from pathlib import Path
 
@@ -301,8 +301,13 @@ def candidates(rc: RunContext, f: Finding) -> list[Candidate]:
         why = (f"'{name}' differs from the popular package '{popular}' by {facts.get('distance')} edit(s)",
                "similar_to", popular) if f.category is FindingCategory.TYPOSQUAT else (
             f"'{name}' was flagged by {f.detector}: {f.title[:100]}", None, None)
+        renames: list[str] = []
         if popular and not facts.get("legacy_manifest"):
             renames = importing_files(rc.tool_ctx.repo, f.file_path, name)
+        from guardian.tools.patching import MAX_PLAN_OPS
+
+        if popular and not facts.get("legacy_manifest") and len(renames) < MAX_PLAN_OPS:
+            # never a partial rename: more importing files than one plan may hold -> no replace candidate
             out.append(Candidate("replace", [PatchOp(op="replace_dependency", file_path=f.file_path,
                                                      args={"name": name, "new_name": popular}),
                                              *(PatchOp(op="rename_import", file_path=r,
