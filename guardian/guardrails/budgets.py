@@ -25,7 +25,9 @@ DEFAULT_LIMITS: dict[str, AgentLimit] = {
     "investigator": AgentLimit(tool_calls=8, seconds=300),
     "risk_analyst": AgentLimit(tool_calls=20, seconds=900),
     "remediation": AgentLimit(tool_calls=60, seconds=900),
-    "validator": AgentLimit(tool_calls=40, seconds=1800),
+    # per validation (reset by window()): sandbox install + baseline + build + unit + API tests can each take
+    # up to GUARDIAN_SANDBOX_TIMEOUT; a real Juice Shop validation took over 30 minutes
+    "validator": AgentLimit(tool_calls=40, seconds=3 * 3600),
 }
 FALLBACK_LIMIT = AgentLimit(tool_calls=10, seconds=300)
 
@@ -52,6 +54,13 @@ class Budget:
                 return f"{agent} exceeded {limit.seconds:.0f}s wall-clock"
             self.tool_calls[agent] = used + 1
         return None
+
+    def window(self, agent: str) -> None:
+        """Start a fresh budget window for `agent` (the validator: one window per validation attempt, so a
+        long attempt cannot starve the next one in the same process)."""
+        with self._lock:
+            self.started.pop(agent, None)
+            self.tool_calls.pop(agent, None)
 
     def tokens_left(self) -> int:
         return max(0, self.max_llm_tokens - self.llm_tokens)

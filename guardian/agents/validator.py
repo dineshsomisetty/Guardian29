@@ -165,6 +165,8 @@ def _policy_regressions(store, after_evidence) -> list[str]:
 def validator_node(state: GraphState) -> dict:
     rc = get_ctx(state["run_id"])
     ctx, store, audit = rc.tool_ctx, rc.store, rc.audit
+    if ctx.budget is not None:
+        ctx.budget.window(AGENT)  # G3.6: the tool-call and wall-clock budget applies per validation
     plan = load_plan(ctx.run_dir, state["plan_id"])
     approval = Approval.model_validate(state["decision"])
     f = store.get_finding(plan.finding_id)

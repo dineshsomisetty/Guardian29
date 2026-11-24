@@ -215,3 +215,18 @@ def test_llm_token_budget_accounting():
     assert b.tokens_left() == 40
     b.charge_tokens(500)
     assert b.tokens_left() == 0
+
+
+def test_g3_6_validator_budget_window_is_per_validation(monkeypatch):
+    """A long sandbox validation exhausted the validator's wall-clock and blocked the next step of the run;
+    each validation now gets its own window (the limit itself still blocks within one validation)."""
+    import guardian.guardrails.budgets as b
+
+    t = [0.0]
+    monkeypatch.setattr(b.time, "monotonic", lambda: t[0])
+    budget = b.Budget(limits={"validator": b.AgentLimit(tool_calls=40, seconds=10)})
+    assert budget.charge_tool("validator") is None
+    t[0] = 11.0
+    assert "wall-clock" in budget.charge_tool("validator")  # still enforced inside one validation
+    budget.window("validator")
+    assert budget.charge_tool("validator") is None  # the next validation starts fresh
