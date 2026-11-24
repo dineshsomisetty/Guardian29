@@ -12,7 +12,7 @@ Every fact is stored as Evidence; every AI statement is labelled **verified fact
 
 | Document | What it covers |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | diagram of agents, tools, data sources, AI interactions, approval points, evidence storage |
+| [docs/architecture.md](docs/architecture.md) | architecture diagram, source-code reading route, worked risk score, approval flow, and validation limits |
 | [docs/responsible_ai.md](docs/responsible_ai.md) | where AI is used, hallucination control, approvals, secrets protection, limitations |
 | [docs/requirements_coverage.md](docs/requirements_coverage.md) | the problem statement, line by line, with proof for each item |
 | [docs/generality_and_scale.md](docs/generality_and_scale.md) | six real repositories (npm, pip, Maven; GitHub and GitLab CI): results, time, memory, what they exposed |
@@ -80,7 +80,7 @@ rollback), **validation** (build/test logs, before→after score, SBOM diff, att
 | Detection | Grype + OSV-Scanner; typosquats, install scripts, missing lockfile, unpinned CI actions, tag-only images, unexpected changes (`--compare-ref`), package risk, policy-as-code |
 | Evidence analyst (LLM) | explains each finding and proposes an initial risk; every claim is grounded against evidence |
 | Investigator (LLM, ReAct) | digs into suspicious non-CVE findings with up to 8 read-only tool calls |
-| Risk analyst | `score = 100 × (0.30 S + 0.25 E + 0.20 R + 0.15 P + 0.10 X)` from severity, EPSS/KEV, reachability, production use, exposure; computed in code; LLM writes the summary only |
+| Risk analyst | `score = 100 × (0.40 S + 0.15 E + 0.20 R + 0.15 P + 0.10 X)` from severity, EPSS/KEV, reachability, production use, exposure; computed in code; LLM writes the summary only |
 | Remediation | upgrade / replace / remove / pin / block / update base image / mitigate, target versions only from evidence, unified diff, expected risk reduction, rollback, plan hash |
 | Human gate | pauses (`interrupt()`); resumes only with an approval for that exact plan hash |
 | Validator | fresh copy → patch → lockfiles → Docker build + unit/integration tests with `--network none` → rescan → SBOM diff → detectors + policy re-run; up to 3 attempts, then escalation |

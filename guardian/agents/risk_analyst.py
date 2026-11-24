@@ -153,7 +153,9 @@ def build_factors(f: Finding, pkg: tuple[str, str] | None, g: Gathered) -> RiskF
         S = factor(CATEGORY_SEVERITY.get(f.category, 0.5), f.category.value, fev)
     # E exploitability
     # CISA KEV listing = 1.0 (known exploited); else the EPSS percentile; unknown (0.5)
-    # for a CVE with neither; a malicious-indicator is exploited by definition; other non-CVE: neutral 0.5.
+    # for a CVE with neither. A malicious-indicator category gets the policy maximum;
+    # the category itself does not prove exploitation in this application.
+    # EPSS percentile is relative ranking, not the EPSS probability field.
     cves = cve_ids(f)
     kev = next((g.kev[c] for c in cves if c in g.kev and g.kev[c].facts.get("listed")), None)
     epss = [g.epss[c] for c in cves if c in g.epss]
@@ -181,6 +183,7 @@ def build_factors(f: Finding, pkg: tuple[str, str] | None, g: Gathered) -> RiskF
         R = factor(REACHABILITY.get(tier, 0.5), tier, [ev.evidence_id] if ev else [], unknown=tier == "unknown")
     # P production scope
     # Dependency-graph scope evidence first, then the finding's own scope field.
+    # The unknown fallback (0.7) is a configured heuristic, not measured production use.
     sev = g.scope.get(f.component_purl or "")
     if sev is not None:
         P = factor(SCOPE[sev.facts["scope"]], sev.facts["scope"], [sev.evidence_id])

@@ -84,7 +84,11 @@ def test_kev_override_and_not_applicable_weights():
     ci = RiskFactors(S=factor(0.6, "unpinned_ci", ids), E=factor(0.5, "no_exploit_evidence", ids),
                      R=factor(0.0, "not_applicable", ids), P=factor(1.0, "prod", ids),
                      X=factor(0.5, "unknown", [], unknown=True))
-    assert compute(ci).weights["S"] == 0.5 and compute(ci).confidence.value == "high"  # X never lowers confidence
+    # Current weights: severity 0.40 receives reachability's 0.20 for CI findings.
+    # Approximate comparison avoids the 0.6000000000000001 floating-point artifact.
+    assert compute(ci).weights["S"] == pytest.approx(0.6)
+    assert compute(ci).weights["R"] == 0.0
+    assert compute(ci).confidence.value == "high"  # X never lowers confidence
 
 
 def test_remediation_retry_picks_other_version_and_target_in_evidence(rc):

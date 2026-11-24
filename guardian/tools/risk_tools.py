@@ -113,7 +113,10 @@ def threat_intel(ctx: ToolContext, args: ThreatIntelArgs) -> ToolOutput:
     """EPSS score and CISA KEV listing for each CVE: one `epss` and one `kev` Evidence per CVE that has data.
 
     A CVE with no EPSS row gets no epss Evidence. If the KEV catalog itself is unavailable (offline cache miss)
-    no kev Evidence is emitted at all, so "not on KEV" (listed: false) is never confused with "unknown"."""
+    no kev Evidence is emitted at all, so "not on KEV" (listed: false) is never confused with "unknown".
+    Keep both EPSS fields in evidence: build_factors uses percentile for E; the raw
+    epss probability is different. This tool records facts, not the numeric risk score.
+    """
     cves = sorted({c.upper() for c in args.cves if re.match(CVE, c.upper())})
     client = intel(ctx, "risk_analyst")
     epss = client.epss_lookup(cves)
@@ -177,7 +180,10 @@ def exposure_signals(ctx: ToolContext, args: PackagesArgs) -> ToolOutput:
 
     network  = the Dockerfile EXPOSEs a port AND the package is imported from server-side code;
     internal = sources were scanned and the package is imported only by tests, or in prod only outside server paths;
-    unknown  = anything else (no sources scanned, never imported, or no EXPOSE to prove it faces the network)."""
+    unknown  = anything else (no sources scanned, never imported, or no EXPOSE signal).
+    This is a repository heuristic: EXPOSE plus a server import does not prove a
+    deployed port is public or that an attacker can reach the vulnerable function.
+    """
     root = ctx.work_dir or ctx.repo
     _, ports = dockerfile.parse(root)
     prod, scanned = reach.import_index(root, args.ecosystem, False)

@@ -43,7 +43,11 @@ def human_gate_node(state: GraphState) -> dict:
     """Pause the run until a human decides. Returns {"decision": <what the caller resumed with>}.
 
     The interrupt payload (plan and finding ids) is what the CLI / API show as "waiting for". Keep this node free of
-    side effects: LangGraph re-executes it from the top when the run resumes."""
+    side effects: LangGraph re-executes it from the top when the run resumes.
+    A resumed value is input, not permission by itself: record_decision_node checks
+    its plan hash, and write tools check the matching approval again before mutation.
+    Batch remediation uses the corresponding gate/decision functions in agents/batch.py.
+    """
     return {"decision": interrupt({"plan_id": state.get("plan_id"), "finding_id": state.get("current")})}
 
 

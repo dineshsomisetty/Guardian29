@@ -76,7 +76,7 @@ grounded against stored Evidence before it is saved. The **human gate** is the o
 | 2 | Detection | no | SBOM, graph, files | Findings with Evidence: CVEs (Grype, OSV cross-check), typosquats, install scripts, missing lockfile, unpinned CI, tag-only images, unexpected changes, policy violations |
 | 3 | Evidence analyst | yes | finding + its evidence (inside `<data>` blocks) | explanation, initial risk, claims labelled VERIFIED / INFERRED by code |
 | 4 | Investigator | yes, ReAct | suspicious non-CVE findings | up to 8 read-only tool calls (registry metadata, file excerpt, manifest diff) and a labelled conclusion |
-| 5 | Risk analyst | summary only | findings + EPSS, KEV, reachability, exposure, scope, provenance | `score = 100 × (0.30 S + 0.25 E + 0.20 R + 0.15 P + 0.10 X)`, band, confidence, computed in Python |
+| 5 | Risk analyst | summary only | findings + EPSS, KEV, reachability, exposure, scope, provenance | `score = 100 × (0.40 S + 0.15 E + 0.20 R + 0.15 P + 0.10 X)`, band, confidence, computed in Python |
 | 6 | Remediation | no (deterministic) | top findings + safe-version and compatibility evidence | one plan per attempt: ops, unified diff, target from evidence, expected risk reduction, rollback, `plan_hash` |
 | 7 | Human gate | no | the saved plan | pauses (`interrupt()`); resumes only with an Approval for that `plan_id` and `plan_hash` |
 | 8 | Validator | no | approved plan | applies it to a fresh copy, re-resolves lockfiles, builds and tests in Docker with no network, rescans, diffs SBOMs, re-runs detectors; verdict |
@@ -96,7 +96,9 @@ grounded against stored Evidence before it is saved. The **human gate** is the o
 
 | Source | Used for | Offline behaviour |
 |---|---|---|
-| Syft, Grype, OSV-Scanner (pinned binaries in `tools/bin`) | SBOM, vulnerability matches | local DB |
+| Syft (pinned binary in `tools/bin`) | component inventory / SBOM | reads local files |
+| Grype (pinned binary in `tools/bin`) | vulnerability matches | requires a downloaded local vulnerability DB |
+| OSV-Scanner (pinned binary in `tools/bin`) | advisory cross-check | Guardian reuses a cached result; skips on an offline cache miss |
 | OSV API (`api.osv.dev`) | safe versions, advisories | disk cache |
 | FIRST EPSS (`api.first.org`) | exploit probability | disk cache |
 | CISA KEV (`www.cisa.gov`) | known exploited | disk cache |
@@ -168,3 +170,107 @@ signature audit stays inside the deps image (it costs seconds there), and per-ph
 | Reports | `guardian/reporting/` |
 | API (FastAPI + SSE + auth) | `guardian/api/` |
 | UI (React, React Flow) | `ui/` |
+
+## 8. A route through the source for new readers
+
+Read the following files in order to follow one finding from request to report.
+Paths in this table are relative to the repository root.
+
+| Start here | Question it answers |
+|---|---|
+| `guardian/cli.py`, `guardian/api/app.py` | How does a CLI command or UI request start/resume a scan? |
+| `guardian/graph/workflow.py`, `guardian/graph/state.py` | Which node runs next, and which IDs survive a pause? |
+| `guardian/tools/registry.py` | Which tools may an agent call, and how are facts stored as evidence? |
+| `guardian/tools/sbom.py`, `guardian/tools/scanners.py` | How do Syft and Grype become inventory and vulnerability findings? |
+| `guardian/tools/threat_intel.py`, `guardian/tools/risk_tools.py` | How do external responses and local checks become scoring evidence? |
+| `guardian/agents/risk_analyst.py:build_factors` | How are evidence records converted into S, E, R, P, and X? |
+| `guardian/core/scoring.py:compute` | How do those values produce score, band, and confidence? |
+| `guardian/agents/remediation.py`, `guardian/agents/batch.py` | How are fix candidates proposed and decisions collected? |
+| `guardian/guardrails/approval.py`, `guardian/agents/validator.py` | Why is approval bound to a particular plan, and what is validated? |
+| `guardian/reporting/build.py`, `guardian/reporting/render.py` | How do run files become a validated report and an HTML export? |
+| `ui/src/api/client.ts`, `ui/src/components/ValidationView.tsx` | How do stored results reach the browser? |
+
+There are two different graphs. `core/graph_build.py` builds the **dependency graph**
+of packages. LangGraph in `graph/workflow.py` builds the **execution graph** of agents.
+Seeing a package node in the UI does not mean an LLM discovered or verified that package.
+
+The diagram above shows the sequential approval loop. The current default setting is
+`GUARDIAN_REMEDIATION_MODE=batch`: recommendations go through `recommend → batch_gate →
+record_batch → validate_batch`. Decisions are collected before approved fixes are tested
+together. Sequential mode uses `remediation → human_gate → record_decision → validator`.
+Both reuse the analysis, evidence, and approval infrastructure. `max_plans == 0` disables
+remediation; it does not disable discovery, detection, scoring, or reporting.
+
+## 9. Trace a risk score back to its source
+
+The current executable weights in `core/scoring.py:WEIGHTS` are **40/15/20/15/10** for
+S/E/R/P/X. Older plans and saved runs may use different weights. Recompute a historical
+run using its source revision and any recorded weight data, rather than silently applying today's code.
+These weights and fallback values are project heuristics, not a calibrated probability.
+
+| Factor | How the value is obtained | When information is missing |
+|---|---|---|
+| S | Scanner CVSS clamped to 0..10, divided by 10; non-CVE categories use `CATEGORY_SEVERITY` | Missing CVSS uses 0.5 and is marked unknown |
+| E | KEV membership takes precedence; otherwise use the largest available EPSS percentile among CVE aliases | CVE without usable data uses 0.5 and is marked unknown |
+| R | Supported function rule gives called=1; import evidence gives 0.6; no matched import gives 0.1 | Unknown is 0.5; not-applicable R transfers its weight to S |
+| P | Dependency-graph scope, then the finding's scope: prod=1, dev=0.3 | Unknown is 0.7; applicable configuration findings use prod scope |
+| X | Exposed-port signal plus server-path import gives network=1; internal=0.5 | Unknown is 0.5; unknown X does not reduce scoring confidence |
+
+Non-CVE malicious-indicator findings receive E=1; other non-CVE categories use E=0.5.
+This is a category rule, not proof that exploitation occurred. An EPSS **percentile**
+is a rank relative to other vulnerabilities; it is not the raw EPSS probability.
+
+For example, CVSS 9.8, unknown exploitation data, imported code, production scope,
+and network exposure give:
+
+```text
+S: 0.98 × 40 = 39.2 points
+E: 0.50 × 15 =  7.5 points  (unknown default, not 50% attack probability)
+R: 0.60 × 20 = 12.0 points
+P: 1.00 × 15 = 15.0 points
+X: 1.00 × 10 = 10.0 points
+Total:          83.7 / 100 → Critical; confidence Medium because E is unknown
+```
+
+The provenance modifier adds five points under its defined failure rule, capped at 100.
+A KEV-listed, reachable production finding receives at least High priority, even when
+its numeric score is lower. This override changes the band, not the score.
+
+Each factor records its value, tier, evidence IDs, and unknown flag in `risk.json`.
+Open the referenced files in `evidence/` to inspect the original facts. A label such as
+`INFERRED` can describe a deterministic fallback; it does not necessarily mean an LLM
+estimated it. Confidence is a separate missing-input indicator, not another risk score.
+
+## 10. Understand what approval and validation prove
+
+Plans are saved before review. An approval names the plan ID and its content hash;
+changing a plan invalidates that approval. The sequential gate only calls `interrupt()`
+because LangGraph re-enters the node on resume. Decision recording and write-tool checks
+then enforce the binding. Batch mode applies the same principle to its submitted plans.
+
+A separate working copy protects the original files from edits. It is **not** execution
+isolation. Docker supplies the validation environment, with non-root execution,
+resource limits, and network-disabled build/test containers. Dependency-image setup
+uses the network; some frontend preparation happens there. The optional built-image
+rescan also has its own documented network-enabled build limitation.
+
+Read the actual result fields in `validation/` and the linked log evidence:
+
+| Result | What a reader can conclude |
+|---|---|
+| Target absent on re-scan | The relevant detector/scanner no longer reports the targeted issue |
+| `build_ok: true` | The recorded build phase succeeded |
+| Empty unit/integration counts | No corresponding test counts were recorded; do not call this a pass |
+| Failed tests also present in the unpatched baseline | The failures may predate the fix; inspect the comparison and notes |
+| `group_failure: true` | A combination failed; this does not identify which fix caused it |
+| Targeted test evidence | Only the named subset ran; it is not a full regression result |
+| Docker unavailable or sandbox off | Execution checks are skipped and must stay visible as skipped |
+
+`GUARDIAN_DEMO_VALIDATOR=1` uses simulated preview behavior. It demonstrates the workflow,
+not real container execution. Keep this distinct from a real Docker run with a deliberately
+limited test scope. A display label or a lower score is not a substitute for execution logs.
+
+`report.json` is the structured report; `report.html` is its rendered presentation.
+An interim report can exist while another decision is pending. That report describes
+completed work so far, not completion of every remediation. The workflow checkpoint,
+pending decision, and remaining-risk sections explain what still needs attention.

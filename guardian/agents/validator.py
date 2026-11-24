@@ -1,4 +1,4 @@
-"""Validator (Day-1 form): apply the approved plan to a fresh copy and re-run the detectors (C4). Owner: Dev1.
+"""Apply approved plans to fresh copies and coordinate detector and Docker validation. Owner: Dev1.
 
 Verdict (D2-08 adds the Docker sandbox: build, tests, SBOM rescan + diff; see tools/sandbox.py):
   verified      the target finding is gone from its detector's re-run and no detector reports anything new
