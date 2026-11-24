@@ -252,6 +252,7 @@ class Approval(BaseModel):
     plan_hash: str
     decision: str  # approve|reject|accept_risk
     comment: str | None = None
+    reason_type: str | None = None  # ADDITIVE: why a fix was rejected (too_big|breaks_app|different_approach|other)
     decided_by: str
     ts: datetime = Field(default_factory=utcnow)
 
@@ -273,3 +274,5 @@ class ValidationResult(BaseModel):
     verdict: str  # verified|failed_build|failed_tests|regressed|not_resolved|timeout
     final_confidence: Confidence
     log_evidence_ids: list[str] = []
+    combined: bool = False  # ADDITIVE (batch mode): validated together with other approved plans in one attempt
+    round: int | None = None  # ADDITIVE (batch mode): remediation round this validation belongs to

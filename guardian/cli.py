@@ -1,8 +1,9 @@
 """`python -m guardian ...` entry points. Owner: Dev1.
 
   run         run the pipeline on a repo (pauses at the human gate when a plan needs a decision)
-  plans       show the plan waiting for a decision: diff, rationale with labels, the hash to approve
+  plans       show the plan (sequential) or the batch of recommendations (batch) waiting for decisions
   decide      approve / reject / accept_risk the pending plan and resume the run
+  decide-batch  decide every fix of the pending batch (--approve-all or --file decisions.json) and resume
   serve-runs  static file server for the UI (§4.2)
   api         FastAPI + SSE (§4.4)
   watch       re-check a finished run against fresh OSV/EPSS/KEV (continuous monitoring, D1-11)
@@ -124,6 +125,10 @@ def _cmd_watch(args: argparse.Namespace) -> int:
 def _report(run_dir: Path) -> int:
     summary = json.loads((run_dir / "run_summary.json").read_text(encoding="utf-8"))
     print(f"\nRun output: {run_dir}  (status: {summary['status']})")
+    batch = summary.get("pending_batch")
+    if batch:
+        print(f"Waiting for decisions on {batch['count']} fix(es) (batch {batch['batch_id']}, round {batch['round']}):\n"
+              f"  python -m guardian plans --run {summary['run_id']}")
     pending = summary.get("pending_plan")
     if pending:
         print(f"Waiting for a human decision on plan {pending['plan_id']}:\n"
@@ -140,9 +145,12 @@ def _run_dir(args: argparse.Namespace) -> Path:
 
 
 def _cmd_plans(args: argparse.Namespace) -> int:
-    from guardian.core.plans import get_pending, list_plans
+    from guardian.core.plans import get_pending, get_pending_batch, list_plans
 
     run_dir = _run_dir(args)
+    batch = get_pending_batch(run_dir)
+    if batch is not None:
+        return _print_batch_plans(run_dir, batch)
     pending = get_pending(run_dir)
     if pending is None:
         plans = list_plans(run_dir)
@@ -169,6 +177,88 @@ def _cmd_plans(args: argparse.Namespace) -> int:
     return 0
 
 
+def _print_batch_plans(run_dir: Path, batch: dict) -> int:
+    from guardian.core.plans import load_plan
+    from guardian.core.recs import load_recs
+    from guardian.core.store import JsonStore
+
+    store = JsonStore(run_dir)
+    recs = load_recs(run_dir)["items"]
+    print(f"Batch {batch['batch_id']}  round {batch['round']}  {len(batch['items'])} fix(es) need a decision "
+          f"(validation starts when ALL are decided)\n")
+    for r in recs:
+        f = store.get_finding(r.primary_finding_id)
+        band = f.initial_risk.value if f and f.initial_risk else "?"
+        title = f.title if f else r.primary_finding_id
+        extra = f" (+{len(r.finding_ids) - 1} more on the same package)" if len(r.finding_ids) > 1 else ""
+        if r.kind == "no_alternative" or r.plan_id is None:
+            print(f"[{band:<8}] {title[:80]}{extra}\n    {r.reason or 'No alternatives'}  [{r.outcome}]")
+            continue
+        plan = load_plan(run_dir, r.plan_id)
+        print(f"[{band:<8}] {title[:80]}{extra}\n    plan {r.plan_id}  attempt {plan.attempt}  action={plan.action}"
+              + (f"  target={plan.target_version}" if plan.target_version else "") + f"  [{r.outcome}]")
+        if r.previous:
+            print(f"    previous plan {r.previous.plan_id} {r.previous.outcome}: {r.previous.detail}")
+        for c in plan.rationale[:3]:
+            print(f"      [{c.label.value.upper():<8}] {c.text}")
+        for alt in r.alternatives:
+            print(f"      alternative: {alt.summary}")
+        print(f"    plan_hash {plan.plan_hash}")
+    print(f"\n  python -m guardian decide-batch --run {run_dir.name} --batch {batch['batch_id']} "
+          f"--approve-all [--by NAME]\n  python -m guardian decide-batch --run {run_dir.name} "
+          f"--batch {batch['batch_id']} --file decisions.json\n"
+          '  decisions.json: [{"plan_id": ..., "plan_hash": ..., "decision": "approve|reject|accept_risk", '
+          '"comment": ..., "reason_type": "too_big|breaks_app|different_approach|other (reject only)"}, ...]')
+    return 0
+
+
+def _cmd_decide_batch(args: argparse.Namespace) -> int:
+    from guardian.core.models import Approval
+    from guardian.core.plans import get_pending_batch
+    from guardian.graph.workflow import DecisionRejected, resume_batch
+
+    run_dir = _run_dir(args)
+    batch = get_pending_batch(run_dir)
+    if batch is None:
+        print(f"{run_dir.name} has no batch waiting for decisions", file=sys.stderr)
+        return 2
+    if bool(args.approve_all) == bool(args.file):
+        print("give exactly one of --approve-all or --file decisions.json", file=sys.stderr)
+        return 2
+    only = list(args.only or [])
+    partial = bool(only) or args.partial  # one at a time: the fixes not named stay pending
+    pending_ids = {i["plan_id"] for i in batch["items"]}
+    if unknown := [p for p in only if p not in pending_ids]:
+        print(f"not in the pending batch: {', '.join(unknown)}", file=sys.stderr)
+        return 2
+    if args.approve_all:
+        rows = [{"plan_id": i["plan_id"], "plan_hash": i["plan_hash"], "decision": "approve", "comment": args.comment}
+                for i in batch["items"] if not only or i["plan_id"] in only]
+    else:
+        try:
+            rows = json.loads(Path(args.file).read_text(encoding="utf-8"))
+            if not isinstance(rows, list):
+                raise ValueError("expected a JSON list")
+        except (OSError, ValueError) as exc:
+            print(f"cannot read {args.file}: {exc}", file=sys.stderr)
+            return 2
+        if only:
+            rows = [r for r in rows if isinstance(r, dict) and r.get("plan_id") in only]
+    try:
+        approvals = [Approval(plan_id=r["plan_id"], plan_hash=r["plan_hash"], decision=r["decision"],
+                              comment=r.get("comment") or args.comment, reason_type=r.get("reason_type"),
+                              decided_by=args.by) for r in rows]
+    except (KeyError, TypeError, ValueError, AttributeError) as exc:
+        print(f"bad decision entry: {exc!r}", file=sys.stderr)
+        return 2
+    try:
+        run_dir = resume_batch(run_dir.name, args.batch, approvals, partial=partial)
+    except DecisionRejected as exc:
+        print(f"decisions refused: {exc}", file=sys.stderr)
+        return 2
+    return _report(run_dir)
+
+
 def _cmd_decide(args: argparse.Namespace) -> int:
     from guardian.core.models import Approval
     from guardian.core.plans import get_pending
@@ -185,7 +275,7 @@ def _cmd_decide(args: argparse.Namespace) -> int:
               file=sys.stderr)
         return 2
     approval = Approval(plan_id=args.plan, plan_hash=pending.plan_hash, decision=args.decision,
-                        comment=args.comment, decided_by=args.by)
+                        comment=args.comment, reason_type=args.reason_type, decided_by=args.by)
     try:
         run_dir = resume(run_dir.name, approval)
     except DecisionRejected as exc:
@@ -240,8 +330,22 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--plan-hash", required=True, help="the hash shown by `guardian plans` (>= 12 chars)")
     d.add_argument("--decision", required=True, choices=["approve", "reject", "accept_risk"])
     d.add_argument("--comment", help="required for reject and accept_risk (G5.2)")
+    d.add_argument("--reason-type", choices=["too_big", "breaks_app", "different_approach", "other"],
+                   help="for reject: why, which steers the next suggestion")
     d.add_argument("--by", default="local-user", help="who decides (recorded in approvals.jsonl)")
     d.set_defaults(func=_cmd_decide)
+
+    db = sub.add_parser("decide-batch", help="decide every fix of the pending batch, then resume (batch mode)")
+    db.add_argument("--run", default="latest")
+    db.add_argument("--batch", required=True, help="the batch id shown by `guardian plans`")
+    db.add_argument("--approve-all", action="store_true", help="approve every fix in the batch")
+    db.add_argument("--file", help="JSON list of {plan_id, plan_hash, decision, comment} for every fix")
+    db.add_argument("--only", nargs="+", metavar="PLAN_ID",
+                    help="one at a time: decide just these plans (implies --partial); the rest stay pending")
+    db.add_argument("--partial", action="store_true", help="--file may decide only some fixes; the rest stay pending")
+    db.add_argument("--comment", help="comment for --approve-all, or the default for entries without one")
+    db.add_argument("--by", default="local-user", help="who decides (recorded in approvals.jsonl)")
+    db.set_defaults(func=_cmd_decide_batch)
 
     s = sub.add_parser("serve-runs", help="serve runs/ over HTTP with CORS for the UI (§4.2)")
     s.add_argument("--port", type=int, default=8001)

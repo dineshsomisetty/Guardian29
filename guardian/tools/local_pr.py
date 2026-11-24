@@ -10,13 +10,12 @@ The tool is a write tool (G3.3): it runs only under the `approve` Approval that 
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 from pydantic import BaseModel, Field
 
 from guardian.core.models import Approval, Evidence, RemediationPlan, ValidationResult
-from guardian.core.plans import load_plan
+from guardian.core.plans import load_plan, load_validation
 from guardian.core.store import JsonStore
 from guardian.guardrails.redact import redact
 from guardian.tools import binaries
@@ -30,6 +29,7 @@ class BranchArgs(BaseModel):
     plan_id: str = Field(pattern=r"^pl_[0-9A-Z]{26}$")
     attempt_id: str = Field(pattern=r"^at_[0-9A-Z]{26}$")
     finding_id: str = Field(pattern=r"^fd_[0-9A-Z]{26}$")
+    also_plan_ids: list[str] = Field(default=[], max_length=200)  # batch: other verified plans of the same attempt
 
 
 def branch_name(finding_id: str) -> str:
@@ -168,10 +168,9 @@ def local_fix_branch(ctx: ToolContext, args: BranchArgs) -> ToolOutput:
         raise PatchError("local_fix_branch works only in the attempt's own work copy")
     store = JsonStore(ctx.run_dir)
     plan = load_plan(ctx.run_dir, args.plan_id)
-    vpath = ctx.run_dir / "validation" / f"{args.attempt_id}.json"
-    if plan is None or not vpath.exists():
+    result = load_validation(ctx.run_dir, args.attempt_id, args.plan_id)
+    if plan is None or result is None:
         raise PatchError("plan or validation result missing")
-    result = ValidationResult.model_validate(json.loads(vpath.read_text(encoding="utf-8")))
     if result.verdict != "verified":
         raise PatchError(f"no branch for a {result.verdict} attempt")
     files = patched_files(store, result, args.attempt_id)
@@ -179,12 +178,28 @@ def local_fix_branch(ctx: ToolContext, args: BranchArgs) -> ToolOutput:
         raise PatchError("no patched files recorded")
     finding = store.get_finding(args.finding_id)
     approval = _approval(ctx.run_dir, plan.plan_id)
+    extras = []  # batch: the other verified plans of this attempt go on the same branch and into the same PR.md
+    for pid in args.also_plan_ids:
+        p2, r2 = load_plan(ctx.run_dir, pid), load_validation(ctx.run_dir, args.attempt_id, pid)
+        if p2 is None or r2 is None or r2.verdict != "verified":
+            raise PatchError(f"plan {pid} is not a verified plan of attempt {args.attempt_id}")
+        files = sorted(dict.fromkeys([*files, *patched_files(store, r2, args.attempt_id)]))
+        extras.append((p2, r2, _approval(ctx.run_dir, pid), store.get_finding(p2.finding_id).title))
     branch = branch_name(args.finding_id)
     hooks = attempt_dir / ".nohooks"
     hooks.mkdir(exist_ok=True)
-    commit = _commit(work, hooks, branch, files, ctx.artifacts.get("target_repo", ctx.repo), _commit_message(plan, finding.title, approval))
+    message = _commit_message(plan, finding.title, approval)
+    if extras:
+        message += "\nAlso in this commit:\n" + "".join(
+            f"- {p2.action} {t[:80]} (plan {p2.plan_id}, approved by {a.decided_by if a else 'unknown'})\n"
+            for p2, _r, a, t in extras)
+    commit = _commit(work, hooks, branch, files, ctx.artifacts.get("target_repo", ctx.repo), message)
     md = attempt_dir / "PR.md"
-    md.write_text(render_pr(store, plan, result, approval, finding.title, branch, commit, files), encoding="utf-8")
+    text = render_pr(store, plan, result, approval, finding.title, branch, commit, files)
+    for p2, r2, a2, t2 in extras:
+        body = render_pr(store, p2, r2, a2, t2, branch, commit, files).split("\n", 4)[4]
+        text += f"\n---\n\n# Also in this PR: {t2}\n\n" + body
+    md.write_text(text, encoding="utf-8")
     ev = Evidence(run_id=ctx.run_id, kind="diff", source_tool="git (local)",
                   facts={"branch": branch, "commit": commit, "files": files, "pushed": False, "remote": None,
                          "author": AUTHOR}, excerpt=f"{branch} {commit}")

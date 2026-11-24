@@ -41,7 +41,7 @@ from guardian.core.models import (
     RemediationPlan,
     new_id,
 )
-from guardian.core.plans import list_plans, load_risks, save_plan, set_pending
+from guardian.core.plans import list_plans, load_plan, load_risks, save_plan, set_pending
 from guardian.core.scoring import simulate_after
 from guardian.graph.state import GraphState, RunContext, get_ctx
 from guardian.guardrails.approval import plan_hash
@@ -128,6 +128,156 @@ def _upgrade(rc: RunContext, f: Finding, purl: str, pkg_file: str, why: list, lo
                      target, claims, "scanner re-scan", evidence_ids=ev_ids, compat=hint)
 
 
+# ---------------------------------------------------------------- steering after a rejection
+
+REASON_TYPES = {
+    "too_big": "The change is too big",
+    "breaks_app": "It would break the app",
+    "different_approach": "Use a different kind of fix",
+    "other": "Other reason",
+}
+# how invasive each kind of change is; "too big" only moves down this scale (or to a lower version)
+_SIZE = {"mitigate": 0, "pin": 1, "update_base_image": 2, "upgrade": 2, "replace": 3, "remove": 4, "block": 5}
+
+
+def _major(v: str | None) -> str | None:
+    m = re.match(r"v?(\d+)", v or "")
+    return m.group(1) if m else None
+
+
+def steer(cands: list[Candidate], rejected: RemediationPlan | None, reason_type: str | None) -> tuple[list[Candidate], str | None]:
+    """Reorder or filter the remaining candidates by why the human rejected the last fix.
+    Returns the candidates and, when the reason rules every one out, a plain-language note why."""
+    if rejected is None or reason_type in (None, "", "other"):
+        return cands, None
+    rv = rejected.target_version
+    if reason_type == "too_big":
+        size = _SIZE.get(rejected.action, 2)
+
+        def smaller(c: Candidate) -> bool:
+            if c.action == rejected.action == "upgrade" and c.target and rv:
+                return version_key(c.target) < version_key(rv)
+            return _SIZE.get(c.action, 2) < size
+
+        out = sorted([c for c in cands if smaller(c)],
+                     key=lambda c: (_SIZE.get(c.action, 2), version_key(c.target or "0")))
+        return out, None if out else "no smaller change than the rejected one is available"
+    if reason_type == "breaks_app":
+        major = _major(rv) if rejected.action == "upgrade" else None
+        out = [c for c in cands if c.action != rejected.action or (major is not None and _major(c.target) != major)]
+        return out, None if out else "every remaining option is the same kind of change in the same version line"
+    if reason_type == "different_approach":
+        out = [c for c in cands if c.action != rejected.action]
+        return out, None if out else f"Guardian has no fix other than a{'n' if rejected.action[0] in 'aeiou' else ''} {rejected.action}"
+    return cands, None
+
+
+# ---------------------------------------------------------------- other advisories on a candidate version
+
+_CMP = re.compile(r"^\s*(<=|>=|<|>|==|=)?\s*v?(\d[^\s,]*)\s*$")
+_OPS = {"<": lambda a, b: a < b, "<=": lambda a, b: a <= b, ">": lambda a, b: a > b, ">=": lambda a, b: a >= b,
+        "=": lambda a, b: a == b, "==": lambda a, b: a == b}
+
+
+def in_range(version: str, rng: str | None) -> bool | None:
+    """True when `version` is inside an advisory's affected range such as `<=5.3.3` or `>=8.0.0,<8.21.0`;
+    None when the range is missing or not in that simple comparator form (then nothing is assumed)."""
+    if not rng or not version:
+        return None
+    for part in rng.split(","):
+        m = _CMP.match(part)
+        if not m:
+            return None
+        if not _OPS[m.group(1) or "="](version_key(version), version_key(m.group(2))):
+            return False
+    return True
+
+
+def lowest_allowed(spec: str | None) -> str | None:
+    """The lowest version a dependency range like `^8.1.0` or `>=4.2.2 <5` lets npm pick."""
+    m = re.search(r"\d+(?:\.\d+){0,2}(?:-[0-9A-Za-z.]+)?", spec or "")
+    return m.group(0) if m else None
+
+
+def advisories_at(rc: RunContext, name: str, eco: str, version: str | None) -> list[str]:
+    """Advisories found in this scan that still affect `name` at `version` (any instance of the package)."""
+    if not version:
+        return []
+    hits = set()
+    for g in rc.store.list_findings():
+        if g.category is not FindingCategory.CVE or not g.component_purl:
+            continue
+        try:
+            n, _v, e = parse_purl(g.component_purl)
+        except ValueError:
+            continue
+        if n == name and e == eco and in_range(version, g.affected_range):
+            hits.add(g.vuln_id or g.finding_id)
+    return sorted(hits)
+
+
+def _clear_first(rc: RunContext, f: Finding, scored: list[tuple[str, list[str]]]) -> list[tuple[str, list[str]]]:
+    """Candidate versions that clear every known advisory first; versions still affected by another advisory are
+    dropped, unless no version clears them all (then they stay, and the plan says what it leaves behind)."""
+    clean = [(v, hit) for v, hit in scored if not hit]
+    dirty = [(v, hit) for v, hit in scored if hit]
+    if dirty:
+        rc.audit.emit(AGENT, "decision",
+                      "Skipping versions still affected by other advisories: "
+                      + "; ".join(f"{v} ({', '.join(h[:3])}{'...' if len(h) > 3 else ''})" for v, h in dirty)
+                      + ("" if clean else " - no version clears them all, so they stay as a last resort"),
+                      finding_id=f.finding_id, data={"skipped": {v: h for v, h in dirty}, "kept_dirty": not clean})
+    return clean or dirty
+
+
+DEP_OPS = {"set_dependency_version", "set_requirement_version", "replace_dependency", "remove_dependency",
+           "block_package"}  # ops that edit one dependency of a manifest
+
+
+def dep_keys(ops: list[PatchOp]) -> frozenset[tuple[str, str]]:
+    """(manifest, dependency name) pairs the ops edit: two plans sharing one cannot be applied together."""
+    return frozenset((o.file_path, str(o.args["name"])) for o in ops if o.op in DEP_OPS and "name" in o.args)
+
+
+def package_purl(rc: RunContext, name: str) -> str | None:
+    """The purl of package `name` as the scan saw it (a finding on it, or a direct parent in a dependency path)."""
+    for g in rc.store.list_findings():
+        for purl in [g.component_purl, *(p[1] for p in g.dependency_paths if len(p) > 1)]:
+            try:
+                if purl and purl.startswith("pkg:npm/") and parse_purl(purl)[0] == name:
+                    return purl
+            except ValueError:
+                continue
+    return None
+
+
+def child_floor_hits(rc: RunContext, parent_purl: str, versions: list[str]) -> dict[str, list[str]]:
+    """Advisories still affecting the LOWEST version of a vulnerable child that each candidate version of
+    `parent_purl` lets in (express-jwt 6.0.0 allows jsonwebtoken ^8, which other advisories still affect).
+    Only children the scan found vulnerable, only versions whose dependency range is known."""
+    if not parent_purl.startswith("pkg:npm/"):
+        return {}
+    eco = parse_purl(parent_purl)[2]
+    children: dict[str, list[str]] = {}
+    for g in rc.store.list_findings():
+        if g.category is FindingCategory.CVE and g.component_purl:
+            for path in g.dependency_paths:
+                if len(path) >= 3 and path[1] == parent_purl and path[2] == g.component_purl:
+                    children.setdefault(g.component_purl, []).extend(g.fixed_versions)
+    out: dict[str, list[str]] = {}
+    for cpurl, fixed in list(children.items())[:5]:
+        cname = parse_purl(cpurl)[0]
+        if not fixed:
+            continue
+        lk = _lookup(rc, parent_purl, [], [], child=cname, child_fixed=min(fixed, key=version_key))
+        ranges = (lk.facts.get("child_ranges") if lk is not None else None) or {}
+        for v in versions:
+            if ranges.get(v):
+                out.setdefault(v, []).extend(f"{cname} {a}" for a in
+                                             advisories_at(rc, cname, eco, lowest_allowed(ranges[v])))
+    return out
+
+
 def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
     """Upgrade candidates, safest first. Direct dependency: each fixed version; transitive: the direct parent."""
     purl = f.component_purl
@@ -146,8 +296,13 @@ def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
             # checkable against the scanner evidence (vuln_id), so grounding can mark it a verified fact
             why = [(f"{f.vuln_id} affects {name} {cur}; affected range {lk.facts.get('affected_range') or f.affected_range}",
                     "vuln_id", f.vuln_id)]
-            for v in lk.facts.get("candidates", []):
-                c = _upgrade(rc, f, purl, pkg_file, why, lk, v)
+            eco = parse_purl(purl)[2]
+            scored = [(v, advisories_at(rc, name, eco, v)) for v in lk.facts.get("candidates", [])]
+            floor = child_floor_hits(rc, purl, [v for v, _ in scored])  # what the version lets in underneath
+            scored = [(v, hit + floor.get(v, [])) for v, hit in scored]
+            for v, still in _clear_first(rc, f, scored):
+                extra = [(f"{name} {v} is still affected by {', '.join(still)}", None, None)] if still else []
+                c = _upgrade(rc, f, purl, pkg_file, why + extra, lk, v)
                 if c:
                     out.append(c)
         return out
@@ -167,8 +322,14 @@ def cve_candidates(rc: RunContext, f: Finding) -> list[Candidate]:
         # safest first: the smallest parent upgrade whose dependency range provably excludes the vulnerable
         # child; then the parent's registry latest. A failed attempt moves on to the next (G5.4: max 3).
         order = [*lk.facts.get("pulls_fixed_child", []), *lk.facts.get("candidates", [])[-1:]]
-        for v in dict.fromkeys(order):
-            extra = []
+        # a parent version is only worth proposing if neither it nor the child it lets in has another known
+        # advisory: express-jwt 3.4.0 clears the jsonwebtoken advisory but is itself affected (<=5.3.3)
+        eco = parse_purl(parent)[2]
+        scored = [(v, advisories_at(rc, pname, eco, v)
+                   + [f"{name} {a}" for a in advisories_at(rc, name, eco, lowest_allowed(ranges.get(v)))])
+                  for v in dict.fromkeys(order)]
+        for v, still in _clear_first(rc, f, scored):
+            extra = [(f"{pname} {v} still leaves {', '.join(still)}", None, None)] if still else []
             if v in ranges:
                 extra.append((f"{pname} {v} depends on {name} {ranges[v]}, whose lowest allowed version is at or "
                               f"above the fixed {child_fixed}", "child_ranges", ranges[v]))
@@ -476,7 +637,13 @@ def remediation_node(state: GraphState) -> dict:
     tried_noop = {p.action for p in mine if not p.ops}  # a rejected mitigation is not offered again
     plan = None
     if attempt <= MAX_ATTEMPTS:
-        for cand in candidates(rc, f):
+        cands = candidates(rc, f)
+        lv = state.get("last_validation") or {}
+        if lv.get("rejected") is not None and lv.get("plan_id"):  # steer by why the human said no
+            cands, note = steer(cands, load_plan(rc.tool_ctx.run_dir, lv["plan_id"]), lv.get("reason_type"))
+            if note:
+                audit.emit(AGENT, "decision", f"Rejection reason leaves no option: {note}", finding_id=f.finding_id)
+        for cand in cands:
             if cand.ops and ops_key(cand.ops) in tried:
                 continue
             if not cand.ops and cand.action in tried_noop:

@@ -36,10 +36,34 @@ export function planSummary(plan: RemediationPlan, finding: Finding | undefined,
   // a replacement names the new package, so it reads "replace X with Y", never "replace X to Y"
   const prep = plan.action === "replace" ? "with" : "to";
   const move = from && to ? ` from ${from} ${prep} ${to}` : to ? ` ${prep} ${to}` : "";
-  const change = `${verb} ${pkg}${to ? ` ${prep} ${to}` : ""}`;
+  const change = specialChange(plan) ?? `${verb} ${pkg}${to ? ` ${prep} ${to}` : ""}`;
   const sentence = `Guardian proposes to ${verb} ${pkg}${move}${reason ? ` to fix ${reason}` : ""}.`;
   const m = /->\s*([\d.]+)/.exec(plan.expected_risk_reduction ?? "");
   return { pkg, from, to, verb, change, major: c?.semver_delta === "major", sentence, reason, expectedAfter: m ? Number(m[1]) : null };
+}
+
+const short = (s: string) => (/^(sha256:)?[0-9a-f]{40,}$/.test(s) ? `${s.replace(/^sha256:/, "").slice(0, 12)}…` : s);
+
+/** Plans whose op is not "set package X to version Y" read better named by what they actually change. */
+function specialChange(plan: RemediationPlan): string | null {
+  const op = plan.ops[0];
+  if (plan.action === "mitigate" && !plan.ops.length) return "no code change: accept a documented mitigation";
+  if (!op) return null;
+  const a = op.args as Record<string, unknown>;
+  switch (op.op) {
+    case "generate_lockfile": {
+      const ps = Array.isArray(a.projects) ? (a.projects as string[]) : [];
+      return `turn lockfiles back on and add them${ps.length ? ` (${ps.join(", ")})` : ""}`;
+    }
+    case "pin_action_sha":
+      return `pin ${String(a.action)}@${String(a.ref)} to commit ${short(String(a.sha))}`;
+    case "pin_image_digest":
+      return `pin image ${String(a.image)}${a.tag ? `:${String(a.tag)}` : ""} to digest ${short(String(a.digest))}`;
+    case "update_base_image":
+      return `update base image ${String(a.image)} to ${String(a.new_tag ?? a.tag ?? "")}`.trim();
+    default:
+      return null;
+  }
 }
 
 /** The latest recorded decision on a plan, if any. */

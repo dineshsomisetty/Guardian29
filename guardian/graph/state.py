@@ -36,6 +36,10 @@ class GraphState(TypedDict, total=False):
     decision: dict | None  # Approval as JSON, written by the human gate on resume
     route: str | None  # set by record_decision / validator for the conditional edge
     last_validation: dict | None  # previous failed attempt, so re-planning picks a different plan
+    # batch remediation (settings.remediation_mode == "batch"): state of the round lives in recommendations.json
+    round: int  # remediation round in progress (1-based)
+    batch_id: str | None  # batch waiting at the gate
+    batch_decision: dict | None  # {"batch_id", "decisions": [Approval as JSON]}, written by the gate on resume
 
 
 @dataclass

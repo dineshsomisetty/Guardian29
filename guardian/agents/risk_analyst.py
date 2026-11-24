@@ -21,7 +21,6 @@ from guardian.core.models import (
     Finding,
     FindingCategory,
     FindingStatus,
-    Priority,
     RiskAssessment,
     RiskFactors,
 )
@@ -45,7 +44,6 @@ from guardian.tools.threat_intel import parse_purl
 AGENT = "risk_analyst"
 PLANNABLE = [FindingCategory.TYPOSQUAT, FindingCategory.LOCKFILE, FindingCategory.UNPINNED_CI,
              FindingCategory.UNTRUSTED_IMAGE]
-_RANK = {Priority.CRITICAL: 0, Priority.HIGH: 1, Priority.MEDIUM: 2, Priority.LOW: 3, None: 4}
 LLM_TOP = 8  # findings whose summary the LLM writes; the rest get the template
 PROVENANCE_TOP = 25
 NOT_APPLICABLE = {FindingCategory.UNPINNED_CI, FindingCategory.LOCKFILE, FindingCategory.UNTRUSTED_IMAGE,
@@ -180,31 +178,48 @@ def called_for(called: list[dict], f: Finding) -> bool:
                for c in called)
 
 
-def _key(f: Finding, score: float) -> tuple:
-    legacy = (f.file_path or "").endswith(".bak")  # a live manifest beats a shipped backup
-    cat = PLANNABLE.index(f.category) if f.category in PLANNABLE else len(PLANNABLE)
-    return _RANK[f.initial_risk], legacy, cat, -score, f.title
-
-
 def cve_plannable(f: Finding) -> bool:
     return (f.category is FindingCategory.CVE and bool(f.fixed_versions)
             and (f.component_purl or "").startswith(("pkg:npm/", "pkg:pypi/")))  # package.json / requirements*.txt
 
 
+def is_direct(f: Finding) -> bool:
+    """A dependency the project declares itself (path project -> package), or a finding with no dependency path."""
+    return not f.dependency_paths or any(len(p) == 2 for p in f.dependency_paths)
+
+
+def _pick_key(f: Finding, score: float) -> tuple:
+    legacy = (f.file_path or "").endswith(".bak")  # a live manifest beats a shipped backup
+    # highest risk first; on a tie a direct dependency first (one manifest edit, no parent upgrade to guess);
+    # then content, never the random finding id
+    return -score, not is_direct(f), legacy, f.title, f.component_purl or "", f.file_path or ""
+
+
 def select(findings: list[Finding], limit: int, scores: dict[str, float] | None = None) -> list[Finding]:
+    """The findings the remediation loop works on, highest risk score first.
+
+    Every fixable finding competes on its score, so a Critical vulnerability is never passed over for a Medium
+    supply-chain issue. At most one finding per package version (its fix is chosen to clear every advisory on
+    that package, see remediation.cve_candidates) and one per supply-chain category (one fix covers them all).
+    """
     scores = scores or {}
     ok = [f for f in findings if f.status is not FindingStatus.ESCALATED]
-    heur, seen = [], set()
-    for f in sorted((f for f in ok if f.category in PLANNABLE), key=lambda f: _key(f, scores.get(f.finding_id, 0))):
-        if f.category not in seen:
-            heur.append(f)
-            seen.add(f.category)
-    cves = sorted((f for f in ok if cve_plannable(f)), key=lambda f: (-scores.get(f.finding_id, 0), f.title))
-    reserve = 1 if cves and limit >= 2 else 0
-    chosen = heur[:max(0, limit - reserve)]
-    chosen += cves[:max(0, limit - len(chosen))]
-    chosen += [f for f in heur if f not in chosen][:max(0, limit - len(chosen))]
-    return sorted(chosen[:limit], key=lambda f: _key(f, scores.get(f.finding_id, 0)))
+    chosen: list[Finding] = []
+    seen: set[tuple[str, str]] = set()
+    for f in sorted(ok, key=lambda f: _pick_key(f, scores.get(f.finding_id, 0))):
+        if len(chosen) >= limit:
+            break
+        if f.category in PLANNABLE:
+            key = ("category", f.category.value)
+        elif cve_plannable(f):
+            key = ("package", f.component_purl or "")
+        else:
+            continue
+        if key in seen:
+            continue
+        seen.add(key)
+        chosen.append(f)
+    return chosen
 
 
 # ---------------------------------------------------------------- LLM summaries (optional)
@@ -354,7 +369,10 @@ def risk_analyst_node(state: GraphState) -> dict:
 
     scores = {a.finding_id: a.score for a in ranked}
     limit = ctx.settings.max_plans
-    chosen = select(findings, limit, scores)
+    batch = ctx.settings.batch_remediation
+    # batch mode: EVERY finding gets a recommendation (a fix, or "no alternatives" with the reason), so nothing is
+    # selected here; the recommend node groups them and writes recommendations.json
+    chosen = [] if batch else select(findings, limit, scores)
     for f in chosen:
         f.status = FindingStatus.PLANNED
         store.update_finding(f)
@@ -363,9 +381,11 @@ def risk_analyst_node(state: GraphState) -> dict:
         by_band[a.band.value] = by_band.get(a.band.value, 0) + 1
     unknown = sum(1 for a in ranked for k in "SERP" if getattr(a.factors, k).unknown)
     audit.emit("supervisor", "decision",
-               f"D1 risk scored: {by_band}; {unknown} unknown factors lower confidence. {len(chosen)} findings -> "
-               f"remediation loop (fixable non-CVE categories + top CVEs with a fixed version by score, "
-               f"limit GUARDIAN_MAX_PLANS={limit})",
+               f"D1 risk scored: {by_band}; {unknown} unknown factors lower confidence. "
+               + (f"Batch remediation: all {len(ranked)} findings get a recommendation (a fix or no alternative), "
+                  f"decided together by a human" if batch else
+                  f"{len(chosen)} findings -> remediation loop (every fixable finding by risk score, one per "
+                  f"package or supply-chain category, limit GUARDIAN_MAX_PLANS={limit})"),
                evidence_ids=sorted({e for f in chosen for e in f.evidence_ids}),
                data={"bands": by_band, "chosen": [{"finding_id": f.finding_id, "category": f.category.value,
                                                    "score": scores.get(f.finding_id), "title": f.title}
@@ -377,5 +397,6 @@ def risk_analyst_node(state: GraphState) -> dict:
     if chosen:
         audit.emit(AGENT, "handoff", f"{len(chosen)} findings -> remediation",
                    evidence_ids=sorted({e for f in chosen for e in f.evidence_ids}))
-    return {"status": "planning_loop", "plan_queue": [f.finding_id for f in chosen], "current": None,
+    queue = [a.finding_id for a in ranked] if batch else [f.finding_id for f in chosen]
+    return {"status": "planning_loop", "plan_queue": queue, "current": None, "round": 0, "batch_id": None,
             "attempt": 0, "plan_id": None, "decision": None, "last_validation": None}

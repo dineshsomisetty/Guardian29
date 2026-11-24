@@ -13,6 +13,7 @@ from guardian.core.models import (
     Evidence,
     Finding,
     FindingCategory,
+    RemediationPlan,
     RiskFactors,
     Scope,
     ValidationResult,
@@ -184,3 +185,95 @@ def test_transitive_fix_prefers_smallest_parent_major_that_provably_pulls_fixed_
     assert plan is not None and plan.target_version == "3.4.0"
     proof = next(c for c in plan.rationale if "depends on jsonwebtoken ^5.0.0" in c.text)
     assert proof.label.value == "verified"
+
+
+# ---------------------------------------------------------------- selection by score, version checks (critique fixes)
+
+
+def _f(purl, score_title, *, cat=FindingCategory.CVE, fixed=("1.0.0",), paths=None, rng=None, vid="GHSA-x"):
+    return Finding(run_id=RUN, category=cat, title=score_title, detector="grype@t", component_purl=purl,
+                   vuln_id=vid if cat is FindingCategory.CVE else None, fixed_versions=list(fixed),
+                   affected_range=rng, dependency_paths=paths or ([["root", purl]] if purl else []),
+                   file_path=".npmrc" if cat is FindingCategory.LOCKFILE else None, evidence_ids=["ev_t"])
+
+
+def test_select_ranks_every_fixable_finding_by_score_one_per_package():
+    """A Medium lockfile finding no longer takes a slot from Critical vulnerabilities; two advisories on one
+    package version get one plan; on a score tie the direct dependency goes first."""
+    lock = _f(None, "lockfile", cat=FindingCategory.LOCKFILE, fixed=())
+    san1 = _f("pkg:npm/sanitize-html@1.4.2", "san 1", vid="GHSA-1")
+    san2 = _f("pkg:npm/sanitize-html@1.4.2", "san 2", vid="GHSA-2")
+    jwt_t = _f("pkg:npm/jsonwebtoken@0.1.0", "a jwt transitive",
+               paths=[["root", "pkg:npm/express-jwt@0.1.3", "pkg:npm/jsonwebtoken@0.1.0"]])
+    jwt_d = _f("pkg:npm/jsonwebtoken@0.4.0", "b jwt direct")
+    scores = {lock.finding_id: 58, san1.finding_id: 87, san2.finding_id: 81, jwt_t.finding_id: 98,
+              jwt_d.finding_id: 98}
+    chosen = ra.select([lock, san1, san2, jwt_t, jwt_d], 3, scores)
+    assert chosen == [jwt_d, jwt_t, san1]
+    assert ra.select([lock, san1, san2], 3, scores) == [san1, lock]
+
+
+def test_version_range_helpers():
+    assert rem.in_range("5.3.3", "<=5.3.3") and not rem.in_range("6.1.2", "<=5.3.3")
+    assert rem.in_range("8.19.0", ">=8.0.0,<8.21.0") and not rem.in_range("7.0.0", ">=8.0.0,<8.21.0")
+    assert rem.in_range("1.0.0", None) is None and rem.in_range("1.0.0", "some text") is None
+    assert rem.lowest_allowed("^8.1.0") == "8.1.0" and rem.lowest_allowed("*") is None
+
+
+def test_direct_fix_skips_versions_another_advisory_still_affects(rc):
+    f = cve(rc)  # candidates 9.0.0 and 9.0.2
+    other = _f(PURL, "GHSA-bbbb in jsonwebtoken@0.4.0", rng="<9.0.1", vid="GHSA-bbbb")
+    other.evidence_ids = f.evidence_ids
+    rc.store.add_finding(other)
+    assert [c.target for c in rem.cve_candidates(rc, f)] == ["9.0.2"]
+
+
+def test_transitive_fix_skips_parents_that_leave_an_advisory_behind(rc, monkeypatch):
+    """express-jwt 3.4.0 is itself affected (<=5.3.3) and 6.1.2 lets jsonwebtoken ^8.1.0 in, which another
+    advisory covers (<=8.5.1): only 8.5.1 clears everything, so it is the one proposed."""
+    from guardian.tools.threat_intel import IntelClient
+
+    (rc.tool_ctx.repo / "package.json").write_text('{\n  "dependencies": {\n    "express-jwt": "0.1.3"\n  }\n}\n')
+    heads = {"8.5.1": {"jsonwebtoken": "^9.0.0"}, "6.1.2": {"jsonwebtoken": "^8.1.0"},
+             "3.4.0": {"jsonwebtoken": "^5.0.0"}}
+    monkeypatch.setattr(IntelClient, "registry_metadata",
+                        lambda self, purl: {"latest": "8.5.1", "major_heads": heads} if "express-jwt" in purl else None)
+    child = "pkg:npm/jsonwebtoken@0.1.0"
+    parent_paths = [["root", "pkg:npm/express-jwt@0.1.3", child]]
+    f = cve(rc, fixed=("4.2.2",), paths=parent_paths)
+    f.component_purl = child
+    for g in (_f("pkg:npm/express-jwt@0.1.3", "express-jwt own", rng="<=5.3.3", vid="GHSA-6g6m"),
+              _f(child, "jwt 8.x", rng="<=8.5.1", vid="GHSA-8cf7", paths=parent_paths)):
+        g.evidence_ids = f.evidence_ids
+        rc.store.add_finding(g)
+    assert [c.target for c in rem.cve_candidates(rc, f)] == ["8.5.1"]
+
+
+@pytest.mark.parametrize("name,expected", [
+    ("GET basket should accept forged JWTs", True),
+    ("login works without a valid token", True),
+    ("rejects forged tokens", False),
+    ("should not accept forged tokens", False),
+    ("XSS payload is sanitized", False),
+    ("scan of forged data deleted", False),
+    ("GET all orders", False),
+])
+def test_tests_that_assert_an_attack_works(name, expected):
+    from guardian.agents.validator import asserts_exploit
+
+    assert asserts_exploit(name) is expected
+
+
+def test_steer_follows_the_rejection_reason():
+    def up(v):
+        return rem.Candidate("upgrade", [], v, [], "t")
+
+    rejected = RemediationPlan.model_construct(action="upgrade", target_version="8.5.1")
+    cands = [up("8.6.0"), up("7.7.8"), up("6.0.0"), up("9.0.0")]
+    assert [c.target for c in rem.steer(cands, rejected, "too_big")[0]] == ["6.0.0", "7.7.8"]
+    assert [c.target for c in rem.steer(cands, rejected, "breaks_app")[0]] == ["7.7.8", "6.0.0", "9.0.0"]
+    assert rem.steer(cands, rejected, "other")[0] == cands and rem.steer(cands, rejected, None)[0] == cands
+    out, note = rem.steer(cands, rejected, "different_approach")
+    assert out == [] and "no fix other than an upgrade" in note
+    small, note = rem.steer([up("9.0.0")], rejected, "too_big")
+    assert small == [] and "no smaller change" in note

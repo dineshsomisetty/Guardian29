@@ -75,7 +75,7 @@ export default function ReportView() {
           <EmptyState icon={<FileText size={32} aria-hidden />} title="The report is not ready yet" center>
             Guardian writes the report when the scan is complete.{" "}
             {data.summary.pending_plan || status === "awaiting_human"
-              ? "This scan is paused until you decide on the proposed fix. Approve, reject or accept the risk on the Approval page, and the report follows."
+              ? "This scan is paused until you decide on the suggested fixes. Approve, reject or accept the risk on the Remediation page, and the report follows."
               : status === "failed"
                 ? "This scan stopped with an error, so no report was written. The activity log shows where it stopped."
                 : "This scan is still running. The report appears here when it finishes."}
@@ -101,7 +101,7 @@ export default function ReportView() {
                     <button type="button" className="linkish inline" title="Open the finding this fixes, with its risk assessment" onClick={() => openFinding(a.plan.finding_id)}>
                       {planSummary(a.plan, undefined, null).change}
                     </button>
-                    <button type="button" className={`pill pill-btn ${a.approval?.decision === "approve" ? "ok" : ""}`} title="Open on the Approval page" onClick={() => setView("gate")}>
+                    <button type="button" className={`pill pill-btn ${a.approval?.decision === "approve" ? "ok" : ""}`} title="Open on the Remediation page" onClick={() => setView("gate")}>
                       {a.approval ? DEC_WORD[a.approval.decision] ?? a.approval.decision : "No decision"}
                     </button>
                     {a.validations.map((v) => (
@@ -119,7 +119,7 @@ export default function ReportView() {
                   <tr><th>Finding</th><th>State</th><th className="r">Score</th></tr>
                 </thead>
                 <tbody>
-                  {rep.remaining_risk.slice(0, 40).map((r) => {
+                  {[...rep.remaining_risk].sort((a, b) => b.score - a.score).slice(0, 40).map((r) => {
                     const f = findingsById.get(r.finding_id);
                     return (
                       <tr key={r.finding_id}>

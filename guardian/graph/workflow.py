@@ -5,7 +5,8 @@ Graph (§2.2; the investigator is D1-08, the full §7 risk analyst D1-06 is stil
     START -> discovery -> detection -> evidence_analyst -> investigator -> risk_analyst
           -> [ remediation -> human_gate -> record_decision -> validator ]*  -> reporter -> END
                  ^  reject / failed validation: re-plan (different plan)  |
-                 |________________________________________________________|
+                 |________________________________________________________|     (sequential mode)
+          -> [ recommend -> batch_gate -> record_batch -> validate_batch ]*  -> reporter -> END   (batch mode)
 
 The human gate is its own node containing only `interrupt()` (C6). State is checkpointed in
 runs/<id>/checkpoints.sqlite (thread id = run id), so a run paused at the gate is resumed later — from the CLI
@@ -26,6 +27,7 @@ from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command
 
+from guardian.agents.batch import batch_gate_node, recommend_node, record_batch_node, validate_batch_node
 from guardian.agents.detection import detection_node
 from guardian.agents.discovery import discovery_node
 from guardian.agents.evidence_analyst import evidence_analyst_node
@@ -38,10 +40,11 @@ from guardian.agents.validator import validator_node
 from guardian.core.audit import AuditLog
 from guardian.core.config import Settings, load_settings
 from guardian.core.models import Approval, Finding, FindingCategory, Priority, utcnow
-from guardian.core.plans import get_pending
+from guardian.core.plans import get_pending, get_pending_batch
+from guardian.core.recs import load_recs
 from guardian.core.store import JsonStore
 from guardian.graph.state import GraphState, RunContext, get_ctx, register, unregister
-from guardian.guardrails.approval import check_decision
+from guardian.guardrails.approval import check_batch, check_decision
 from guardian.guardrails.budgets import Budget
 from guardian.llm.provider import LLMProvider
 from guardian.tools.registry import ToolContext, ToolUnavailable, resolve
@@ -112,7 +115,36 @@ def route_after_validation(state: GraphState) -> str:
 
 
 def route_after_risk(state: GraphState) -> str:
+    rc = get_ctx(state["run_id"])
+    if rc.tool_ctx.settings.batch_remediation and state.get("plan_queue"):
+        rc.audit.emit("supervisor", "decision", "Batch remediation -> recommend (a recommendation for every finding)")
+        return "recommend"
     return "remediation" if state.get("plan_queue") else route_next(state)
+
+
+def route_after_recommend(state: GraphState) -> str:
+    audit = get_ctx(state["run_id"]).audit
+    if state.get("route") == "gate":
+        audit.emit("supervisor", "decision", f"Batch {state.get('batch_id')} ready -> batch_gate (no validation "
+                                             f"until every fix has a decision)")
+        return "batch_gate"
+    audit.emit("supervisor", "decision", "No fix waits for a decision -> reporter")
+    return "reporter"
+
+
+def route_after_record_batch(state: GraphState) -> str:
+    route = state.get("route")
+    if route == "gate":
+        return "batch_gate"
+    if route == "validate":
+        return "validate_batch"
+    if route == "recommend":
+        return "recommend"
+    return "reporter"
+
+
+def route_after_validate_batch(state: GraphState) -> str:
+    return "recommend" if state.get("route") == "recommend" else "reporter"
 
 
 def build_graph(checkpointer=None):
@@ -122,6 +154,8 @@ def build_graph(checkpointer=None):
                      ("risk_analyst", risk_analyst_node),
                      ("remediation", remediation_node), ("human_gate", human_gate_node),
                      ("record_decision", record_decision_node), ("validator", validator_node),
+                     ("recommend", recommend_node), ("batch_gate", batch_gate_node),
+                     ("record_batch", record_batch_node), ("validate_batch", validate_batch_node),
                      ("reporter", reporter_node)]:
         g.add_node(name, fn)
     g.add_edge(START, "discovery")
@@ -129,7 +163,12 @@ def build_graph(checkpointer=None):
     g.add_conditional_edges("detection", route_after_detection, ["evidence_analyst", "reporter"])
     g.add_edge("evidence_analyst", "investigator")
     g.add_edge("investigator", "risk_analyst")
-    g.add_conditional_edges("risk_analyst", route_after_risk, ["remediation", "reporter"])
+    g.add_conditional_edges("risk_analyst", route_after_risk, ["remediation", "recommend", "reporter"])
+    g.add_conditional_edges("recommend", route_after_recommend, ["batch_gate", "reporter"])
+    g.add_edge("batch_gate", "record_batch")
+    g.add_conditional_edges("record_batch", route_after_record_batch,
+                            ["validate_batch", "batch_gate", "recommend", "reporter"])
+    g.add_conditional_edges("validate_batch", route_after_validate_batch, ["recommend", "reporter"])
     g.add_conditional_edges("remediation", route_after_remediation, ["human_gate", "remediation", "reporter"])
     g.add_edge("human_gate", "record_decision")
     g.add_conditional_edges("record_decision", route_after_decision,
@@ -287,14 +326,27 @@ def _finalize(run_id: str, rc: RunContext, settings: Settings, started: datetime
     summary["remediation"] = remediation_outcomes(run_dir, store)
     summary["has_report"] = (run_dir / "report.json").is_file() and (run_dir / "report.html").is_file()
     pending = get_pending(run_dir)
+    pending_batch = get_pending_batch(run_dir) if status == "awaiting_human" else None
     summary["pending_plan"] = {"plan_id": pending.plan_id, "plan_hash": pending.plan_hash,
                                "finding_id": pending.finding_id} if pending and status == "awaiting_human" else None
+    if (run_dir / "recommendations.json").is_file():
+        recs = load_recs(run_dir)
+        by_outcome: dict[str, int] = {}
+        for r in recs["items"]:
+            by_outcome[r.outcome] = by_outcome.get(r.outcome, 0) + 1
+        summary["recommendations"] = {"round": recs["round"], "status": recs["status"], "items": len(recs["items"]),
+                                      "by_outcome": by_outcome}
+    if pending_batch is not None:
+        summary["pending_batch"] = {"batch_id": pending_batch["batch_id"], "round": pending_batch["round"],
+                                    "count": len(pending_batch["items"])}
     if ctx.budget is not None:
         summary["budget"] = ctx.budget.snapshot()
     (run_dir / "run_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     (settings.runs_dir / "LATEST").write_text(run_id, encoding="utf-8")
     end = (f"Run paused at the human gate: plan {pending.plan_id} awaits a decision"
            if status == "awaiting_human" and pending else
+           f"Run paused at the human gate: batch {pending_batch['batch_id']} awaits "
+           f"{len(pending_batch['items'])} decisions" if pending_batch else
            f"Run {status}: {summary['findings']['total']} findings, by risk {summary['findings']['by_risk']}")
     audit.emit("supervisor", "agent_end", end)
     return summary
@@ -325,9 +377,18 @@ def _drive(run_id: str, rc: RunContext, settings: Settings, started: datetime, g
 
 
 def _write_running(run_dir: Path, run_id: str, started: datetime) -> None:
-    (run_dir / "run_summary.json").write_text(
-        json.dumps({"run_id": run_id, "status": "running", "started_at": started.isoformat()}, indent=2),
-        encoding="utf-8")
+    """Mark the run as running. On a resume the earlier summary (target, commit, counts, ...) is kept, so the
+    UI does not lose the run's header for the whole validation; only what no longer holds is cleared."""
+    path = run_dir / "run_summary.json"
+    try:
+        prev = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
+    except (OSError, ValueError):
+        prev = {}
+    prev = prev if isinstance(prev, dict) else {}
+    body = {**prev, "run_id": run_id, "status": "running", "started_at": started.isoformat(),
+            "pending_plan": None, "pending_batch": None}
+    body.pop("finished_at", None)
+    path.write_text(json.dumps(body, indent=2), encoding="utf-8")
 
 
 def run(repo: Path, run_id: str | None = None, settings: Settings | None = None,
@@ -368,6 +429,28 @@ def resume(run_id: str, approval: Approval, settings: Settings | None = None, ll
     reason = check_decision(pending, approval)
     if reason:
         raise DecisionRejected(reason)
+    return _resume(run_id, settings, llm, echo, Command(resume=approval.model_dump(mode="json")),
+                   f"Resuming {run_id}: {approval.decision} on plan {approval.plan_id}")
+
+
+def resume_batch(run_id: str, batch_id: str, approvals: list[Approval], settings: Settings | None = None,
+                 llm: LLMProvider | None = None, echo: bool = True, partial: bool = False) -> Path:
+    """Continue a batch-mode run paused at the gate with one decision for EVERY fix of the batch (or, with
+    `partial=True`, for one or more of them: the rest stay pending). The set is checked first (every item decided
+    unless partial, none extra, G5.1 hashes, G5.2 comments); an invalid one raises DecisionRejected and nothing
+    resumes."""
+    settings = settings or load_settings()
+    run_dir = settings.runs_dir / run_id
+    reason = check_batch(get_pending_batch(run_dir), batch_id, approvals, partial=partial)
+    if reason:
+        raise DecisionRejected(reason)
+    value = {"batch_id": batch_id, "partial": partial, "decisions": [a.model_dump(mode="json") for a in approvals]}
+    return _resume(run_id, settings, llm, echo, Command(resume=value),
+                   f"Resuming {run_id}: batch {batch_id} with {len(approvals)} decisions")
+
+
+def _resume(run_id: str, settings: Settings, llm: LLMProvider | None, echo: bool, graph_input, message: str) -> Path:
+    run_dir = settings.runs_dir / run_id
     lock = run_dir / ".resume.lock"
     try:
         fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
@@ -397,7 +480,7 @@ def resume(run_id: str, approval: Approval, settings: Settings | None = None, ll
         _rebuild_graph(tool_ctx)
         rc = RunContext(tool_ctx=tool_ctx, store=store, audit=audit, llm=llm)
         _write_running(run_dir, run_id, started)
-        audit.emit("supervisor", "agent_start", f"Resuming {run_id}: {approval.decision} on plan {approval.plan_id}")
-        return _drive(run_id, rc, settings, started, Command(resume=approval.model_dump(mode="json")))
+        audit.emit("supervisor", "agent_start", message)
+        return _drive(run_id, rc, settings, started, graph_input)
     finally:
         lock.unlink(missing_ok=True)

@@ -33,6 +33,10 @@ export default function FindingsTable() {
     findingFilter, setFindingFilter, helpOpen,
   } = useStore();
   const [q, setQ] = useState(findingFilter.q ?? "");
+  // a search handed over from the map applies once, not to every later visit
+  useEffect(() => {
+    if (findingFilter.q) setFindingFilter({ q: "" });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const [group, setGroup] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [cursor, setCursor] = useState(0);

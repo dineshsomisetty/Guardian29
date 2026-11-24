@@ -18,6 +18,8 @@ export interface RunSummary {
   offline: boolean;
   remediation?: RemediationEntry[];
   pending_plan?: PendingPlan | null;
+  /** batch mode: the group of fixes waiting for decisions */
+  pending_batch?: { batch_id: string; round: number; count: number } | null;
 }
 
 export interface RemediationEntry {
@@ -220,6 +222,45 @@ export interface ValidationResult {
   verdict: string;
   final_confidence: "high" | "medium" | "low";
   log_evidence_ids: string[];
+  /** true when this plan was tested together with the other approved fixes of the round */
+  combined?: boolean;
+  round?: number | null;
+}
+
+export type RecDecision = "approve" | "reject" | "accept_risk";
+export type RecOutcome =
+  | "awaiting_decision" | "validating" | "verified" | "failed" | "rejected" | "accepted" | "no_alternative" | "needs_person";
+
+export interface RecAlternative {
+  action: string;
+  target_version: string | null;
+  summary: string;
+}
+
+export interface Recommendation {
+  rec_id: string;
+  round: number;
+  finding_ids: string[];
+  primary_finding_id: string;
+  kind: "fix" | "no_alternative";
+  plan_id: string | null;
+  plan_hash: string | null;
+  alternatives: RecAlternative[];
+  reason: string | null;
+  previous: { plan_id: string; outcome: "failed" | "rejected"; detail: string; reason_type?: string | null } | null;
+  decision: RecDecision | null;
+  outcome: RecOutcome;
+  steer_note?: string | null;
+  steer_source?: "llm" | "rules" | null;
+}
+
+export interface RecommendationsFile {
+  round: number;
+  /** one-at-a-time debugging: increases with every submitted step */
+  step?: number;
+  status: "awaiting_decisions" | "validating" | "done";
+  batch_id: string | null;
+  items: Recommendation[];
 }
 
 export interface ReportJson {
@@ -256,4 +297,6 @@ export interface RunData {
   plans: RemediationPlan[];
   validation: ValidationResult[];
   approvals: Approval[];
+  /** batch-mode recommendations; null for sequential runs */
+  recommendations: RecommendationsFile | null;
 }

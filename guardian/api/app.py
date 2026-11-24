@@ -37,12 +37,14 @@ FID_RE = r"^fd_[0-9A-Z]{26}$"
 EID_RE = r"^ev_[0-9A-Z]{26}$"
 PID_RE = r"^pl_[0-9A-Z]{26}$"
 AID_RE = r"^at_[0-9A-Z]{26}$"
+BID_RE = r"^bt_[0-9A-Z]{26}$"
 
 RunId = Annotated[str, PathParam(pattern=RUN_RE)]
 Fid = Annotated[str, PathParam(pattern=FID_RE)]
 Eid = Annotated[str, PathParam(pattern=EID_RE)]
 Pid = Annotated[str, PathParam(pattern=PID_RE)]
 Aid = Annotated[str, PathParam(pattern=AID_RE)]
+Bid = Annotated[str, PathParam(pattern=BID_RE)]
 
 SSE_POLL_S = 0.25
 SSE_KEEPALIVE_S = 15.0
@@ -52,7 +54,22 @@ SSE_GATE_IDLE_S = 3.0  # end the stream this long after the last line while wait
 class DecisionBody(BaseModel):
     decision: Literal["approve", "reject", "accept_risk"]
     comment: str | None = Field(default=None, max_length=2000)
+    reason_type: Literal["too_big", "breaks_app", "different_approach", "other"] | None = None  # for reject
     plan_hash: str = Field(pattern=r"^[0-9a-f]{12,64}$")
+    decided_by: str = Field(default="human", max_length=64)  # local dev mode only; token mode uses the caller
+
+
+class BatchItemBody(BaseModel):
+    plan_id: str = Field(pattern=PID_RE)
+    plan_hash: str = Field(pattern=r"^[0-9a-f]{12,64}$")
+    decision: Literal["approve", "reject", "accept_risk"]
+    comment: str | None = Field(default=None, max_length=2000)
+    reason_type: Literal["too_big", "breaks_app", "different_approach", "other"] | None = None  # for reject
+
+
+class BatchDecisionBody(BaseModel):
+    partial: bool = False  # one at a time: decide some of the pending fixes now, the rest stay pending
+    decisions: list[BatchItemBody] = Field(max_length=1000)
     decided_by: str = Field(default="human", max_length=64)  # local dev mode only; token mode uses the caller
 
 
@@ -206,6 +223,7 @@ def create_app(runs_dir: Path | None = None, *, tokens: TokenStore | None = None
     fixed("changes", "changes.json")
     fixed("findings", "findings.json")
     fixed("report.json", "report.json")
+    fixed("recommendations", "recommendations.json")  # batch remediation: every finding's fix or "no alternatives"
 
     @app.get("/runs/{run_id}/risk")
     def get_risk(run_id: RunId) -> Any:
@@ -289,12 +307,43 @@ def create_app(runs_dir: Path | None = None, *, tokens: TokenStore | None = None
         if body.decision in ("reject", "accept_risk") and not (body.comment and body.comment.strip()):
             raise HTTPException(400, f"{body.decision} requires a comment (G5.2)")
         decided_by = who.name if who.authenticated else (body.decided_by.strip() or "human")
+        if body.reason_type and body.decision != "reject":
+            raise HTTPException(400, "reason_type is only for a reject")
         approval = Approval(plan_id=plan_id, plan_hash=body.plan_hash, decision=body.decision,
-                            comment=body.comment, decided_by=decided_by)
+                            comment=body.comment, reason_type=body.reason_type, decided_by=decided_by)
         from guardian.graph import workflow
 
         spawn(d.name, workflow.resume, d.name, approval, settings=load_settings(runs_dir=runs), echo=False)
         return {"run_id": d.name, "plan_id": plan_id, "decision": body.decision, "decided_by": decided_by}
+
+    @app.post("/runs/{run_id}/batches/{batch_id}/decisions", status_code=202)
+    def decide_batch(run_id: RunId, batch_id: Bid, body: BatchDecisionBody, request: Request) -> dict:
+        """One decision for EVERY fix of the pending batch (anything less or more is refused as a whole), or with
+        `partial` one or more decisions now while the rest stay pending."""
+        who = principal_for(request, store, "approver")
+        d = run_dir(run_id)
+        pending_file = d / "pending_batch.json"
+        if not pending_file.is_file():
+            raise HTTPException(409, "no batch is pending a decision")
+        decided_by = who.name if who.authenticated else (body.decided_by.strip() or "human")
+        for i in body.decisions:  # a reject says why, so the next suggestion can follow it
+            if i.decision == "reject" and not i.reason_type:
+                raise HTTPException(400, f"reject of {i.plan_id} needs a reason_type: too_big, breaks_app, "
+                                         f"different_approach or other")
+            if i.reason_type and i.decision != "reject":
+                raise HTTPException(400, f"reason_type on {i.plan_id} is only for a reject")
+        approvals = [Approval(plan_id=i.plan_id, plan_hash=i.plan_hash, decision=i.decision, comment=i.comment,
+                              reason_type=i.reason_type, decided_by=decided_by) for i in body.decisions]
+        from guardian.guardrails.approval import check_batch
+
+        reason = check_batch(_read_json(pending_file), batch_id, approvals, partial=body.partial)
+        if reason:
+            raise HTTPException(400, reason)
+        from guardian.graph import workflow
+
+        spawn(d.name, workflow.resume_batch, d.name, batch_id, approvals, settings=load_settings(runs_dir=runs),
+              echo=False, partial=body.partial)
+        return {"run_id": d.name, "batch_id": batch_id, "decisions": len(approvals), "decided_by": decided_by}
 
     # ---- live trace (SSE) ------------------------------------------------
     @app.get("/runs/{run_id}/events")

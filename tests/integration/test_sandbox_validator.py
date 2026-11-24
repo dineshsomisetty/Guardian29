@@ -84,3 +84,33 @@ def test_patched_copy_lockfiles_resolved_before_rescan(target, settings, fake_ll
     order.clear()  # discovery resolved the original target; only the validator's calls matter here
     _decide(s, "run_rl", "approve")
     assert order[:2] == [f"resolve:{target.name}:work", "rescan"], order
+
+
+def test_failing_test_that_asserts_the_attack_does_not_fail_the_fix(target, settings, fake_llm_factory, rig,  # noqa: F811
+                                                                     monkeypatch):
+    """Closing the hole breaks a test like "should accept forged JWTs": the fix is verified, at medium
+    confidence, and the test is named for review. Any other new failure still fails the attempt."""
+    from guardian.core.models import Evidence
+
+    names = {"new": ["GET basket should accept forged JWTs"]}
+
+    def fake_validate(ctx):
+        res = sandbox.SandboxResult(ran=True, kind="npm", verdict="failed_tests", build_ok=True, tests_ran=True,
+                                    unit_tests={"passed": 9, "failed": 1, "total": 10},
+                                    failed_names={"test": list(names["new"]), "new_vs_baseline": list(names["new"])},
+                                    baseline={"verdict": None})
+        ev = Evidence(run_id=ctx.run_id, kind="test_result", source_tool="sandbox:docker", facts={})
+        return ToolOutput(evidence=[ev], artifacts={"sandbox_result": res})
+
+    monkeypatch.setattr(sandbox, "sandbox_validate", fake_validate)
+    s = _settings(settings, plans=3)
+    llm, _b = fake_llm_factory(lambda *a: '{"assessments": []}')
+    run_dir = workflow.run(target, run_id="run_ex", settings=s, llm=llm, echo=False)
+    _decide(s, "run_ex", "approve")
+    v = list_validations(run_dir)[0]
+    assert v.verdict == "verified" and v.final_confidence.value == "medium"
+
+    names["new"] = ["GET basket should accept forged JWTs", "checkout total is correct"]
+    run_dir = workflow.run(target, run_id="run_ex2", settings=s, llm=llm, echo=False)
+    _decide(s, "run_ex2", "approve")
+    assert list_validations(run_dir)[0].verdict == "failed_tests"

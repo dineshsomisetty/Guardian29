@@ -113,6 +113,7 @@ class PlanArgs(BaseModel):
     plan_id: str = Field(pattern=r"^pl_[0-9A-Z]{26}$")
     attempt_id: str | None = Field(default=None, pattern=r"^at_[0-9A-Z]{26}$")
     ops: list[PatchOp] = Field(min_length=1, max_length=MAX_PLAN_OPS)
+    extend: bool = False  # batch validation: apply onto the attempt copy an earlier plan of the same attempt made
 
 
 # ---------------------------------------------------------------- helpers
@@ -419,9 +420,13 @@ def apply_plan(ctx: ToolContext, args: PlanArgs) -> ToolOutput:
     if not args.attempt_id:
         raise PatchError("apply_plan needs an attempt_id")
     attempt_dir = ctx.run_dir / "attempts" / args.attempt_id / "work"
-    if attempt_dir.exists():
+    if args.extend:
+        if not attempt_dir.exists():
+            raise PatchError(f"attempt {args.attempt_id} has no copy to extend")
+    elif attempt_dir.exists():
         raise PatchError(f"attempt {args.attempt_id} already exists")
-    shutil.copytree(ctx.repo, attempt_dir, ignore=IGNORE)  # fresh copy of the target, not the work copy
+    else:
+        shutil.copytree(ctx.repo, attempt_dir, ignore=IGNORE)  # fresh copy of the target, not the work copy
     results = apply_ops(attempt_dir, args.ops, ctx.work_dir, write=True)
     ev = _patch_evidence(ctx, args.plan_id, results, preview=False)
     ev.facts["attempt_id"] = args.attempt_id

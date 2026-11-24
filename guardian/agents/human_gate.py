@@ -49,7 +49,8 @@ def record_decision_node(state: GraphState) -> dict:
         route, out = "validate", {}
     elif approval.decision == "reject":
         f.status = FindingStatus.PLANNED
-        route, out = "replan", {"last_validation": {"rejected": approval.comment, "plan_id": plan.plan_id}}
+        route, out = "replan", {"last_validation": {"rejected": approval.comment, "plan_id": plan.plan_id,
+                                                     "reason_type": approval.reason_type}}
     else:  # accept_risk
         f.status = FindingStatus.ACCEPTED
         route, out = "next", {"current": None, "attempt": 0, "plan_id": None}

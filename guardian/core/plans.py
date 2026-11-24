@@ -4,6 +4,8 @@ runs/<id>/plans/<plan_id>.json          RemediationPlan (written once, before th
 runs/<id>/pending_plan.json             {"plan_id", "plan_hash"} only while the run waits at the human gate
 runs/<id>/approvals.jsonl               every human decision, append-only
 runs/<id>/validation/<attempt_id>.json  ValidationResult per attempt
+runs/<id>/validation/<attempt_id>.<plan_id>.json  one per plan when several plans were validated together (batch)
+runs/<id>/pending_batch.json            {"batch_id", "round", "items": [...]} only while a batch waits for decisions
 """
 
 from __future__ import annotations
@@ -49,13 +51,46 @@ def get_pending(run_dir: Path) -> RemediationPlan | None:
     return load_plan(run_dir, json.loads(path.read_text(encoding="utf-8"))["plan_id"])
 
 
+def set_pending_batch(run_dir: Path, batch: dict | None) -> None:
+    path = run_dir / "pending_batch.json"
+    if batch is None:
+        path.unlink(missing_ok=True)
+    else:
+        path.write_text(json.dumps(batch, indent=1), encoding="utf-8")
+
+
+def get_pending_batch(run_dir: Path) -> dict | None:
+    path = run_dir / "pending_batch.json"
+    if not path.exists():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except ValueError:
+        return None
+
+
 def append_approval(run_dir: Path, approval: Approval) -> None:
     with (run_dir / "approvals.jsonl").open("a", encoding="utf-8") as fh:
         fh.write(approval.model_dump_json() + "\n")
 
 
+def validation_path(run_dir: Path, attempt_id: str, plan_id: str | None = None, combined: bool = False) -> Path:
+    name = f"{attempt_id}.{plan_id}.json" if combined and plan_id else f"{attempt_id}.json"
+    return run_dir / "validation" / name
+
+
+def load_validation(run_dir: Path, attempt_id: str, plan_id: str) -> ValidationResult | None:
+    """The result of `plan_id` in attempt `attempt_id` (a combined attempt has one file per plan)."""
+    for path in (validation_path(run_dir, attempt_id, plan_id, True), validation_path(run_dir, attempt_id)):
+        if path.exists():
+            result = ValidationResult.model_validate_json(path.read_text(encoding="utf-8"))
+            if result.plan_id == plan_id:
+                return result
+    return None
+
+
 def save_validation(run_dir: Path, result: ValidationResult) -> Path:
-    path = run_dir / "validation" / f"{result.attempt_id}.json"
+    path = validation_path(run_dir, result.attempt_id, result.plan_id, result.combined)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(result.model_dump_json(indent=2), encoding="utf-8")
     return path

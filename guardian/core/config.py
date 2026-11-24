@@ -32,7 +32,14 @@ class Settings:
     max_llm_findings: int
     offline: bool
     max_llm_tokens: int = 600_000  # G3.6 run budget (input + output tokens)
-    max_plans: int = 3  # D1-05: findings taken into the remediation loop per run
+    max_plans: int = 3  # D1-05: findings taken into the remediation loop per run (sequential mode; 0 = none)
+    remediation_mode: str = "batch"  # batch: every finding gets a recommendation, one decision round, combined
+    #                                  validation | sequential: one plan at a time (the original loop)
+
+    @property
+    def batch_remediation(self) -> bool:
+        """Batch mode is on (max_plans == 0 still means no remediation at all)."""
+        return self.remediation_mode == "batch" and self.max_plans != 0
 
     def describe(self) -> dict:
         """Safe-to-log view (no keys)."""
@@ -45,6 +52,7 @@ class Settings:
             "offline": self.offline,
             "max_llm_tokens": self.max_llm_tokens,
             "max_plans": self.max_plans,
+            "remediation_mode": self.remediation_mode,
         }
 
 
@@ -67,8 +75,11 @@ def load_settings(**overrides) -> Settings:
         offline=env.get("GUARDIAN_OFFLINE", "0") == "1",
         max_llm_tokens=int(env.get("GUARDIAN_MAX_LLM_TOKENS", "600000")),
         max_plans=int(env.get("GUARDIAN_MAX_PLANS", "3")),
+        remediation_mode=env.get("GUARDIAN_REMEDIATION_MODE", "batch").strip().lower(),
     )
     values.update({k: v for k, v in overrides.items() if v is not None})
     if values["llm_mode"] not in {"live", "record", "replay"}:
         raise ValueError(f"GUARDIAN_LLM_MODE must be live|record|replay, got {values['llm_mode']!r}")
+    if values["remediation_mode"] not in {"batch", "sequential"}:
+        raise ValueError(f"GUARDIAN_REMEDIATION_MODE must be batch|sequential, got {values['remediation_mode']!r}")
     return Settings(**values)

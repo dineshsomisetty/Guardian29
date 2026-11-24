@@ -320,7 +320,7 @@ function FindingPane({ id }: { id: string }) {
                 {plans.map((p) => (
                   <li key={p.plan_id}>
                     Attempt {p.attempt}: {planSummary(p, undefined, null).change}{" "}
-                    <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("gate"); }}>Open approval</button>
+                    <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("gate"); }}>Open remediation</button>
                     <button type="button" className="btn ghost sm" onClick={() => { closeInspector(); setView("validation"); }}>Open validation</button>
                   </li>
                 ))}

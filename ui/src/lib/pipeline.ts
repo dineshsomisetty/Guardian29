@@ -20,7 +20,7 @@ export const AGENT_LABEL: Record<AgentId, string> = {
   investigator: "Investigator",
   risk_analyst: "Risk",
   remediation: "Remediation",
-  human_gate: "Approval",
+  human_gate: "Decisions",
   validator: "Validation",
   reporter: "Report",
 };
@@ -52,6 +52,14 @@ export interface Pipeline {
   guardrails: [string, number][];
 }
 
+/** batch-mode graph nodes report under the agent they belong to in the pipeline strip */
+const ALIAS: Record<string, AgentId> = {
+  recommend: "remediation",
+  batch_gate: "human_gate",
+  record_batch: "human_gate",
+  validate_batch: "validator",
+};
+
 const isAgent = (a: string): a is AgentId => (AGENTS as readonly string[]).includes(a);
 
 export function derivePipeline(events: AgentEvent[], status: string): Pipeline {
@@ -67,8 +75,9 @@ export function derivePipeline(events: AgentEvent[], status: string): Pipeline {
       const r = String((e.data as { rule?: unknown }).rule ?? "unknown");
       rules.set(r, (rules.get(r) ?? 0) + 1);
     }
-    if (!isAgent(e.agent)) return;
-    const n = byId.get(e.agent)!;
+    const agent = ALIAS[e.agent] ?? e.agent;
+    if (!isAgent(agent)) return;
+    const n = byId.get(agent)!;
     n.events++;
     n.last = e.summary;
     lastAgent = n.id;

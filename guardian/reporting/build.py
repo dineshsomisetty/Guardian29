@@ -11,6 +11,7 @@ from pathlib import Path
 
 from guardian.core.models import Approval, Confidence, Evidence, Finding, FindingStatus
 from guardian.core.plans import list_plans, list_validations, load_risks
+from guardian.core.recs import load_recs
 from guardian.core.store import JsonStore
 from guardian.guardrails.redact import redact_obj
 from guardian.reporting.schema import Report
@@ -70,11 +71,19 @@ def build_report(run_dir: Path, summary: dict | None = None, inventory: dict | N
                 "pr_markdown": pr_path(vs)} for p in plans]
 
     mitigated = {v.finding_id: p for p in plans for v in validations if v.plan_id == p.plan_id and v.verdict == "mitigated"}
+    rec_notes: dict[str, str] = {}  # batch mode: why a finding has no fix (no alternative / needs a person)
+    if (run_dir / "recommendations.json").is_file():
+        for r in load_recs(run_dir)["items"]:
+            if r.outcome in ("no_alternative", "needs_person") and r.reason:
+                for fid in r.finding_ids:
+                    rec_notes[fid] = r.reason
     remaining = [{"finding_id": f.finding_id, "status": f.status.value,
                   "score": risks[f.finding_id].score if f.finding_id in risks else 0,
                   "note": (f"accepted mitigation, NOT fixed: {mitigated[f.finding_id].expected_risk_reduction}"
-                           if f.finding_id in mitigated and f.status is FindingStatus.ACCEPTED else None)}
+                           if f.finding_id in mitigated and f.status is FindingStatus.ACCEPTED
+                           else rec_notes.get(f.finding_id))}
                  for f in findings if f.status is not FindingStatus.VERIFIED]
+    remaining.sort(key=lambda r: (-r["score"], r["finding_id"]))  # highest risk first
 
     last: dict[str, Confidence] = {}
     for v in validations:  # sorted by attempt id: the last one per finding wins

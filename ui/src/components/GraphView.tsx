@@ -278,8 +278,14 @@ function Canvas({
 
   // first look, and again whenever the set of drawn nodes changes (filters toggled)
   const firstDraw = useRef(true);
+  // arriving to show a particular package: the first look is that package, not the riskiest route
+  const arrivedForTarget = useRef(!!graphTarget);
   useEffect(() => {
     const t = window.setTimeout(() => {
+      if (firstDraw.current && arrivedForTarget.current) {
+        firstDraw.current = false;
+        return;
+      }
       focusRisk(firstDraw.current ? 0 : ANIM);
       firstDraw.current = false;
     }, 60);
@@ -324,11 +330,15 @@ function Canvas({
     }, 120);
     return () => window.clearTimeout(t);
   }, [pending, visIds, centerOn]);
+  // Clear the request only when the jump actually runs: clearing it first re-ran this effect, whose cleanup
+  // cancelled the pending jump, so "Show in dependency map" landed on the default view instead.
   useEffect(() => {
     if (!graphTarget) return;
     const id = graphTarget;
-    clearGraphTarget();
-    const t = window.setTimeout(() => goTo(id), 120);
+    const t = window.setTimeout(() => {
+      clearGraphTarget();
+      goTo(id);
+    }, 120);
     return () => window.clearTimeout(t);
   }, [graphTarget, clearGraphTarget, goTo]);
   useEffect(() => {
@@ -582,7 +592,7 @@ function PackageDetail({ id, label }: { id: string; label: string }) {
         </button>
         {plans.length > 0 && (
           <button type="button" className="btn sm" onClick={() => setView("gate")}>
-            <CheckCheck size={14} aria-hidden /> Proposed fix
+            <CheckCheck size={14} aria-hidden /> Remediation
           </button>
         )}
         {validated && (

@@ -1,5 +1,5 @@
 import type {
-  AgentEvent, Approval, Evidence, Finding, GraphData, RemediationPlan, ReportJson, RiskAssessment,
+  AgentEvent, Approval, Evidence, Finding, GraphData, RecDecision, RecommendationsFile, RemediationPlan, ReportJson, RiskAssessment,
   RunData, RunListItem, RunSummary, SourceKind, ValidationResult,
 } from "./types";
 
@@ -203,7 +203,7 @@ async function jsonLines<T>(url: string): Promise<T[]> {
   }
 }
 
-type Dynamic = Pick<RunData, "summary" | "findings" | "risk" | "plans" | "validation" | "approvals">;
+type Dynamic = Pick<RunData, "summary" | "findings" | "risk" | "plans" | "validation" | "approvals" | "recommendations">;
 
 /** Mutable, cheap-to-refresh part of a run. */
 export async function loadDynamic(src: Src): Promise<Dynamic> {
@@ -215,6 +215,10 @@ export async function loadDynamic(src: Src): Promise<Dynamic> {
   let plans: RemediationPlan[];
   let validation: ValidationResult[];
   let approvals: Approval[];
+  // a missing file (or a static server answering with its fallback page) means "no recommendations": sequential run
+  const recUrl = src.kind === "api" ? `${root(src)}/recommendations` : `${root(src)}/recommendations.json`;
+  const rawRecs = await optJson<RecommendationsFile | null>(recUrl, null);
+  const recommendations = rawRecs && Array.isArray(rawRecs.items) ? rawRecs : null;
   if (src.kind === "api") {
     [plans, validation, approvals] = await Promise.all([
       optJson<RemediationPlan[]>(`${root(src)}/plans`, []),
@@ -231,6 +235,10 @@ export async function loadDynamic(src: Src): Promise<Dynamic> {
         if (a.attempt_id) attemptIds.add(a.attempt_id);
       }
     if (summary.pending_plan) planIds.add(summary.pending_plan.plan_id);
+    for (const it of recommendations?.items ?? []) {
+      if (it.plan_id) planIds.add(it.plan_id);
+      if (it.previous?.plan_id) planIds.add(it.previous.plan_id);
+    }
     const base = root(src);
     [plans, validation, approvals] = await Promise.all([
       Promise.all([...planIds].map((id) => optJson<RemediationPlan | null>(`${base}/plans/${id}.json`, null))).then(
@@ -243,7 +251,7 @@ export async function loadDynamic(src: Src): Promise<Dynamic> {
     ]);
   }
   plans.sort((a, b) => a.attempt - b.attempt);
-  return { summary, findings, risk, plans, validation, approvals };
+  return { summary, findings, risk, plans, validation, approvals, recommendations };
 }
 
 export async function loadRun(src: Src): Promise<RunData> {
@@ -285,18 +293,26 @@ export interface DecisionResult {
   message: string;
 }
 
-export async function postDecision(
-  src: Src,
-  planId: string,
-  body: { plan_hash: string; decision: string; comment: string | null; decided_by: string },
-): Promise<DecisionResult> {
+function friendlyStatus(status: number, batch: boolean): string {
+  if (status === 401) return "Your sign-in has expired or is not valid. Sign in again and retry.";
+  if (status === 403) return "Your role cannot do this. Only approvers can decide on a fix.";
+  if (status === 429) return "Guardian is busy with other runs right now. Wait a moment and try again.";
+  if (status === 409) return "This run is not waiting for a decision any more. It may already have been answered.";
+  if (status === 400)
+    return batch
+      ? "Guardian did not accept these decisions because they do not match the fixes that are waiting. Reload the page and try again."
+      : "Guardian rejected the decision because it does not match the plan that is waiting. Reload the page and try again.";
+  return "Guardian could not record the decision.";
+}
+
+async function postJson(url: string, payload: unknown, ok: string, batch: boolean): Promise<DecisionResult> {
   try {
-    const r = await afetch(`${API_BASE}/runs/${src.runId}/plans/${planId}/decision`, {
+    const r = await afetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     });
-    if (r.ok) return { ok: true, message: "Decision recorded." };
+    if (r.ok) return { ok: true, message: ok };
     let detail = "";
     try {
       const j = (await r.json()) as { detail?: unknown };
@@ -304,20 +320,44 @@ export async function postDecision(
     } catch {
       /* keep status */
     }
-    const friendly =
-      r.status === 401
-        ? "Your sign-in has expired or is not valid. Sign in again and retry."
-        : r.status === 403
-          ? "Your role cannot do this. Only approvers can decide on a fix."
-          : r.status === 429
-            ? "Guardian is busy with other runs right now. Wait a moment and try again."
-            : r.status === 409
-        ? "This run is not waiting for a decision any more. It may already have been answered."
-        : r.status === 400
-          ? "Guardian rejected the decision because it does not match the plan that is waiting. Reload the page and try again."
-          : "Guardian could not record the decision.";
-    return { ok: false, message: `${friendly}${detail ? ` (${detail})` : ""}` };
+    return { ok: false, message: `${friendlyStatus(r.status, batch)}${detail ? ` (${detail})` : ""}` };
   } catch {
     return { ok: false, message: "Could not reach the Guardian API. Check that it is running and try again." };
   }
+}
+
+export async function postDecision(
+  src: Src,
+  planId: string,
+  body: { plan_hash: string; decision: string; comment: string | null; decided_by: string },
+): Promise<DecisionResult> {
+  return postJson(`${API_BASE}/runs/${src.runId}/plans/${planId}/decision`, body, "Decision recorded.", false);
+}
+
+export interface BatchDecision {
+  plan_id: string;
+  plan_hash: string;
+  decision: RecDecision;
+  comment: string | null;
+  /** for a reject: why, which steers the next suggestion */
+  reason_type?: RejectReason | null;
+}
+
+export type RejectReason = "too_big" | "too_new" | "breaks_app" | "different_approach" | "other";
+
+/** One decision for every fix in the waiting batch; Guardian starts validation when it accepts them. */
+export async function submitBatchDecisions(
+  src: Src,
+  runId: string,
+  batchId: string,
+  decisions: BatchDecision[],
+  decidedBy: string,
+  partial = false,
+): Promise<DecisionResult> {
+  return postJson(
+    `${API_BASE}/runs/${runId || src.runId}/batches/${encodeURIComponent(batchId)}/decisions`,
+    partial ? { decisions, decided_by: decidedBy, partial: true } : { decisions, decided_by: decidedBy },
+    "Decisions recorded.",
+    true,
+  );
 }

@@ -115,13 +115,13 @@ def test_pause_resume_verify_and_replan(target, settings, fake_llm_factory):
     assert "ngy-cookie" not in (attempt / "package.json").read_text()
     assert "ngy-cookie" in (target / "package.json").read_text()  # the target itself is never modified
 
-    # next queued findings: lockfile then CI pin (each its own plan, SHA from evidence)
-    lock_plan = get_pending(run_dir)
-    assert lock_plan.ops[0].op == "generate_lockfile"
-    _decide(s, "run_gate", "accept_risk", comment="lockfile policy handled upstream")
+    # next queued findings, highest risk score first: CI pin (SHA from evidence), then the lockfile
     ci_plan = get_pending(run_dir)
     assert ci_plan.ops[0].op == "pin_action_sha" and ci_plan.target_version == SHA
-    run_dir = _decide(s, "run_gate", "approve")
+    _decide(s, "run_gate", "approve")
+    lock_plan = get_pending(run_dir)
+    assert lock_plan.ops[0].op == "generate_lockfile"
+    run_dir = _decide(s, "run_gate", "accept_risk", comment="lockfile policy handled upstream")
 
     summary = _summary(run_dir)
     assert summary["status"] == "done" and summary["pending_plan"] is None
@@ -131,7 +131,7 @@ def test_pause_resume_verify_and_replan(target, settings, fake_llm_factory):
                   if (at / "work" / ".github" / "workflows" / "ci.yml").read_text().count(SHA))
     assert f"coverallsapp/github-action@{SHA} # v2" in (pinned / "work/.github/workflows/ci.yml").read_text()
     approvals = (run_dir / "approvals.jsonl").read_text().splitlines()
-    assert [json.loads(a)["decision"] for a in approvals] == ["reject", "approve", "accept_risk", "approve"]
+    assert [json.loads(a)["decision"] for a in approvals] == ["reject", "approve", "approve", "accept_risk"]
     types = {e["type"] for e in _trace(run_dir)}
     assert {"gate_wait", "gate_resume"} <= types
 
