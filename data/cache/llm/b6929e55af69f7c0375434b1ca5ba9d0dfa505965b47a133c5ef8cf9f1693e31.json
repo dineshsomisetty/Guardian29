@@ -1,0 +1,1 @@
+{"agent": "investigator", "text": "{\"action\": \"call_tool\", \"tool\": \"registry_metadata\", \"name\": \"@fortawesome/fontawesome-svg-core\", \"version\": \"1.2.36\", \"path\": null, \"line\": null, \"context\": null, \"conclusion\": null, \"claims\": []}", "model": "deepseek-flash"}

@@ -1,0 +1,53 @@
+{
+ "plan_id": "pl_1RNJ47E65GH2BH8VGS9ZM5H3BV",
+ "plan_hash": "e6e33c5f0eb6478bcd5139d5fea78a00ad53e8594249fc9a8b16ac8713529846",
+ "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+ "attempt": 1,
+ "action": "upgrade",
+ "ops": [
+  {
+   "op": "set_dependency_version",
+   "file_path": "package.json",
+   "args": {
+    "name": "moment",
+    "version": "2.29.2"
+   }
+  }
+ ],
+ "target_version": "2.29.2",
+ "rationale": [
+  {
+   "text": "moment@2.29.2 is a published version above the fixed boundary.",
+   "field": "target_version",
+   "value": "2.29.2",
+   "evidence_ids": [
+    "ev_DJWBHP1G201CYFW6VZSKDENC8S"
+   ],
+   "label": "verified"
+  },
+  {
+   "text": "Callers of the legacy API are not verified to be compatible until the sandbox build runs.",
+   "field": null,
+   "value": null,
+   "evidence_ids": [
+    "ev_DJWBHP1G201CYFW6VZSKDENC8S"
+   ],
+   "label": "inferred"
+  }
+ ],
+ "expected_risk_reduction": "high -> resolved if the rescan no longer reports the advisory (simulate_after).",
+ "compatibility_impact": {
+  "from_version": "2.0.0",
+  "to_version": "2.29.2",
+  "semver_delta": "minor",
+  "engines_ok": true,
+  "peer_dep_changes": [],
+  "deprecated_target": false,
+  "level": "medium"
+ },
+ "rollback": "Nothing is applied to the target: the patch lands in a copy under runs/<run>/attempts/. Discard it, or revert the diff after adoption.",
+ "evidence_ids": [
+  "ev_4H15G5E4G7X0NTH82F7AG3BCKK",
+  "ev_DJWBHP1G201CYFW6VZSKDENC8S"
+ ]
+}

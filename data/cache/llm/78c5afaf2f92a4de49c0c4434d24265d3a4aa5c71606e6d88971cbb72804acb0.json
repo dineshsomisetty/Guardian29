@@ -1,0 +1,1 @@
+{"agent": "investigator", "text": "{\"action\": \"call_tool\", \"tool\": \"registry_metadata\", \"name\": \"nodemon\", \"version\": \"1.19.1\", \"path\": null, \"line\": null, \"context\": null, \"conclusion\": null, \"claims\": []}", "model": "deepseek-flash"}

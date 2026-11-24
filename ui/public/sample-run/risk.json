@@ -1,0 +1,5234 @@
+[
+ {
+  "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+  "score": 67.6,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.72,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 67.6 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.72 derives from CVSS.",
+    "field": "S",
+    "value": "0.72",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+  "score": 70.5,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 70.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGMNM7A7KPXBG8MJFY1",
+  "score": 88.4,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.98,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN1Z0465DPCH6QC2A",
+     "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN1Z0465DPCH6QC2A",
+     "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN1Z0465DPCH6QC2A",
+     "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN1Z0465DPCH6QC2A",
+     "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN1Z0465DPCH6QC2A",
+     "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 88.4 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.98 derives from CVSS.",
+    "field": "S",
+    "value": "0.98",
+    "evidence_ids": [
+     "ev_01M8444EGMN1Z0465DPCH6QC2A",
+     "ev_01M8444J8Q847RZ5KRFKKAMKDR"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGMS13JE7WWYP9Q8MD9",
+  "score": 72.4,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.98,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+     "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+     "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+     "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+     "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+     "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 72.4 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.98 derives from CVSS.",
+    "field": "S",
+    "value": "0.98",
+    "evidence_ids": [
+     "ev_01M8444EGMKTQRER3ZX61B5TDQ",
+     "ev_01M8444J8Q4QJN3AFJPMRN7QBX"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGMPKTQJYD90F0SE13G",
+  "score": 84.8,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.65,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+     "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+     "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+     "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+     "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+     "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 84.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.65 derives from CVSS.",
+    "field": "S",
+    "value": "0.65",
+    "evidence_ids": [
+     "ev_01M8444EGMN9KGC0Q92BM5A6HM",
+     "ev_01M8444J8QGQABADJPYAY0HDXN"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGMSMY80WVD7WPYZGDB",
+  "score": 57.3,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.91,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+     "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+     "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+     "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+     "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+     "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 57.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.91 derives from CVSS.",
+    "field": "S",
+    "value": "0.91",
+    "evidence_ids": [
+     "ev_01M8444EGMBNNPXMPQCHYZ8TB3",
+     "ev_01M8444J8QD151JVGGMVQM3Q49"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGMG404YWZ2DWZZKB13",
+  "score": 91.8,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMTEMHYST75XBD4BXZ",
+     "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMTEMHYST75XBD4BXZ",
+     "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMTEMHYST75XBD4BXZ",
+     "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMTEMHYST75XBD4BXZ",
+     "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMTEMHYST75XBD4BXZ",
+     "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 91.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGMTEMHYST75XBD4BXZ",
+     "ev_01M8444J8QR3TY2AYEV0M8WAG8"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGM8HFZPHNJS12CB5FF",
+  "score": 83.8,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.65,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+     "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+     "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+     "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+     "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+     "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 83.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.65 derives from CVSS.",
+    "field": "S",
+    "value": "0.65",
+    "evidence_ids": [
+     "ev_01M8444EGMRC4WAFH9F32X0Q7F",
+     "ev_01M8444J8QEQRA9VPQJ6JT89JD"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGM1RT80B4BS6RN8JKW",
+  "score": 62.5,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMQCSEC5QCVT21HEXF",
+     "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMQCSEC5QCVT21HEXF",
+     "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMQCSEC5QCVT21HEXF",
+     "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMQCSEC5QCVT21HEXF",
+     "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMQCSEC5QCVT21HEXF",
+     "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 62.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGMQCSEC5QCVT21HEXF",
+     "ev_01M8444J8Q9SY5CQCVCHDK2NG6"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGMJDWPR8BFPCDA9Q03",
+  "score": 76.6,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.68,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+     "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+     "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+     "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+     "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+     "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 76.6 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.68 derives from CVSS.",
+    "field": "S",
+    "value": "0.68",
+    "evidence_ids": [
+     "ev_01M8444EGMVQ8SP6QERGHY3CFX",
+     "ev_01M8444J8Q74C77PEFHEZRJZYB"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGM76ARM7RV0AMGY1TS",
+  "score": 79.8,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+     "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+     "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+     "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+     "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+     "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 79.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGMB3B54SYNJWZ3RE1A",
+     "ev_01M8444J8HTSKBEATV4ZE7E4X6"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGM7N5XWDATZTHWQ7AH",
+  "score": 75.2,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+     "ev_01M8444J8Q8BV1247V36PV704V"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+     "ev_01M8444J8Q8BV1247V36PV704V"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+     "ev_01M8444J8Q8BV1247V36PV704V"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+     "ev_01M8444J8Q8BV1247V36PV704V"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+     "ev_01M8444J8Q8BV1247V36PV704V"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 75.2 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGMMHERM3HT6D7Y24GZ",
+     "ev_01M8444J8Q8BV1247V36PV704V"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNMFWMMZ78TSW5X91B",
+  "score": 50.9,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+     "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+     "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+     "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+     "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+     "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 50.9 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGN1QJ6W2NEWSQNXX6Z",
+     "ev_01M8444J8QMENQK8T9AFY8MV76"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNTKBM9A4QYMVCSTE1",
+  "score": 71.1,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.77,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN87KRA7S9AJGFX39B",
+     "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN87KRA7S9AJGFX39B",
+     "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN87KRA7S9AJGFX39B",
+     "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN87KRA7S9AJGFX39B",
+     "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN87KRA7S9AJGFX39B",
+     "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 71.1 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.77 derives from CVSS.",
+    "field": "S",
+    "value": "0.77",
+    "evidence_ids": [
+     "ev_01M8444EGN87KRA7S9AJGFX39B",
+     "ev_01M8444J8Q05SNM9ASCAM2FM8W"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNN6W8383Q7YRG53B6",
+  "score": 74.5,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.61,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRPY04A555V22YS9M",
+     "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRPY04A555V22YS9M",
+     "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRPY04A555V22YS9M",
+     "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRPY04A555V22YS9M",
+     "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNRPY04A555V22YS9M",
+     "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 74.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.61 derives from CVSS.",
+    "field": "S",
+    "value": "0.61",
+    "evidence_ids": [
+     "ev_01M8444EGNRPY04A555V22YS9M",
+     "ev_01M8444J8QQ9VF64W6FR7RY1YT"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNF416ECXW2FZNJ0XP",
+  "score": 65.8,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.65,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2WD64HCEP7D1QQPW",
+     "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2WD64HCEP7D1QQPW",
+     "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2WD64HCEP7D1QQPW",
+     "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2WD64HCEP7D1QQPW",
+     "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN2WD64HCEP7D1QQPW",
+     "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 65.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.65 derives from CVSS.",
+    "field": "S",
+    "value": "0.65",
+    "evidence_ids": [
+     "ev_01M8444EGN2WD64HCEP7D1QQPW",
+     "ev_01M8444J8QF4R9YRXM2A8914J7"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNA6BY6BGPNPWB5CHN",
+  "score": 69.5,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.91,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNKCS2H48WPJYSXHA3",
+     "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNKCS2H48WPJYSXHA3",
+     "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNKCS2H48WPJYSXHA3",
+     "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNKCS2H48WPJYSXHA3",
+     "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNKCS2H48WPJYSXHA3",
+     "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 69.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.91 derives from CVSS.",
+    "field": "S",
+    "value": "0.91",
+    "evidence_ids": [
+     "ev_01M8444EGNKCS2H48WPJYSXHA3",
+     "ev_01M8444J8QMZDE5F2NPHJX9JPA"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNQS4QJ6D8G1CFM4J6",
+  "score": 66.9,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+     "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+     "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+     "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+     "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+     "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 66.9 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGNYSXFNGR1R4PKKWBQ",
+     "ev_01M8444J8QSNJ54S3181DEWRM6"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNH0XS3NTN8Q97DDGY",
+  "score": 76.1,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.92,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9XM861CC87KYP2M1",
+     "ev_01M8444J8QSG879GBWFN65SJWM"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9XM861CC87KYP2M1",
+     "ev_01M8444J8QSG879GBWFN65SJWM"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9XM861CC87KYP2M1",
+     "ev_01M8444J8QSG879GBWFN65SJWM"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9XM861CC87KYP2M1",
+     "ev_01M8444J8QSG879GBWFN65SJWM"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN9XM861CC87KYP2M1",
+     "ev_01M8444J8QSG879GBWFN65SJWM"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 76.1 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.92 derives from CVSS.",
+    "field": "S",
+    "value": "0.92",
+    "evidence_ids": [
+     "ev_01M8444EGN9XM861CC87KYP2M1",
+     "ev_01M8444J8QSG879GBWFN65SJWM"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN0A4X9FBRAES3HFKK",
+  "score": 73.2,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.9,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN3H3JF4K1A51WA8H1",
+     "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN3H3JF4K1A51WA8H1",
+     "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN3H3JF4K1A51WA8H1",
+     "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN3H3JF4K1A51WA8H1",
+     "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN3H3JF4K1A51WA8H1",
+     "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 73.2 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.9 derives from CVSS.",
+    "field": "S",
+    "value": "0.9",
+    "evidence_ids": [
+     "ev_01M8444EGN3H3JF4K1A51WA8H1",
+     "ev_01M8444J8QV0EQ1QBH5E0HBBFM"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNC0SXH45SM4J0SBQF",
+  "score": 79.8,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.82,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7PWM9YZ3318XYD5",
+     "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7PWM9YZ3318XYD5",
+     "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNT7PWM9YZ3318XYD5",
+     "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7PWM9YZ3318XYD5",
+     "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7PWM9YZ3318XYD5",
+     "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 79.8 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.82 derives from CVSS.",
+    "field": "S",
+    "value": "0.82",
+    "evidence_ids": [
+     "ev_01M8444EGNT7PWM9YZ3318XYD5",
+     "ev_01M8444J8QSV9EM1E369R42M3Q"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNQH2JYWY72MVDJ57D",
+  "score": 48.3,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.61,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+     "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+     "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+     "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+     "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+     "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 48.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.61 derives from CVSS.",
+    "field": "S",
+    "value": "0.61",
+    "evidence_ids": [
+     "ev_01M8444EGN4KJ9JJR5AHAAHTK9",
+     "ev_01M8444J8QM26SRA8PDG9Q82P5"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN9HJY4B8ZTEZYR508",
+  "score": 70.6,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.82,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZ549ZW6SW93871CM",
+     "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZ549ZW6SW93871CM",
+     "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZ549ZW6SW93871CM",
+     "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZ549ZW6SW93871CM",
+     "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNZ549ZW6SW93871CM",
+     "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 70.6 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.82 derives from CVSS.",
+    "field": "S",
+    "value": "0.82",
+    "evidence_ids": [
+     "ev_01M8444EGNZ549ZW6SW93871CM",
+     "ev_01M8444J8Q6VDGXC84YJWTDKAK"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN4DDTENM1VFK5934W",
+  "score": 77.2,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.4,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+     "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+     "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+     "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+     "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+     "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 77.2 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.4 derives from CVSS.",
+    "field": "S",
+    "value": "0.4",
+    "evidence_ids": [
+     "ev_01M8444EGNGSFTT3S78R0PKNZQ",
+     "ev_01M8444J8Q5VQC0KY2KDT5YDF9"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNVMZ5BTSB9KP34PJR",
+  "score": 78.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.81,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+     "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+     "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+     "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+     "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+     "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 78.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.81 derives from CVSS.",
+    "field": "S",
+    "value": "0.81",
+    "evidence_ids": [
+     "ev_01M8444EGNRCAZ8RMNYQC15QVP",
+     "ev_01M8444J8QAV0C7SMFCXX2ZGWX"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN2CPPP6J0MQBFVT00",
+  "score": 60.3,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.81,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+     "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+     "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+     "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+     "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+     "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 60.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.81 derives from CVSS.",
+    "field": "S",
+    "value": "0.81",
+    "evidence_ids": [
+     "ev_01M8444EGNC9WMG6YGQ3X1MB5Z",
+     "ev_01M8444J8QTEGEE16YYZ1P57CS"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNDTHPXX9KNBMKBZWM",
+  "score": 58.0,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFV912BNZGY7DWN5M",
+     "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFV912BNZGY7DWN5M",
+     "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFV912BNZGY7DWN5M",
+     "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFV912BNZGY7DWN5M",
+     "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNFV912BNZGY7DWN5M",
+     "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 58.0 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from CVSS.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444EGNFV912BNZGY7DWN5M",
+     "ev_01M8444J8QMNHK97SEF2SM39P7"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNWDRY75J0860ZRZQ6",
+  "score": 80.2,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFK7FGG10AHPMBYQV",
+     "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFK7FGG10AHPMBYQV",
+     "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFK7FGG10AHPMBYQV",
+     "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFK7FGG10AHPMBYQV",
+     "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFK7FGG10AHPMBYQV",
+     "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 80.2 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from CVSS.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444EGNFK7FGG10AHPMBYQV",
+     "ev_01M8444J8QD0DSAF1769HFBJQV"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNEKEGB5N7N2SPXV4Q",
+  "score": 60.6,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.82,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZYMCVKKS20QAVDSF",
+     "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZYMCVKKS20QAVDSF",
+     "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZYMCVKKS20QAVDSF",
+     "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNZYMCVKKS20QAVDSF",
+     "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNZYMCVKKS20QAVDSF",
+     "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 60.6 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.82 derives from CVSS.",
+    "field": "S",
+    "value": "0.82",
+    "evidence_ids": [
+     "ev_01M8444EGNZYMCVKKS20QAVDSF",
+     "ev_01M8444J8QGDCHHPFC7MVFB0WG"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN1BJP9Z4N1DV2ZW28",
+  "score": 77.8,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN72MNCPQHH1836HVN",
+     "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN72MNCPQHH1836HVN",
+     "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN72MNCPQHH1836HVN",
+     "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN72MNCPQHH1836HVN",
+     "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN72MNCPQHH1836HVN",
+     "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 77.8 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGN72MNCPQHH1836HVN",
+     "ev_01M8444J8Q6P3VJYJ3D33CA7TB"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNKWPEHRPBNMGK8N5A",
+  "score": 68.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.44,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNCA9TV9PS17KFWDDE",
+     "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNCA9TV9PS17KFWDDE",
+     "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNCA9TV9PS17KFWDDE",
+     "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNCA9TV9PS17KFWDDE",
+     "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNCA9TV9PS17KFWDDE",
+     "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 68.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.44 derives from CVSS.",
+    "field": "S",
+    "value": "0.44",
+    "evidence_ids": [
+     "ev_01M8444EGNCA9TV9PS17KFWDDE",
+     "ev_01M8444J8HV2GW0KDME2ZHDDG2"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNX66BHAF4DQ2Q0M9T",
+  "score": 90.3,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.87,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+     "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+     "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+     "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+     "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+     "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 90.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.87 derives from CVSS.",
+    "field": "S",
+    "value": "0.87",
+    "evidence_ids": [
+     "ev_01M8444EGN1Q83PCZ2YGRV9RVV",
+     "ev_01M8444J8QX5D07SFCTA5KVCQ7"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNPG2HRJFA8RSC50M5",
+  "score": 50.9,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+     "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+     "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+     "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+     "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+     "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 50.9 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGNG574NQC09ZQ3SYEZ",
+     "ev_01M8444J8QEGXHNQW8M40B8CEC"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNTDAB3K453X4TP29S",
+  "score": 59.7,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.64,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+     "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+     "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+     "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+     "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+     "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 59.7 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.64 derives from CVSS.",
+    "field": "S",
+    "value": "0.64",
+    "evidence_ids": [
+     "ev_01M8444EGN7QEJQXC8DGR1R1BT",
+     "ev_01M8444J8Q8RAPA6ZHKWPNQZVZ"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNVBH19YV9VTHH2S7X",
+  "score": 66.5,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.64,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4Z2G1311JMW7TBEE",
+     "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4Z2G1311JMW7TBEE",
+     "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4Z2G1311JMW7TBEE",
+     "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4Z2G1311JMW7TBEE",
+     "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN4Z2G1311JMW7TBEE",
+     "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 66.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.64 derives from CVSS.",
+    "field": "S",
+    "value": "0.64",
+    "evidence_ids": [
+     "ev_01M8444EGN4Z2G1311JMW7TBEE",
+     "ev_01M8444J8QQS07ERN0YTE7AMS5"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN2KYRD4MV8Q8V9F1F",
+  "score": 38.9,
+  "band": "low",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.63,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+     "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+     "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+     "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ]
+   },
+   "P": {
+    "value": 0.3,
+    "tier": "dev",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+     "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+     "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 38.9 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.63 derives from CVSS.",
+    "field": "S",
+    "value": "0.63",
+    "evidence_ids": [
+     "ev_01M8444EGNFKB4F5EC8K0DVJF9",
+     "ev_01M8444J8QAY7EPFTS89X7KA3Y"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNBKS9XDTA31VJ7RY2",
+  "score": 69.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.69,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNVGV5BSMW0GFVH89E",
+     "ev_01M8444J8QY8GE829CGFAWADJN"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNVGV5BSMW0GFVH89E",
+     "ev_01M8444J8QY8GE829CGFAWADJN"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNVGV5BSMW0GFVH89E",
+     "ev_01M8444J8QY8GE829CGFAWADJN"
+    ]
+   },
+   "P": {
+    "value": 0.3,
+    "tier": "dev",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNVGV5BSMW0GFVH89E",
+     "ev_01M8444J8QY8GE829CGFAWADJN"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNVGV5BSMW0GFVH89E",
+     "ev_01M8444J8QY8GE829CGFAWADJN"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 69.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.69 derives from CVSS.",
+    "field": "S",
+    "value": "0.69",
+    "evidence_ids": [
+     "ev_01M8444EGNVGV5BSMW0GFVH89E",
+     "ev_01M8444J8QY8GE829CGFAWADJN"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNA9DGPY43H20HJY82",
+  "score": 72.8,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEWB6WGTTQR5TABWB",
+     "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEWB6WGTTQR5TABWB",
+     "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNEWB6WGTTQR5TABWB",
+     "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEWB6WGTTQR5TABWB",
+     "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNEWB6WGTTQR5TABWB",
+     "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 72.8 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGNEWB6WGTTQR5TABWB",
+     "ev_01M8444J8Q20W7Z0E7QJJ6Y1Y5"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNMFFVVKMGAYXCVTBM",
+  "score": 62.3,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.71,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYP66GTFXX29JY1SJ",
+     "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYP66GTFXX29JY1SJ",
+     "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYP66GTFXX29JY1SJ",
+     "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYP66GTFXX29JY1SJ",
+     "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYP66GTFXX29JY1SJ",
+     "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 62.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.71 derives from CVSS.",
+    "field": "S",
+    "value": "0.71",
+    "evidence_ids": [
+     "ev_01M8444EGNYP66GTFXX29JY1SJ",
+     "ev_01M8444J8QWEGHFZMVRESMM2EY"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN4JZPQEN88DZ3F4QF",
+  "score": 78.1,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.82,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+     "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+     "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+     "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+     "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+     "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 78.1 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.82 derives from CVSS.",
+    "field": "S",
+    "value": "0.82",
+    "evidence_ids": [
+     "ev_01M8444EGNT7KB4ZKHRYEX2EBA",
+     "ev_01M8444J8QDCSC6HN1NQA16JEM"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN2X447SF6SETQVPD3",
+  "score": 61.4,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNECHD03CXA6PTE2VN",
+     "ev_01M8444J8Q2P65K82P7800VGME"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNECHD03CXA6PTE2VN",
+     "ev_01M8444J8Q2P65K82P7800VGME"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNECHD03CXA6PTE2VN",
+     "ev_01M8444J8Q2P65K82P7800VGME"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNECHD03CXA6PTE2VN",
+     "ev_01M8444J8Q2P65K82P7800VGME"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNECHD03CXA6PTE2VN",
+     "ev_01M8444J8Q2P65K82P7800VGME"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 61.4 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGNECHD03CXA6PTE2VN",
+     "ev_01M8444J8Q2P65K82P7800VGME"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN0RFF2B04HQGPXJSE",
+  "score": 56.4,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.88,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+     "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+     "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+     "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+     "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+     "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 56.4 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.88 derives from CVSS.",
+    "field": "S",
+    "value": "0.88",
+    "evidence_ids": [
+     "ev_01M8444EGNPFZKTQZ6KP3FVYYK",
+     "ev_01M8444J8QMDWCEPVZ1T35YCAF"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN613TANBGEYA4GHDF",
+  "score": 64.9,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+     "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+     "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+     "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+     "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+     "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 64.9 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGNB37VBJCMBVZJ0QSV",
+     "ev_01M8444J8Q1WWFJ26XC4J4JPKM"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNXFEEWST0VNYKEBPZ",
+  "score": 45.5,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.85,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNHSNV064R2B9FC8NR",
+     "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNHSNV064R2B9FC8NR",
+     "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNHSNV064R2B9FC8NR",
+     "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ]
+   },
+   "P": {
+    "value": 0.3,
+    "tier": "dev",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNHSNV064R2B9FC8NR",
+     "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNHSNV064R2B9FC8NR",
+     "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 45.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.85 derives from CVSS.",
+    "field": "S",
+    "value": "0.85",
+    "evidence_ids": [
+     "ev_01M8444EGNHSNV064R2B9FC8NR",
+     "ev_01M8444J8QDKMTFK1Z7SGKCMTQ"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN76B36ZH68AX72PRP",
+  "score": 75.2,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.53,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN03XRHP20JFE4T3E7",
+     "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN03XRHP20JFE4T3E7",
+     "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN03XRHP20JFE4T3E7",
+     "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN03XRHP20JFE4T3E7",
+     "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN03XRHP20JFE4T3E7",
+     "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 75.2 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.53 derives from CVSS.",
+    "field": "S",
+    "value": "0.53",
+    "evidence_ids": [
+     "ev_01M8444EGN03XRHP20JFE4T3E7",
+     "ev_01M8444J8Q5RVXT3PGPGKF657P"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN23SHZNTDFTSAX6JD",
+  "score": 82.5,
+  "band": "critical",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.61,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNS263ZEJSPHAS91QS",
+     "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNS263ZEJSPHAS91QS",
+     "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNS263ZEJSPHAS91QS",
+     "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNS263ZEJSPHAS91QS",
+     "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNS263ZEJSPHAS91QS",
+     "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 82.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.61 derives from CVSS.",
+    "field": "S",
+    "value": "0.61",
+    "evidence_ids": [
+     "ev_01M8444EGNS263ZEJSPHAS91QS",
+     "ev_01M8444J8Q7A743XGHRZMPE5E8"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNVMMBTT13WB1DNKBS",
+  "score": 68.8,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.75,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNSDZX5GS6A4RKABM7",
+     "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ]
+   },
+   "E": {
+    "value": 0.97,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNSDZX5GS6A4RKABM7",
+     "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNSDZX5GS6A4RKABM7",
+     "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNSDZX5GS6A4RKABM7",
+     "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGNSDZX5GS6A4RKABM7",
+     "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 68.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.75 derives from CVSS.",
+    "field": "S",
+    "value": "0.75",
+    "evidence_ids": [
+     "ev_01M8444EGNSDZX5GS6A4RKABM7",
+     "ev_01M8444J8Q69W416NQ0V4B2HEQ"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNW2Y2WMY2JMJRHE7E",
+  "score": 62.3,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.85,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+     "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+     "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+     "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ]
+   },
+   "P": {
+    "value": 0.3,
+    "tier": "dev",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+     "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+     "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 62.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.85 derives from CVSS.",
+    "field": "S",
+    "value": "0.85",
+    "evidence_ids": [
+     "ev_01M8444EGNFDEJ0Y5TC39V0VDV",
+     "ev_01M8444J8Q7G7PQ8VJDVHG9C88"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNB7GDQA1T7JEH68P2",
+  "score": 65.5,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.61,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+     "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+     "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+     "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+     "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+     "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 65.5 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.61 derives from CVSS.",
+    "field": "S",
+    "value": "0.61",
+    "evidence_ids": [
+     "ev_01M8444EGNFQX6ZFQJW07M7AJY",
+     "ev_01M8444J8QJEAN2KF8CNYXTJW0"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNBJPW2NPBT3K3R90H",
+  "score": 69.7,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.54,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+     "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+     "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+     "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+     "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+     "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 69.7 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.54 derives from CVSS.",
+    "field": "S",
+    "value": "0.54",
+    "evidence_ids": [
+     "ev_01M8444EGNYPZ6Y2Y18E04YH00",
+     "ev_01M8444J8QPMS1D28DCAQ1G53T"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNN8SS5CAQS3K33K0V",
+  "score": 78.0,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.69,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPX19FBYGH9MCD511",
+     "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPX19FBYGH9MCD511",
+     "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPX19FBYGH9MCD511",
+     "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPX19FBYGH9MCD511",
+     "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNPX19FBYGH9MCD511",
+     "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 78.0 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.69 derives from CVSS.",
+    "field": "S",
+    "value": "0.69",
+    "evidence_ids": [
+     "ev_01M8444EGNPX19FBYGH9MCD511",
+     "ev_01M8444J8QZKHNPS4EE1FS07YD"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNNAPNFKX3RVBPZ3JC",
+  "score": 75.8,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.56,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRV58YDF8YWDWQR56",
+     "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRV58YDF8YWDWQR56",
+     "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRV58YDF8YWDWQR56",
+     "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRV58YDF8YWDWQR56",
+     "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNRV58YDF8YWDWQR56",
+     "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 75.8 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.56 derives from CVSS.",
+    "field": "S",
+    "value": "0.56",
+    "evidence_ids": [
+     "ev_01M8444EGNRV58YDF8YWDWQR56",
+     "ev_01M8444J8H98RQAK66BBX0GAY1"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNGRNVTCBQ1DCE9P1S",
+  "score": 49.9,
+  "band": "medium",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.33,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+     "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ]
+   },
+   "E": {
+    "value": 0.12,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+     "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ]
+   },
+   "R": {
+    "value": 0.6,
+    "tier": "imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+     "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+     "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+     "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 49.9 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.33 derives from CVSS.",
+    "field": "S",
+    "value": "0.33",
+    "evidence_ids": [
+     "ev_01M8444EGN2M46WXS4ZGDZFJRK",
+     "ev_01M8444J8QSJ1QMCX4BCTC7S19"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN7RTEZNE2STYYZVTE",
+  "score": 74.0,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+     "ev_01M8444J8QP7G25QS994Q49PS1"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+     "ev_01M8444J8QP7G25QS994Q49PS1"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+     "ev_01M8444J8QP7G25QS994Q49PS1"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+     "ev_01M8444J8QP7G25QS994Q49PS1"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+     "ev_01M8444J8QP7G25QS994Q49PS1"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 74.0 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from CVSS.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444EGNEYW1JTQ0ZDN4Z6Y1",
+     "ev_01M8444J8QP7G25QS994Q49PS1"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGNJQMJ5B8RMSK0QTVQ",
+  "score": 61.6,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.87,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+     "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ]
+   },
+   "E": {
+    "value": 0.34,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+     "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ]
+   },
+   "R": {
+    "value": 0.1,
+    "tier": "not imported",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+     "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+     "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+     "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 61.6 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.87 derives from CVSS.",
+    "field": "S",
+    "value": "0.87",
+    "evidence_ids": [
+     "ev_01M8444EGNFQXYEFM6JK6G2ZVN",
+     "ev_01M8444J8Q55RFTV97SSFNEX15"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444EGN9G7CTZ33R3AKG922",
+  "score": 59.0,
+  "band": "medium",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+     "ev_01M8444J8QE9R23R9QT6HBV390"
+    ]
+   },
+   "E": {
+    "value": 0.56,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+     "ev_01M8444J8QE9R23R9QT6HBV390"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+     "ev_01M8444J8QE9R23R9QT6HBV390"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+     "ev_01M8444J8QE9R23R9QT6HBV390"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+     "ev_01M8444J8QE9R23R9QT6HBV390"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 59.0 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from CVSS.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444EGN9M2CJSYNQMBBTVBP",
+     "ev_01M8444J8QE9R23R9QT6HBV390"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444J8Q9T160BYNPJ3T9855",
+  "score": 70.3,
+  "band": "high",
+  "confidence": "high",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.17,
+    "tier": "cvss",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ]
+   },
+   "E": {
+    "value": 0.81,
+    "tier": "epss percentile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ]
+   },
+   "R": {
+    "value": 1.0,
+    "tier": "called",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 70.3 from S/E/R/P/X; all factors grounded in evidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.17 derives from CVSS.",
+    "field": "S",
+    "value": "0.17",
+    "evidence_ids": [
+     "ev_01M8444J8QMMYVSJ0RR7RD12SX"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JA74SAPHBXHZPA44JEX",
+  "score": 57.5,
+  "band": "medium",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "lockfile",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 57.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from category default.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444JA7GP6N3JYPZBHRXJ8F"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JB3TCC7QXEF2DZSKRB9",
+  "score": 69.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.9,
+    "tier": "typosquat",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 69.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.9 derives from category default.",
+    "field": "S",
+    "value": "0.9",
+    "evidence_ids": [
+     "ev_01M8444JB390FWNFBJ3Z1SS3WH"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JBTWK9BKFZYXTT6FYR7",
+  "score": 69.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.9,
+    "tier": "typosquat",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 69.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.9 derives from category default.",
+    "field": "S",
+    "value": "0.9",
+    "evidence_ids": [
+     "ev_01M8444JBTPYF3D7PEXEVXFQ79"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC6HDZCEG2X7KH14XMG",
+  "score": 60.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6TKKKY3E57N02PY60"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6TKKKY3E57N02PY60"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6TKKKY3E57N02PY60"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6TKKKY3E57N02PY60"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6TKKKY3E57N02PY60"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 60.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6TKKKY3E57N02PY60"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC66H3JS91E9P7FRP84",
+  "score": 60.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 60.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6S2HNMG1GBZX13F6R"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC6T6K1NKS7NXAPBV6H",
+  "score": 65.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 65.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6CNB5YX3EWPAQWB4D"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC6JT4BZB92M3W39GSD",
+  "score": 65.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 65.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6JT4WC4E70SSCYPG0"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC628DNYPYABBZG6TPE",
+  "score": 65.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 65.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6SZ9QJ4E4PY6T1PXM"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC6WJPSEV731AGY5DC1",
+  "score": 60.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 60.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6YJ6Q8Q7PGB1VQW7X"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JC6RGAC2XRGVAZH77GW",
+  "score": 60.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.6,
+    "tier": "unpinned_ci",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 60.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.6 derives from category default.",
+    "field": "S",
+    "value": "0.6",
+    "evidence_ids": [
+     "ev_01M8444JC6Y54ZYSNVJGFN6D51"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JCXDBRBVN39BQP3C2B0",
+  "score": 57.5,
+  "band": "medium",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "untrusted_image",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXXKX6790C92F1PK4W"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXXKX6790C92F1PK4W"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCXXKX6790C92F1PK4W"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXXKX6790C92F1PK4W"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCXXKX6790C92F1PK4W"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 57.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from category default.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444JCXXKX6790C92F1PK4W"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JCXZTC0025WVZ8SR21Y",
+  "score": 62.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "untrusted_image",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX89YAMD06PT54WH9N"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX89YAMD06PT54WH9N"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCX89YAMD06PT54WH9N"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX89YAMD06PT54WH9N"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX89YAMD06PT54WH9N"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 62.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from category default.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444JCX89YAMD06PT54WH9N"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JCX1QR5TKCVKVJB0R0M",
+  "score": 62.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "untrusted_image",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 62.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from category default.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444JCX2G387A4J9XEP7FSV"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JCX8JC1N0PR5T0WX1ME",
+  "score": 62.5,
+  "band": "high",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "untrusted_image",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXTQECYVBK6457MCEC"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXTQECYVBK6457MCEC"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCXTQECYVBK6457MCEC"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXTQECYVBK6457MCEC"
+    ]
+   },
+   "X": {
+    "value": 1.0,
+    "tier": "network-facing",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCXTQECYVBK6457MCEC"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 62.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from category default.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444JCXTQECYVBK6457MCEC"
+    ],
+    "label": "verified"
+   }
+  ]
+ },
+ {
+  "finding_id": "fd_01M8444JCX2B5NYSHZAAY0PVP9",
+  "score": 57.5,
+  "band": "medium",
+  "confidence": "medium",
+  "override_applied": null,
+  "factors": {
+   "S": {
+    "value": 0.5,
+    "tier": "untrusted_image",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ]
+   },
+   "E": {
+    "value": 0.5,
+    "tier": "default",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ]
+   },
+   "R": {
+    "value": 0.5,
+    "tier": "unknown",
+    "unknown": true,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ]
+   },
+   "P": {
+    "value": 1.0,
+    "tier": "prod",
+    "unknown": false,
+    "label": "verified",
+    "evidence_ids": [
+     "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ]
+   },
+   "X": {
+    "value": 0.5,
+    "tier": "internal",
+    "unknown": false,
+    "label": "inferred",
+    "evidence_ids": [
+     "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ]
+   },
+   "provenance_modifier": 0.0,
+   "provenance_evidence_ids": []
+  },
+  "summary": "Score 57.5 from S/E/R/P/X; reachability unknown lowers confidence.",
+  "claims": [
+   {
+    "text": "Severity factor S=0.5 derives from category default.",
+    "field": "S",
+    "value": "0.5",
+    "evidence_ids": [
+     "ev_01M8444JCX1YJ5FAW4HSQ0PN4F"
+    ],
+    "label": "verified"
+   }
+  ]
+ }
+]

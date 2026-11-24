@@ -1,0 +1,27 @@
+{
+ "attempt_id": "at_NS7C0JGQ4SR4QVH3H63J9FHVMC",
+ "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+ "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+ "build_ok": true,
+ "unit_tests": {
+  "passed": 143,
+  "failed": 0
+ },
+ "integration_tests": {
+  "passed": 12,
+  "failed": 0
+ },
+ "artifact_rescanned": "attempts/at_NS7C0JGQ4SR4QVH3H63J9FHVMC/work",
+ "target_finding_resolved": true,
+ "new_findings": [],
+ "sbom_diff_evidence_id": "ev_ZH6DZJJXXX7CK5Y1JX4WHRDD45",
+ "detector_evidence_ids": [],
+ "risk_before": 67.6,
+ "risk_after": 8.1,
+ "verdict": "verified",
+ "final_confidence": "high",
+ "log_evidence_ids": [
+  "ev_RMZ9J92V81E5128Q6RW31FZG0X",
+  "ev_454YG4GFDEXZR4YJ2C49NGK80Y"
+ ]
+}

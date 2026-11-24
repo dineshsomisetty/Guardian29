@@ -1,0 +1,16 @@
+{
+ "evidence_id": "ev_3804GVA35RJFJ2XBAHW0GQNMF2",
+ "run_id": "run_20261123_172422",
+ "kind": "build_log",
+ "source_tool": "sandbox",
+ "created_at": "2026-11-23T11:55:21.988Z",
+ "facts": {
+  "exit_code": 2,
+  "attempt": 1
+ },
+ "excerpt": "> juice-shop@15.0.0 build\n> tsc -p tsconfig.json\n\nnpm WARN deprecated lodash@4.17.5: upgrade recommended\nsrc/routes/search.ts(41,18): error TS2339: Property 'pluck' does not exist on type 'LoDashStatic'.\nsrc/lib/utils.ts(88,9): error TS2339: Property 'contains' does not exist on type 'LoDashStatic'.\nFound 2 errors.\nnpm ERR! code ELIFECYCLE\nnpm ERR! juice-shop@15.0.0 build: `tsc` exited with 2\n",
+ "file_path": null,
+ "line": null,
+ "artifact_path": null,
+ "sha256": null
+}

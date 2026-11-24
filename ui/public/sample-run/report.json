@@ -1,0 +1,726 @@
+{
+ "run_id": "run_20261123_172422",
+ "target": "juice-shop",
+ "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+ "generated_at": "2026-11-23T12:10:00Z",
+ "summary": {
+  "run_id": "run_20261123_172422",
+  "target": "juice-shop",
+  "commit": "c9f99228d9d56afb5f5ca7925376292f7fa44b13",
+  "started_at": "2026-11-23T11:54:22.466108+00:00",
+  "finished_at": "2026-11-23T11:55:15.014029+00:00",
+  "status": "awaiting_human",
+  "sbom": {
+   "file": "sbom.cdx.json",
+   "components": 1656,
+   "direct": 154,
+   "transitive": 1502
+  },
+  "projects": [
+   "frontend",
+   "root"
+  ],
+  "findings": {
+   "total": 72,
+   "by_risk": {
+    "critical": 7,
+    "high": 21,
+    "medium": 38,
+    "low": 6
+   },
+   "by_category": {
+    "cve": 57,
+    "lockfile": 1,
+    "typosquat": 2,
+    "unpinned_ci": 7,
+    "untrusted_image": 5
+   }
+  },
+  "llm": {
+   "mode": "replay",
+   "model": "deepseek-chat"
+  },
+  "offline": false,
+  "pending_plan": {
+   "plan_id": "pl_1RNJ47E65GH2BH8VGS9ZM5H3BV",
+   "plan_hash": "e6e33c5f0eb6478bcd5139d5fea78a00ad53e8594249fc9a8b16ac8713529846",
+   "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV"
+  },
+  "remediation": [
+   {
+    "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+    "title": "lodash",
+    "category": "cve",
+    "status": "verified",
+    "attempts": [
+     {
+      "plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW",
+      "action": "upgrade",
+      "target": "4.17.5",
+      "verdict": "failed_build",
+      "attempt_id": "at_GQ8H7QEZZS1A0ZWSK9TPRM7N0M"
+     },
+     {
+      "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+      "action": "upgrade",
+      "target": "4.17.21",
+      "verdict": "verified",
+      "attempt_id": "at_NS7C0JGQ4SR4QVH3H63J9FHVMC"
+     }
+    ]
+   },
+   {
+    "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+    "title": "moment",
+    "category": "cve",
+    "status": "awaiting_human",
+    "attempts": [
+     {
+      "plan_id": "pl_1RNJ47E65GH2BH8VGS9ZM5H3BV",
+      "action": "upgrade",
+      "target": "2.29.2"
+     }
+    ]
+   }
+  ]
+ },
+ "inventory": {
+  "components": 1656,
+  "direct": 154,
+  "transitive": 1502
+ },
+ "findings": [
+  {
+   "finding": {
+    "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-35jh-r3h4-6jhm in lodash@2.4.2",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/lodash@2.4.2",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+     [
+      "root",
+      "pkg:npm/sanitize-html@1.4.2",
+      "pkg:npm/lodash@2.4.2"
+     ]
+    ],
+    "vuln_id": "GHSA-35jh-r3h4-6jhm",
+    "aliases": [
+     "CVE-2021-23337"
+    ],
+    "cvss": 7.2,
+    "severity": "High",
+    "fixed_versions": [
+     "4.17.21"
+    ],
+    "affected_range": "<4.17.21",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+     "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+     "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+    ],
+    "status": "assessed",
+    "explanation": "lodash@2.4.2 is affected by a command injection issue (GHSA-35jh-r3h4-6jhm, CVSS 7.2). It is a transitive production dependency reached via sanitize-html; the CVSS of 7.2 gives high. The fix is 4.17.21.",
+    "claims": [
+     {
+      "text": "The advisory is rated CVSS 7.2 (High).",
+      "field": "cvss",
+      "value": "7.2",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "The installed version is lodash@2.4.2, within the affected range <4.17.21.",
+      "field": "version",
+      "value": "2.4.2",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "A fixed version is available: 4.17.21.",
+      "field": "fixed_versions",
+      "value": "4.17.21",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "The dependency is transitive and in production scope, reached via sanitize-html.",
+      "field": null,
+      "value": null,
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M"
+      ],
+      "label": "inferred"
+     }
+    ],
+    "initial_risk_source": "llm"
+   },
+   "risk": {
+    "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+    "score": 67.6,
+    "band": "high",
+    "confidence": "high",
+    "override_applied": null,
+    "factors": {
+     "S": {
+      "value": 0.72,
+      "tier": "cvss",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ]
+     },
+     "E": {
+      "value": 0.56,
+      "tier": "epss percentile",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ]
+     },
+     "R": {
+      "value": 0.6,
+      "tier": "imported",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ]
+     },
+     "P": {
+      "value": 1.0,
+      "tier": "prod",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ]
+     },
+     "X": {
+      "value": 0.5,
+      "tier": "internal",
+      "unknown": false,
+      "label": "inferred",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ]
+     },
+     "provenance_modifier": 0.0,
+     "provenance_evidence_ids": []
+    },
+    "summary": "Score 67.6 from S/E/R/P/X; all factors grounded in evidence.",
+    "claims": [
+     {
+      "text": "Severity factor S=0.72 derives from CVSS.",
+      "field": "S",
+      "value": "0.72",
+      "evidence_ids": [
+       "ev_01M8444EGMKVJ5Y2PTX1T9140M",
+       "ev_01M8444J8QHZFZ623Y8WTF2SY4"
+      ],
+      "label": "verified"
+     }
+    ]
+   },
+   "evidence": [],
+   "paths": [
+    [
+     "root",
+     "pkg:npm/sanitize-html@1.4.2",
+     "pkg:npm/lodash@2.4.2"
+    ]
+   ]
+  },
+  {
+   "finding": {
+    "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+    "run_id": "run_20261123_172422",
+    "category": "cve",
+    "title": "GHSA-8hfj-j24r-96c4 in moment@2.0.0",
+    "detector": "grype@0.122.1",
+    "component_purl": "pkg:npm/moment@2.0.0",
+    "scope": "prod",
+    "project": "root",
+    "file_path": "package-lock.json",
+    "line": null,
+    "dependency_paths": [
+     [
+      "root",
+      "pkg:npm/express-jwt@0.1.3",
+      "pkg:npm/jsonwebtoken@0.1.0",
+      "pkg:npm/moment@2.0.0"
+     ]
+    ],
+    "vuln_id": "GHSA-8hfj-j24r-96c4",
+    "aliases": [
+     "CVE-2022-24785"
+    ],
+    "cvss": 7.5,
+    "severity": "High",
+    "fixed_versions": [
+     "2.29.2"
+    ],
+    "affected_range": "<2.29.2",
+    "provenance": null,
+    "initial_risk": "high",
+    "evidence_ids": [
+     "ev_01M8444EGMK09580FE5BBMDHVF",
+     "ev_01M8444J8QA5C33HVSEY8ARMKC"
+    ],
+    "status": "assessed",
+    "explanation": "moment@2.0.0 is affected by a path traversal issue in moment.locale (GHSA-8hfj-j24r-96c4, CVSS 7.5). It is a transitive production dependency reached via express-jwt and jsonwebtoken, so it ships with the app; the scanner CVSS of 7.5 puts it at high. A fix is available in 2.29.2.",
+    "claims": [
+     {
+      "text": "The advisory is rated CVSS 7.5 (High).",
+      "field": "cvss",
+      "value": "7.5",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "The installed version is moment@2.0.0, within the affected range <2.29.2.",
+      "field": "version",
+      "value": "2.0.0",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "A fixed version is available: 2.29.2.",
+      "field": "fixed_versions",
+      "value": "2.29.2",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "The dependency is transitive and in production scope, reached via express-jwt and jsonwebtoken.",
+      "field": null,
+      "value": null,
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF"
+      ],
+      "label": "inferred"
+     }
+    ],
+    "initial_risk_source": "llm"
+   },
+   "risk": {
+    "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+    "score": 70.5,
+    "band": "high",
+    "confidence": "high",
+    "override_applied": null,
+    "factors": {
+     "S": {
+      "value": 0.75,
+      "tier": "cvss",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ]
+     },
+     "E": {
+      "value": 0.12,
+      "tier": "epss percentile",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ]
+     },
+     "R": {
+      "value": 1.0,
+      "tier": "called",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ]
+     },
+     "P": {
+      "value": 1.0,
+      "tier": "prod",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ]
+     },
+     "X": {
+      "value": 1.0,
+      "tier": "network-facing",
+      "unknown": false,
+      "label": "verified",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ]
+     },
+     "provenance_modifier": 0.0,
+     "provenance_evidence_ids": []
+    },
+    "summary": "Score 70.5 from S/E/R/P/X; all factors grounded in evidence.",
+    "claims": [
+     {
+      "text": "Severity factor S=0.75 derives from CVSS.",
+      "field": "S",
+      "value": "0.75",
+      "evidence_ids": [
+       "ev_01M8444EGMK09580FE5BBMDHVF",
+       "ev_01M8444J8QA5C33HVSEY8ARMKC"
+      ],
+      "label": "verified"
+     }
+    ]
+   },
+   "evidence": [],
+   "paths": [
+    [
+     "root",
+     "pkg:npm/express-jwt@0.1.3",
+     "pkg:npm/jsonwebtoken@0.1.0",
+     "pkg:npm/moment@2.0.0"
+    ]
+   ]
+  }
+ ],
+ "ranking": [
+  "fd_01M8444EGMG404YWZ2DWZZKB13",
+  "fd_01M8444EGNX66BHAF4DQ2Q0M9T",
+  "fd_01M8444EGMNM7A7KPXBG8MJFY1",
+  "fd_01M8444EGMPKTQJYD90F0SE13G",
+  "fd_01M8444EGM8HFZPHNJS12CB5FF",
+  "fd_01M8444EGN23SHZNTDFTSAX6JD",
+  "fd_01M8444EGNWDRY75J0860ZRZQ6",
+  "fd_01M8444EGM76ARM7RV0AMGY1TS",
+  "fd_01M8444EGNC0SXH45SM4J0SBQF",
+  "fd_01M8444EGNVMZ5BTSB9KP34PJR",
+  "fd_01M8444EGN4JZPQEN88DZ3F4QF",
+  "fd_01M8444EGNN8SS5CAQS3K33K0V",
+  "fd_01M8444EGN1BJP9Z4N1DV2ZW28",
+  "fd_01M8444EGN4DDTENM1VFK5934W",
+  "fd_01M8444EGMJDWPR8BFPCDA9Q03"
+ ],
+ "actions": [
+  {
+   "plan": {
+    "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+    "plan_hash": "9f5e2f2601f28d9ecb48b1d9d56d9458fd32be9db51ec5f999773a2c1e426b1b",
+    "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+    "attempt": 2,
+    "action": "upgrade",
+    "ops": [
+     {
+      "op": "set_dependency_version",
+      "file_path": "package.json",
+      "args": {
+       "name": "lodash",
+       "version": "4.17.21"
+      }
+     }
+    ],
+    "target_version": "4.17.21",
+    "rationale": [
+     {
+      "text": "lodash@4.17.21 is a published version above the fixed boundary.",
+      "field": "target_version",
+      "value": "4.17.21",
+      "evidence_ids": [
+       "ev_79Q9G8XE6SZAEAVSNTCPM5Q1NX"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "Callers of the legacy API are not verified to be compatible until the sandbox build runs.",
+      "field": null,
+      "value": null,
+      "evidence_ids": [
+       "ev_79Q9G8XE6SZAEAVSNTCPM5Q1NX"
+      ],
+      "label": "inferred"
+     }
+    ],
+    "expected_risk_reduction": "high -> resolved if the rescan no longer reports the advisory (simulate_after).",
+    "compatibility_impact": {
+     "from_version": "2.4.2",
+     "to_version": "4.17.21",
+     "semver_delta": "major",
+     "engines_ok": true,
+     "peer_dep_changes": [],
+     "deprecated_target": false,
+     "level": "medium"
+    },
+    "rollback": "Nothing is applied to the target: the patch lands in a copy under runs/<run>/attempts/. Discard it, or revert the diff after adoption.",
+    "evidence_ids": [
+     "ev_6W14WMCHWYFGCW8T7SWM4FV4DK",
+     "ev_79Q9G8XE6SZAEAVSNTCPM5Q1NX"
+    ]
+   },
+   "approval": {
+    "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+    "plan_hash": "9f5e2f2601f28d9ecb48b1d9d56d9458fd32be9db51ec5f999773a2c1e426b1b",
+    "decision": "approve",
+    "comment": "Attempt 1 broke the build; 4.17.21 is the advisory fix.",
+    "decided_by": "reviewer",
+    "ts": "2026-11-23T11:55:26.382Z"
+   },
+   "validations": [
+    {
+     "attempt_id": "at_NS7C0JGQ4SR4QVH3H63J9FHVMC",
+     "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+     "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+     "build_ok": true,
+     "unit_tests": {
+      "passed": 143,
+      "failed": 0
+     },
+     "integration_tests": {
+      "passed": 12,
+      "failed": 0
+     },
+     "artifact_rescanned": "attempts/at_NS7C0JGQ4SR4QVH3H63J9FHVMC/work",
+     "target_finding_resolved": true,
+     "new_findings": [],
+     "sbom_diff_evidence_id": "ev_ZH6DZJJXXX7CK5Y1JX4WHRDD45",
+     "detector_evidence_ids": [],
+     "risk_before": 67.6,
+     "risk_after": 8.1,
+     "verdict": "verified",
+     "final_confidence": "high",
+     "log_evidence_ids": [
+      "ev_RMZ9J92V81E5128Q6RW31FZG0X",
+      "ev_454YG4GFDEXZR4YJ2C49NGK80Y"
+     ]
+    }
+   ]
+  },
+  {
+   "plan": {
+    "plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW",
+    "plan_hash": "12534c13bd90510fb2ad73a907927c4e98cc2d8df1412d49b7066441616f2ea0",
+    "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+    "attempt": 1,
+    "action": "upgrade",
+    "ops": [
+     {
+      "op": "set_dependency_version",
+      "file_path": "package.json",
+      "args": {
+       "name": "lodash",
+       "version": "4.17.5"
+      }
+     }
+    ],
+    "target_version": "4.17.5",
+    "rationale": [
+     {
+      "text": "lodash@4.17.5 is a published version above the fixed boundary.",
+      "field": "target_version",
+      "value": "4.17.5",
+      "evidence_ids": [
+       "ev_5AA819X9YP981068VCD1GDJFMG"
+      ],
+      "label": "verified"
+     },
+     {
+      "text": "Callers of the legacy API are not verified to be compatible until the sandbox build runs.",
+      "field": null,
+      "value": null,
+      "evidence_ids": [
+       "ev_5AA819X9YP981068VCD1GDJFMG"
+      ],
+      "label": "inferred"
+     }
+    ],
+    "expected_risk_reduction": "high -> resolved if the rescan no longer reports the advisory (simulate_after).",
+    "compatibility_impact": {
+     "from_version": "2.4.2",
+     "to_version": "4.17.5",
+     "semver_delta": "major",
+     "engines_ok": true,
+     "peer_dep_changes": [],
+     "deprecated_target": false,
+     "level": "medium"
+    },
+    "rollback": "Nothing is applied to the target: the patch lands in a copy under runs/<run>/attempts/. Discard it, or revert the diff after adoption.",
+    "evidence_ids": [
+     "ev_PQ5E6EYCNDY0YP57RCYBVN5SXS",
+     "ev_5AA819X9YP981068VCD1GDJFMG"
+    ]
+   },
+   "approval": {
+    "plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW",
+    "plan_hash": "12534c13bd90510fb2ad73a907927c4e98cc2d8df1412d49b7066441616f2ea0",
+    "decision": "approve",
+    "comment": null,
+    "decided_by": "reviewer",
+    "ts": "2026-11-23T11:55:25.791Z"
+   },
+   "validations": [
+    {
+     "attempt_id": "at_GQ8H7QEZZS1A0ZWSK9TPRM7N0M",
+     "plan_id": "pl_91K5GQAPENECFSECZP11HYGCPW",
+     "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+     "build_ok": false,
+     "unit_tests": {
+      "passed": 142,
+      "failed": 1
+     },
+     "integration_tests": {},
+     "artifact_rescanned": null,
+     "target_finding_resolved": false,
+     "new_findings": [],
+     "sbom_diff_evidence_id": null,
+     "detector_evidence_ids": [],
+     "risk_before": 67.6,
+     "risk_after": 67.6,
+     "verdict": "failed_build",
+     "final_confidence": "low",
+     "log_evidence_ids": [
+      "ev_3804GVA35RJFJ2XBAHW0GQNMF2",
+      "ev_KDPB0NR5YHCF05G59S2S1KKE59"
+     ]
+    }
+   ]
+  }
+ ],
+ "remaining_risk": [
+  {
+   "finding_id": "fd_01M8444EGM0K7RR2BQSF1PC0KV",
+   "status": "awaiting_human",
+   "score": 70.5
+  },
+  {
+   "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+   "status": "verified",
+   "score": 8.1
+  }
+ ],
+ "final_confidence": "medium",
+ "guardrail_events": [
+  {
+   "ts": "2026-11-23T11:54:59.849742Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G4.4: versions ['0.1.3'] not in cited evidence -> INFERRED",
+   "finding_id": "fd_01M8444EGMNM7A7KPXBG8MJFY1",
+   "evidence_ids": [],
+   "data": {
+    "rule": "G4.4"
+   }
+  },
+  {
+   "ts": "2026-11-23T11:55:07.860464Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G4.4: versions ['2.0.0-beta.'] not in cited evidence -> INFERRED",
+   "finding_id": "fd_01M8444EGNB7GDQA1T7JEH68P2",
+   "evidence_ids": [],
+   "data": {
+    "rule": "G4.4"
+   }
+  },
+  {
+   "ts": "2026-11-23T11:55:07.860464Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G4.4: versions ['2.0.0-beta.'] not in cited evidence -> INFERRED",
+   "finding_id": "fd_01M8444EGNB7GDQA1T7JEH68P2",
+   "evidence_ids": [],
+   "data": {
+    "rule": "G4.4"
+   }
+  },
+  {
+   "ts": "2026-11-23T11:55:14.707771Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G4.4: versions ['3.0.0-beta.0.'] not in cited evidence -> INFERRED",
+   "finding_id": "fd_01M8444J8Q9T160BYNPJ3T9855",
+   "evidence_ids": [],
+   "data": {
+    "rule": "G4.4"
+   }
+  },
+  {
+   "ts": "2026-11-23T11:55:32.831Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G4.4 relabelled an unseen version as inferred",
+   "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+   "evidence_ids": [],
+   "data": {
+    "rule": "G4.4"
+   }
+  },
+  {
+   "ts": "2026-11-23T11:55:33.779Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G3.2 tool budget respected",
+   "finding_id": null,
+   "evidence_ids": [],
+   "data": {
+    "rule": "G3.2"
+   }
+  },
+  {
+   "ts": "2026-11-23T11:55:40.208Z",
+   "run_id": "run_20261123_172422",
+   "agent": "guardrail",
+   "type": "guardrail",
+   "summary": "G5.4 attempt 1 of 3 failed",
+   "finding_id": "fd_01M8444EGMY81V6X0BH3MENKR1",
+   "evidence_ids": [],
+   "data": {
+    "rule": "G5.4"
+   }
+  }
+ ],
+ "audit": {
+  "events": 146,
+  "llm_calls": 13,
+  "tool_calls": 22
+ }
+}

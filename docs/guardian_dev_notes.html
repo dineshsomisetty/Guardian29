@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guardian — Developer-by-Developer Deep Dive</title>
+<style>
+:root{--bg:#0d1117;--panel:#161b22;--panel2:#1c2330;--line:#2d3748;--text:#e6edf3;--mute:#8b98a9;--blue:#4c9aff;--cyan:#22d3ee;--green:#34d399;--amber:#fbbf24;--red:#f87171;--violet:#a78bfa;--pink:#f472b6;--code:#0a0e14}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.65 -apple-system,Segoe UI,Inter,Roboto,sans-serif}
+a{color:var(--blue);text-decoration:none}
+code,pre{font-family:Consolas,"JetBrains Mono",Menlo,monospace}
+code{background:var(--code);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:.88em;color:#c9d7ff}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font-size:13px;line-height:1.55}
+main{max-width:1180px;margin:0 auto;padding:0 28px 100px}
+header.hero{padding:48px 0 18px}
+header.hero h1{font-size:40px;margin:0 0 6px;background:linear-gradient(90deg,var(--cyan),var(--pink));-webkit-background-clip:text;background-clip:text;color:transparent}
+header.hero p{color:var(--mute);font-size:16px;max-width:820px;margin:6px 0}
+.topbar{position:sticky;top:0;z-index:20;background:#0a0e14ee;backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:10px 0}
+.topbar .in{max-width:1180px;margin:0 auto;padding:0 28px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.topbar button{background:var(--panel2);border:1px solid var(--line);color:var(--mute);padding:8px 14px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600}
+.topbar button:hover{color:#fff}
+.topbar button.on{color:#001;border-color:transparent}
+.topbar a.back{margin-left:auto;font-size:13px;color:var(--mute)}
+.view{display:none;padding-top:26px}.view.on{display:block}
+h2{font-size:28px;margin:0 0 4px}h3{font-size:19px;margin:30px 0 8px;color:#fff}h4{margin:16px 0 4px;color:var(--cyan);font-size:13px;text-transform:uppercase;letter-spacing:.8px}
+p.lead{color:var(--mute);margin:0 0 16px;font-size:16px}
+.grid{display:grid;gap:14px}.g2{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:repeat(3,1fr)}
+@media(max-width:900px){.g2,.g3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 18px}
+.card h5{margin:0 0 6px;font-size:15px}.card p,.card li{color:#c4cfdd;font-size:14px}.card ul{margin:4px 0 4px 18px;padding:0}
+.card.c{border-top:3px solid var(--cyan)}.card.g{border-top:3px solid var(--green)}.card.a{border-top:3px solid var(--amber)}.card.r{border-top:3px solid var(--red)}.card.v{border-top:3px solid var(--violet)}.card.b{border-top:3px solid var(--blue)}.card.p{border-top:3px solid var(--pink)}
+.callout{border-left:4px solid var(--amber);background:#241d0a;padding:12px 16px;border-radius:0 10px 10px 0;margin:14px 0;color:#f3e3b0}
+.callout.info{border-color:var(--blue);background:#0d1c30;color:#cfe0fb}.callout.good{border-color:var(--green);background:#0d2620;color:#c7f2e1}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th{background:var(--panel2);text-align:left;padding:9px 12px;color:var(--cyan);font-size:12px;text-transform:uppercase;letter-spacing:.7px}
+td{padding:8px 12px;border-top:1px solid var(--line);vertical-align:top}tr:hover td{background:#19202c}
+.pill{display:inline-block;font-size:12px;padding:2px 10px;border-radius:99px;border:1px solid var(--line);margin:2px 4px 2px 0;color:var(--mute)}
+.pill.g{color:var(--green);border-color:#1f6f55;background:#0f2a22}.pill.a{color:var(--amber);border-color:#7a5a12;background:#2a2108}.pill.r{color:var(--red);border-color:#7a2a2a;background:#2a1111}.pill.b{color:var(--blue);border-color:#24508f;background:#0e2036}.pill.v{color:var(--violet);border-color:#4c3b8f;background:#1a1530}
+.status{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 8px;border-radius:6px}
+.st-done{background:#0f2a22;color:var(--green);border:1px solid #1f6f55}.st-plan{background:#2a2108;color:var(--amber);border:1px solid #7a5a12}.st-wait{background:#2a1111;color:var(--red);border:1px solid #7a2a2a}
+.diagram{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:14px 0;overflow-x:auto}
+.diagram svg{display:block;margin:auto;max-width:100%;height:auto}.diagram .cap{color:var(--mute);font-size:12.5px;text-align:center;margin-top:8px}
+svg text{font-family:-apple-system,Segoe UI,Inter,sans-serif;fill:#e6edf3}svg .t{font-size:13px}svg .s{font-size:11px;fill:#9fb0c6}svg .b{font-weight:700;font-size:14px}
+svg .box{fill:#1c2330;stroke:#38465c;stroke-width:1.4}svg .blue{fill:#0e2036;stroke:#4c9aff}svg .green{fill:#0f2a22;stroke:#34d399}svg .amber{fill:#2a2108;stroke:#fbbf24}svg .red{fill:#2a1111;stroke:#f87171}svg .violet{fill:#1a1530;stroke:#a78bfa}svg .cyan{fill:#082a30;stroke:#22d3ee}svg .pink{fill:#2b1020;stroke:#f472b6}
+svg .arr{stroke:#8b98a9;stroke-width:1.6;fill:none;marker-end:url(#arr)}svg .arr.g{stroke:#34d399;marker-end:url(#arrg)}svg .arr.r{stroke:#f87171;marker-end:url(#arrr)}svg .arr.d{stroke-dasharray:5 4}
+.steps{counter-reset:s;list-style:none;padding:0;margin:10px 0}
+.steps li{counter-increment:s;position:relative;padding:7px 0 7px 44px;border-left:2px solid var(--line);margin-left:14px;font-size:14.5px}
+.steps li:before{content:counter(s);position:absolute;left:-15px;top:7px;width:28px;height:28px;border-radius:50%;background:var(--cyan);color:#001;font-weight:800;display:grid;place-items:center;font-size:13px}
+.who{display:flex;align-items:center;gap:14px;margin:6px 0 14px}
+.who .av{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;font-weight:900;font-size:20px;color:#001}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 16px;margin:8px 0}summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#8b98a9"/></marker>
+<marker id="arrg" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#34d399"/></marker>
+<marker id="arrr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#f87171"/></marker>
+</defs></svg>
+
+<div class="topbar"><div class="in" id="tabs">
+  <button data-v="all" style="--c:#22d3ee">🔗 How it all connects</button>
+  <button data-v="d1" style="--c:#a78bfa">Dev1 · Agents & core</button>
+  <button data-v="d2" style="--c:#4c9aff">Dev2 · Tools, graph, sandbox</button>
+  <button data-v="d3" style="--c:#f472b6">Dev3 · UI & API</button>
+  <button data-v="d4" style="--c:#fbbf24">Dev4 · Intel, scoring, detectors</button>
+  <button data-v="d5" style="--c:#34d399">Dev5 · Targets, QA, story</button>
+  <a class="back" href="guardian_notes.html">← Project A–Z notes</a>
+</div></div>
+
+<main>
+<header class="hero">
+  <h1>Developer-by-developer deep dive</h1>
+  <p>Five developers, one pipeline. For each: what they build, <b>how it works inside</b>, what they hand to others, what they receive, and the proof ("show it") that it works. Tasks use the plan's IDs (D1-01 …). <span class="status st-done">BUILT</span> = in this repo today; <span class="status st-plan">PLANNED</span> = per plan v1.3; <span class="status st-wait">NOT IN REPO</span> = not yet merged at the time of <code>context.md</code>.</p>
+</header>
+
+<!-- ============================================================ ALL -->
+<div class="view" id="v-all">
+  <h2>How everything connects</h2>
+  <p class="lead">Each dev owns a different slice of the same data flow. The contracts between them are small and frozen at the 15:00 sync.</p>
+
+  <div class="diagram">
+  <svg viewBox="0 0 1060 560" width="1060">
+    <!-- Dev5 -->
+    <rect class="box" x="10" y="10" width="1040" height="56" rx="12" style="stroke:#34d399;stroke-dasharray:5 4"/>
+    <text class="b" x="26" y="34" style="fill:#34d399">DEV5 — targets · QA · story</text><text class="s" x="26" y="52">Juice Shop (pinned commit) · PyGoat · golden files · fixtures · talk track · demo · coverage matrix §17 · mentor answers → docs/decisions.md</text>
+
+    <!-- target -->
+    <rect class="box" x="10" y="100" width="110" height="64" rx="10"/><text class="b" x="65" y="128" text-anchor="middle">Target repo</text><text class="s" x="65" y="146" text-anchor="middle">(Dev5 supplies)</text>
+
+    <!-- Dev1 big -->
+    <rect class="box violet" x="150" y="90" width="610" height="400" rx="14"/>
+    <text class="b" x="166" y="112" style="fill:#a78bfa">DEV1 — LangGraph orchestrator · agents · guardrails · store/audit · LLM</text>
+    <rect class="box blue" x="170" y="130" width="170" height="64" rx="10"/><text class="b" x="255" y="156" text-anchor="middle">discovery agent</text><text class="s" x="255" y="174" text-anchor="middle">calls Dev2 tools</text>
+    <rect class="box cyan" x="370" y="130" width="170" height="64" rx="10"/><text class="b" x="455" y="156" text-anchor="middle">detection agent</text><text class="s" x="455" y="174" text-anchor="middle">calls Dev2 + Dev4 tools</text>
+    <rect class="box green" x="570" y="130" width="170" height="64" rx="10"/><text class="b" x="655" y="156" text-anchor="middle">evidence analyst</text><text class="s" x="655" y="174" text-anchor="middle">LLM + grounding</text>
+    <path class="arr g" d="M340 162H368"/><path class="arr g" d="M540 162H568"/>
+
+    <rect class="box" x="170" y="230" width="570" height="46" rx="10" style="stroke:#f87171"/><text class="t" x="455" y="258" text-anchor="middle">call_tool() registry — logs · stores Evidence · isolates failures · (D1-04: allowlist, budgets, approval)</text>
+    <path class="arr" d="M255 194V228"/><path class="arr" d="M455 194V228"/>
+
+    <rect class="box amber" x="170" y="300" width="270" height="70" rx="10"/><text class="b" x="305" y="326" text-anchor="middle">Store + Audit</text><text class="s" x="305" y="344" text-anchor="middle">evidence/*.json · findings.json</text><text class="s" x="305" y="358" text-anchor="middle">trace.jsonl · audit.jsonl</text>
+    <rect class="box cyan" x="470" y="300" width="270" height="70" rx="10"/><text class="b" x="605" y="326" text-anchor="middle">LLM provider</text><text class="s" x="605" y="344" text-anchor="middle">live · record · replay</text><text class="s" x="605" y="358" text-anchor="middle">Anthropic / local endpoint</text>
+    <rect class="box" x="170" y="390" width="570" height="84" rx="10" style="stroke-dasharray:4 3"/><text class="b" x="455" y="414" text-anchor="middle">Day 2 nodes (Dev1): risk_analyst · remediation · investigator · human_gate · validator · reporter</text><text class="s" x="455" y="434" text-anchor="middle">+ watch · --repos · guardrail tests G1–G7 · SQLite checkpointer</text><text class="s" x="455" y="452" text-anchor="middle">Dev1 wires; Dev2/Dev4 supply the heavy functions called by these nodes</text>
+
+    <!-- Dev2 -->
+    <rect class="box blue" x="790" y="90" width="260" height="190" rx="12"/>
+    <text class="b" x="806" y="112" style="fill:#4c9aff">DEV2 — tools · graph · sandbox</text>
+    <text class="s" x="806" y="136">workspace · resolve (lockfile) · Syft SBOM</text><text class="s" x="806" y="152">graph_build + paths_to() · Grype / OSV</text><text class="s" x="806" y="168">npm/pypi adapters · lockfile · typosquat</text><text class="s" x="806" y="184">install-script + change detectors</text><text class="s" x="806" y="200">patch ops · sandbox validation · SBOM diff</text><text class="s" x="806" y="216">image SBOM · PyGoat · local branch + PR.md</text>
+    <text class="s" x="806" y="250" style="fill:#4c9aff">→ returns ToolOutput(Evidence, Findings)</text>
+
+    <!-- Dev4 -->
+    <rect class="box amber" x="790" y="300" width="260" height="190" rx="12"/>
+    <text class="b" x="806" y="322" style="fill:#fbbf24">DEV4 — intel · scoring · detectors</text>
+    <text class="s" x="806" y="346">popular pkgs + similarity (typosquat)</text><text class="s" x="806" y="362">initial_risk rule · scoring.py (§7)</text><text class="s" x="806" y="378">ci_pin · image_pin · what-changed diff</text><text class="s" x="806" y="394">EPSS · KEV · OSV · registry metadata</text><text class="s" x="806" y="410">reachability · exposure · compat_hint</text><text class="s" x="806" y="426">provenance · policies (Rego) · reports</text>
+    <text class="s" x="806" y="460" style="fill:#fbbf24">→ pure functions / ToolOutput</text>
+
+    <path class="arr" d="M120 130H148"/>
+    <path class="arr" d="M760 160H788"/><path class="arr d" d="M788 200H742"/>
+    <path class="arr" d="M760 400H788"/>
+    <path class="arr d" d="M920 280V298"/>
+
+    <!-- Dev3 -->
+    <rect class="box pink" x="10" y="505" width="1040" height="48" rx="12"/>
+    <text class="b" x="26" y="528" style="fill:#f472b6">DEV3 — UI & API</text><text class="s" x="26" y="545">React/Vite/React Flow + FastAPI/SSE: reads runs/&lt;id&gt;/* (via serve-runs, later API), shows graph · findings · trace · approval panel; approval POST resumes Dev1's human gate</text>
+    <path class="arr" d="M455 476V503"/>
+  </svg>
+  <div class="cap">Dev1 is the hub: agents call Dev2/Dev4 functions through one registry, persist to the store, and Dev3 reads what Dev1 writes.</div>
+  </div>
+
+  <h3>Interface contracts (who gives what to whom)</h3>
+  <table><tr><th>From → To</th><th>Contract</th><th>Format / signature</th></tr>
+    <tr><td>Dev2/Dev4 → Dev1</td><td>Tool function</td><td><code>fn(ctx: ToolContext) -> ToolOutput(findings, evidence, artifacts, summary)</code>, referenced as <code>"module:function"</code> in <code>BINDINGS</code></td></tr>
+    <tr><td>Dev2 → Dev1</td><td>Graph object</td><td><code>stats()</code>, <code>paths_to(purl, max_paths=5)</code>, <code>to_json()</code>, optional <code>add_pseudo_nodes()</code></td></tr>
+    <tr><td>Dev4 → Dev1</td><td>Initial risk rule</td><td><code>guardian.core.scoring:initial_risk(finding) -> Priority</code></td></tr>
+    <tr><td>Dev4 → Dev1</td><td>Changes</td><td><code>artifacts.changes</code> dict (changes.json shape)</td></tr>
+    <tr><td>Dev1 → Dev3</td><td>Run files</td><td><code>runs/&lt;id&gt;/run_summary|graph|changes|findings|evidence|trace</code> served by <code>serve-runs</code></td></tr>
+    <tr><td>Dev3 → Dev1</td><td>Approval</td><td><code>POST …/decision {approve|reject|accept_risk, comment}</code> bound to <code>plan_hash</code> → resumes gate</td></tr>
+    <tr><td>Dev1 → Dev4</td><td>Report input</td><td>Pydantic models → <code>report.json</code> / <code>report.html</code></td></tr>
+    <tr><td>Dev1 → Dev2</td><td>Validator call</td><td>approved plan → Dev2 sandbox pipeline → <code>ValidationResult</code></td></tr>
+    <tr><td>Dev5 → all</td><td>Targets & golden</td><td><code>targets/juice-shop</code>, <code>tests/golden/juice_shop_expected.yaml</code>, fixture lockfiles/outputs</td></tr>
+    <tr><td>All</td><td>Shared models</td><td><code>guardian/core/models.py</code> — additive changes only, announced at sync</td></tr>
+  </table>
+
+  <h3>Dependency order (what blocks what) — CP1 day</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1060 330" width="1060">
+    <rect class="box violet" x="10" y="20" width="170" height="52" rx="10"/><text class="t" x="95" y="42" text-anchor="middle">D1-01 models + store</text><text class="s" x="95" y="58" text-anchor="middle">push by 14:30/15:00</text>
+    <rect class="box blue" x="10" y="100" width="170" height="52" rx="10"/><text class="t" x="95" y="122" text-anchor="middle">D2-02 SBOM</text><text class="s" x="95" y="138" text-anchor="middle">post in chat by 15:00</text>
+    <rect class="box pink" x="10" y="180" width="170" height="52" rx="10"/><text class="t" x="95" y="202" text-anchor="middle">D3-01 scaffold + mocks</text><text class="s" x="95" y="218" text-anchor="middle">builds on §4 contracts</text>
+    <rect class="box amber" x="10" y="260" width="170" height="52" rx="10"/><text class="t" x="95" y="282" text-anchor="middle">D4-01 similarity · D4-02</text><text class="s" x="95" y="298" text-anchor="middle">initial-risk rule</text>
+
+    <rect class="box blue" x="260" y="100" width="170" height="52" rx="10"/><text class="t" x="345" y="122" text-anchor="middle">D2-03 graph · D2-04 Grype</text><text class="s" x="345" y="138" text-anchor="middle">15:00–15:55</text>
+    <rect class="box amber" x="260" y="260" width="170" height="52" rx="10"/><text class="t" x="345" y="282" text-anchor="middle">D4-12 ci/image · D4-11 diff</text><text class="s" x="345" y="298" text-anchor="middle">15:00–16:05</text>
+    <rect class="box violet" x="260" y="20" width="170" height="52" rx="10"/><text class="t" x="345" y="42" text-anchor="middle">D1-02 LLM + grounding</text><text class="s" x="345" y="58" text-anchor="middle">15:00–15:50</text>
+    <rect class="box pink" x="260" y="180" width="170" height="52" rx="10"/><text class="t" x="345" y="202" text-anchor="middle">D3-02 graph · D3-07 panels</text><text class="s" x="345" y="218" text-anchor="middle">on mocks</text>
+
+    <rect class="box violet" x="520" y="140" width="190" height="64" rx="10"/><text class="b" x="615" y="166" text-anchor="middle">D1-03 INTEGRATION</text><text class="s" x="615" y="184" text-anchor="middle">wire tools → agents, dedupe,</text><text class="s" x="615" y="196" text-anchor="middle">run_summary — 15:50–16:10</text>
+    <rect class="box pink" x="520" y="240" width="190" height="52" rx="10"/><text class="t" x="615" y="262" text-anchor="middle">D3-08 real runs/ in UI</text><text class="s" x="615" y="278" text-anchor="middle">15:50–16:10</text>
+    <rect class="box green" x="520" y="20" width="190" height="52" rx="10"/><text class="t" x="615" y="42" text-anchor="middle">D5-02 golden + fixtures</text><text class="s" x="615" y="58" text-anchor="middle">QA vs real run</text>
+
+    <rect class="box amber" x="800" y="140" width="240" height="64" rx="12" style="stroke-width:2.5"/><text class="b" x="920" y="168" text-anchor="middle" style="fill:#fbbf24">16:30 · CP1</text><text class="s" x="920" y="186" text-anchor="middle">Dev5 presents; Dev1/Dev2 answer tech</text>
+
+    <path class="arr" d="M95 72V98" style="display:none"/>
+    <path class="arr" d="M180 46H258"/><path class="arr" d="M180 126H258"/><path class="arr" d="M180 206H258"/><path class="arr" d="M180 286H258"/>
+    <path class="arr" d="M430 46L518 160"/><path class="arr" d="M430 126L518 170"/><path class="arr" d="M430 286L518 190"/><path class="arr" d="M430 206L518 262"/>
+    <path class="arr" d="M710 172H798"/><path class="arr" d="M710 266L860 206"/><path class="arr d" d="M710 46L860 140"/>
+  </svg>
+  <div class="cap">Everything converges at D1-03 (integration) then CP1. If behind at 15:50 drop: OSV cross-check → typosquat → dagre polish → React graph (use Dev5's static viewer).</div>
+  </div>
+
+  <h3>One finding's journey across all five devs</h3>
+  <ol class="steps">
+    <li><b>Dev5</b> pinned Juice Shop at a commit and supplied backup lockfiles + golden expectations.</li>
+    <li><b>Dev2</b> copies the repo to a work dir, resolves lockfiles with <code>--ignore-scripts</code>, runs Syft → <code>sbom.cdx.json</code>, builds the graph (origin + integrity per node).</li>
+    <li><b>Dev2</b> runs Grype → a CVE finding on a transitive package with fix versions; <b>Dev4</b>'s detectors add an unpinned-CI finding and a typosquat (<code>ngy-cookie</code>); the diff tool fills <code>changes.json</code>.</li>
+    <li><b>Dev1</b>'s detection agent dedupes, attaches <code>dependency_paths</code> from Dev2's <code>paths_to()</code>, stores findings (each citing evidence IDs).</li>
+    <li><b>Dev4</b>'s <code>initial_risk</code> gives a rule-based band; <b>Dev1</b>'s evidence analyst has Claude explain it, then grounding labels every claim VERIFIED / INFERRED.</li>
+    <li><b>Dev1</b> writes graph/summary/trace; <b>Dev3</b>'s UI renders header strip, highlighted vulnerable path, findings list with badges, agent trace.</li>
+    <li><b>Day 2:</b> Dev4 scores (EPSS/KEV/reachability) → Dev1 remediation plan → Dev3 approval panel → human approves → Dev2 sandbox validates → Dev4 report → Dev3 shows before/after.</li>
+  </ol>
+</div>
+
+<!-- ============================================================ DEV1 -->
+<div class="view" id="v-d1">
+  <div class="who"><div class="av" style="background:#a78bfa">D1</div><div><h2 style="margin:0">Dev1 — Agents, orchestration, LLM, guardrails</h2><div style="color:var(--mute)">The hub. Owns models, store, audit, LangGraph, agents, prompts, tool registry, LLM provider, guardrails, CLI, watch. Works in Claude Code. Status: CP1 work <span class="status st-done">BUILT</span></div></div></div>
+
+  <div class="grid g3">
+    <div class="card v"><h5>Owns (paths)</h5><ul><li><code>guardian/core/</code> models, store, audit, config</li><li><code>guardian/graph/</code> state, workflow</li><li><code>guardian/agents/</code>, <code>llm/</code>, <code>prompts/</code>, <code>guardrails/</code></li><li><code>guardian/tools/registry.py</code>, <code>file_read.py</code></li><li><code>cli.py</code>, <code>serve.py</code>, Makefile, pyproject, <code>.env.example</code></li></ul></div>
+    <div class="card c"><h5>Receives from others</h5><ul><li>Dev2: tool functions + graph object</li><li>Dev4: initial_risk, scoring, intel, reports</li><li>Dev3: approval decisions (via API)</li><li>Dev5: targets, golden files</li></ul></div>
+    <div class="card g"><h5>Gives to others</h5><ul><li>Models + store API to everyone</li><li>Tool contract (<code>ToolContext/ToolOutput</code>)</li><li>Run files for UI</li><li>Validator hook for Dev2, report input for Dev4</li></ul></div>
+  </div>
+
+  <h3>Task list</h3>
+  <table><tr><th>ID</th><th>When · P</th><th>What</th><th>Acceptance / proof</th><th>State</th></tr>
+    <tr><td>D1-01</td><td>14:30–15:00 · P0</td><td>Skeleton, <code>pyproject</code>, Makefile, <code>models.py</code>, JSON <code>store.py</code>, <code>audit.py</code>, stub LangGraph</td><td><code>make check</code> green; stub run writes trace.jsonl; Finding w/o evidence raises</td><td><span class="status st-done">BUILT</span></td></tr>
+    <tr><td>D1-02</td><td>15:00–15:50 · P0</td><td>LLM provider (modes), evidence_analyst, grounding G4.1/2/4, <code>&lt;data&gt;</code> blocks</td><td>Fake-LLM tests: unknown id rejected, invented CVE rejected, claims labelled</td><td><span class="status st-done">BUILT</span></td></tr>
+    <tr><td>D1-03</td><td>15:50–16:10 · P0</td><td>Wire Dev2/4 tools into discovery/detection, dedupe, run_summary, serve-runs</td><td>CP1 checklist passes</td><td><span class="status st-done">BUILT</span> Dev1 side</td></tr>
+    <tr><td>D1-04</td><td>17:00–18:00 · P0</td><td>Registry: per-agent allowlist, typed args, budgets, approval check</td><td>Disallowed tool / bad args / unapproved sandbox_write blocked</td><td><span class="status st-plan">PLANNED</span></td></tr>
+    <tr><td>D1-13</td><td>18:00–18:30 · P0</td><td>Record/replay cache + test replay makes no network call</td><td>Replay identical to recorded</td><td><span class="status st-done">BUILT</span> (early)</td></tr>
+    <tr><td>D1-05</td><td>18:30–20:00 · P0</td><td>Full graph; human_gate = <code>interrupt()</code> only; SQLite checkpointer; <code>Command(resume=…)</code>; attempt counter</td><td>Pause at gate, resume same plan_id; 3 fails → escalated</td><td><span class="status st-plan">PLANNED</span></td></tr>
+    <tr><td>D1-06</td><td>Day 2 A · P0</td><td>risk_analyst: gather intel evidence, build RiskFactors, <code>scoring.compute()</code>, LLM summary</td><td>score == compute(factors)</td><td><span class="status st-plan">PLANNED</span></td></tr>
+    <tr><td>D1-07</td><td>Day 2 A · P0</td><td>remediation: candidates from safe_version + compat_hint; re-plan must differ; G5.3, G4.5</td><td>Failed upgrade → attempt 2 different</td><td><span class="status st-plan">PLANNED</span></td></tr>
+    <tr><td>D1-08</td><td>Day 2 A · P1</td><td>investigator ReAct (≤8 tool calls)</td><td><code>ngy-cookie</code> → evidence + labelled conclusion</td><td><span class="status st-plan">PLANNED</span></td></tr>
+    <tr><td>D1-09</td><td>Day 2 B · P0</td><td>validator + reporter nodes (call Dev2/Dev4)</td><td>End-to-end on one finding by 14:00</td><td><span class="status st-plan">PLANNED</span></td></tr>
+    <tr><td>D1-10/11/12</td><td>Day 2 C · P1</td><td>G1–G7 test suite · <code>watch</code> · <code>--repos</code> batch</td><td>One test per G-ID · new advisory re-scored w/o discovery · 2 repos one command</td><td><span class="status st-plan">PLANNED</span></td></tr>
+  </table>
+
+  <h3>How it works inside</h3>
+  <h4>1 · The run driver (<code>graph/workflow.py</code>)</h4>
+  <ol class="steps">
+    <li><code>run()</code> makes <code>runs/run_&lt;ts&gt;/</code>, <code>AuditLog</code>, <code>JsonStore</code>, <code>ToolContext</code>, <code>LLMProvider.from_settings</code>; registers a <code>RunContext</code> in a module dict (<code>graph/state.py</code>) keyed by run_id.</li>
+    <li>LangGraph state is JSON-only (<code>run_id, status, sbom_evidence_id, graph_evidence_id, finding_ids, errors</code>; lists use <code>operator.add</code> reducers) so a checkpointer can persist it later.</li>
+    <li>Nodes fetch live objects with <code>get_ctx(run_id)</code>. Edges: START → discovery → <i>route_after_discovery</i> → detection → <i>route_after_detection</i> → evidence_analyst | END. Each route function is Python and emits a <code>decision</code> event with its reason.</li>
+    <li>A <code>finally</code> block always writes <code>graph.json</code>, <code>changes.json</code>, <code>run_summary.json</code>, <code>runs/LATEST</code> — a crash still leaves viewable output.</li>
+    <li><code>build_graph_json</code> merges Dev2's graph with findings: sets <code>risk</code> (max initial_risk) and <code>finding_ids</code> on nodes; creates pseudo-nodes <code>ci:</code>/<code>image:</code>/<code>config:</code> (and edges from the project root) for non-package findings.</li>
+  </ol>
+
+  <h4>2 · Tool registry (<code>tools/registry.py</code>)</h4>
+  <p><code>BINDINGS</code> maps agent → ordered list of <code>(name, "module:function")</code>. <code>resolve()</code> imports lazily — a not-yet-written Dev2/Dev4 module raises <code>ToolUnavailable</code>, which <code>call_tool</code> logs and skips. That is how Dev1 could finish and test the pipeline <i>before</i> other devs' code landed (tests use <code>tests/integration/fake_tools.py</code>). After a tool returns, evidence is stored, artifacts merged, and <code>work_dir/sbom_path/graph</code> promoted onto <code>ToolContext</code> so later tools see them.</p>
+
+  <h4>3 · Discovery and detection agents</h4>
+  <ul>
+    <li><b>Discovery</b>: runs the 4 discovery tools in order; if workspace fails, scans the target <i>in place read-only</i>; collects sbom/graph evidence ids; emits stats + <code>handoff</code>.</li>
+    <li><b>Detection</b>: runs grype, osv, 4 detectors, changes. <code>dedupe()</code> keys CVE findings by <code>(purl, ID)</code> for vuln_id and every alias — first seen (Grype) wins, later duplicates merge evidence ids, aliases, fix versions, CVSS, range. Fills <code>dependency_paths</code> via <code>graph.paths_to(purl, 5)</code>. Stores findings.</li>
+  </ul>
+
+  <h4>4 · Evidence analyst (LLM) — the one real LLM agent today</h4>
+  <p>See the A–Z notes §8 for the sequence diagram. Key mechanics: rank by rule risk → top 40 to the LLM in batches of 8 on 4 threads → prompt built from finding view + evidence view, each wrapped via <code>untrusted.wrap</code> (redact + neutralise <code>&lt;/data&gt;</code> + injection scan) → strict JSON schema → <code>parse_batch</code> with one repair retry → <code>ground_assessment</code> → update Finding (<code>initial_risk</code>, <code>initial_risk_source</code>, <code>explanation</code>, <code>claims</code>, <code>status=assessed</code>). Any LLM failure falls back to <code>rule_risk</code>.</p>
+
+  <h4>5 · Guardrails & LLM provider</h4>
+  <ul>
+    <li><code>redact.py</code>: 9 regex families (private key, Anthropic/OpenAI/GitHub/Slack/npm/AWS tokens, JWT, <code>password=</code> assignments) → <code>[REDACTED:name]</code>; <code>redact_obj</code> for dict/list payloads (used by audit).</li>
+    <li><code>untrusted.py</code>: <code>wrap()</code> + <code>SYSTEM_RULE</code> + injection regex.</li>
+    <li><code>grounding.py</code>: schema classes (<code>RawBatch</code>), <code>ground_assessment</code> implementing G4.2/4.3/4.4/4.6.</li>
+    <li><code>file_read.py</code>: deny-lists, outside-root guard, 64 KB cap, redaction.</li>
+    <li><code>provider.py</code>: backends + <code>LLMProvider</code> with SHA-256 cache keys; replay never builds a backend.</li>
+  </ul>
+
+  <h4>6 · Audit (<code>core/audit.py</code>)</h4>
+  <p><code>emit(agent, type, summary, **kw)</code> redacts <code>data</code>, appends an <code>AgentEvent</code> to <code>trace.jsonl</code> under a lock, mirrors tool/LLM/guardrail/error events to <code>audit.jsonl</code>, and echoes a coloured line to stderr. <code>JsonStore</code> is append-only for evidence (second write raises), atomic tmp-rename for <code>findings.json</code>, and rejects findings that cite unknown evidence.</p>
+
+  <h3>Day-2 design Dev1 will implement</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1060 190" width="1060">
+    <rect class="box green" x="10" y="30" width="140" height="56" rx="10"/><text class="t" x="80" y="52" text-anchor="middle">risk_analyst</text><text class="s" x="80" y="68" text-anchor="middle">factors in code</text>
+    <rect class="box violet" x="180" y="30" width="130" height="56" rx="10"/><text class="t" x="245" y="52" text-anchor="middle">investigator</text><text class="s" x="245" y="68" text-anchor="middle">ReAct ≤8 calls</text>
+    <rect class="box amber" x="340" y="30" width="140" height="56" rx="10"/><text class="t" x="410" y="52" text-anchor="middle">remediation</text><text class="s" x="410" y="68" text-anchor="middle">plan + plan_hash</text>
+    <polygon points="560,24 620,58 560,92 500,58" style="fill:#2a2108;stroke:#fbbf24;stroke-width:1.6"/><text class="s" x="560" y="62" text-anchor="middle" style="fill:#fbbf24">human_gate</text>
+    <rect class="box red" x="650" y="30" width="130" height="56" rx="10"/><text class="t" x="715" y="52" text-anchor="middle">validator</text><text class="s" x="715" y="68" text-anchor="middle">→ Dev2 sandbox</text>
+    <rect class="box green" x="810" y="30" width="130" height="56" rx="10"/><text class="t" x="875" y="52" text-anchor="middle">reporter</text><text class="s" x="875" y="68" text-anchor="middle">→ Dev4 report</text>
+    <path class="arr" d="M150 58H178"/><path class="arr" d="M310 58H338"/><path class="arr" d="M480 58H500"/><path class="arr g" d="M620 58H648"/><path class="arr g" d="M780 58H808"/>
+    <path class="arr r d" d="M715 86V140H410V88"/><text class="s" x="440" y="134" style="fill:#f87171">failed/regressed → remediation gets last ValidationResult, must choose a different plan</text>
+    <text class="s" x="10" y="176">Design points: gate node contains ONLY interrupt() (resume re-runs node from start → plan_id would otherwise change) · SQLite checkpointer · attempt counter · no edge to validator except via approval.</text>
+  </svg></div>
+
+  <div class="callout good"><b>Show-it proofs:</b> <code>make check</code> green · stub run writes <code>trace.jsonl</code> · tests (unknown ID / invented CVE rejected) · <code>GUARDIAN_LLM_MODE=replay</code> reruns with no network · by Day-1 end: run stops at the gate → approve via CLI/API → continues with the same plan_id. <b>Must be able to answer:</b> why agents, why LangGraph, how hallucination is controlled.</div>
+</div>
+
+<!-- ============================================================ DEV2 -->
+<div class="view" id="v-d2">
+  <div class="who"><div class="av" style="background:#4c9aff">D2</div><div><h2 style="margin:0">Dev2 — Tooling, graph, adapters, sandbox</h2><div style="color:var(--mute)">Produces the facts. Everything that touches Syft/Grype/npm/Docker, the dependency graph, patching and the validation sandbox. Status: <span class="status st-wait">NOT IN REPO YET</span> (per context.md)</div></div></div>
+
+  <div class="grid g3">
+    <div class="card b"><h5>Owns (paths)</h5><ul><li><code>core/workspace.py</code>, <code>core/graph_build.py</code></li><li><code>tools/resolve.py sbom.py scanners.py patching.py sandbox.py sbom_diff.py</code></li><li><code>tools/detectors/</code> lockfile, typosquat, install_scripts, unexpected_change</li><li><code>adapters/npm.py pypi.py</code></li><li><code>sandbox/Dockerfile.*</code>, <code>scripts/install_tools.sh</code></li></ul></div>
+    <div class="card c"><h5>Receives</h5><ul><li>Dev1: <code>ToolContext</code> contract, calls via registry</li><li>Dev4: typosquat similarity fn, CI/image detectors</li><li>Dev5: backup lockfiles, targets</li></ul></div>
+    <div class="card g"><h5>Gives</h5><ul><li>Dev1: <code>ToolOutput</code> w/ Evidence + Findings; graph object</li><li>Dev3: <code>graph.json</code> data</li><li>Dev4: npm audit signatures evidence → provenance</li></ul></div>
+  </div>
+
+  <h3>Task list</h3>
+  <table><tr><th>ID</th><th>When · P</th><th>What</th><th>Acceptance</th></tr>
+    <tr><td>D2-01</td><td>14:15–14:35 · P0</td><td>Install + pin Syft, Grype, OSV-Scanner; <code>install_tools.sh</code>, <code>tool_versions.env</code>; pre-download Grype DB</td><td>All print versions</td></tr>
+    <tr><td>D2-02</td><td>14:35–15:00 · P0</td><td><code>workspace.py</code> (copy target to <code>runs/&lt;id&gt;/work/</code>, strip git remote); <code>resolve.py</code> <code>npm install --package-lock-only --ignore-scripts</code> for root + <code>frontend/</code>; <code>sbom.py</code> <code>syft dir:&lt;work&gt; -o cyclonedx-json=…</code></td><td>SBOM in chat by 15:00; no install scripts run</td></tr>
+    <tr><td>D2-03</td><td>15:00–15:30 · P0</td><td><code>graph_build.py</code>: CycloneDX → networkx; fallback to <code>package-lock.json</code> <code>packages</code> map; direct/scope/project/origin/integrity; <code>paths_to()</code>; pseudo-nodes</td><td>Root → transitive vulnerable path found; JSON matches §4</td></tr>
+    <tr><td>D2-04</td><td>15:30–15:55 · P0</td><td><code>scanners.py</code>: <code>grype sbom:&lt;file&gt; -o json</code> → Findings (vuln_id, aliases, cvss, fixed_versions, affected_range, paths); OSV cross-check (P1)</td><td>≥1 transitive CVE with path to direct parent</td></tr>
+    <tr><td>D2-05</td><td>15:55–16:10 · P0</td><td><code>adapters/npm.py</code>; detectors <code>lockfile</code> (<code>.npmrc package-lock=false</code>), <code>typosquat</code> (calls Dev4 fn)</td><td>lockfile + <code>ngy-cookie</code> findings with file+line+excerpt</td></tr>
+    <tr><td>D2-06</td><td>17:00–19:30 · P0</td><td>Install-script detector on dependencies; <code>unexpected_change</code> (new dep, script added, integrity change, major jump) generalising Dev4's mini-diff; <code>--compare-ref</code></td><td>Planted integrity change detected; legacy typosquat via <code>.bak</code></td></tr>
+    <tr><td>D2-07 / 07b</td><td>18:15–19:30 / Day 2 A</td><td><code>patching.py</code>: <code>set_dependency_version, remove/replace_dependency, pin_action_sha, generate_lockfile</code>; later <code>pin_image_digest, update_base_image, block_package</code></td><td>Diff tests pass; refuses paths outside work copy</td></tr>
+    <tr><td>D2-08</td><td>Day 2 A–B · P0</td><td><code>sandbox.py</code> validation pipeline (below)</td><td>Output captured; SBOM diff correct; container removed; timeout honoured</td></tr>
+    <tr><td>D2-09/10/11/12</td><td>P1/P2</td><td>PyGoat pip adapter · local branch + PR.md · container SBOM (Syft on image) · Cosign verify</td><td>Same command on PyGoat · branch exists · image pkgs in graph</td></tr>
+  </table>
+
+  <h3>How it works inside</h3>
+  <h4>Discovery chain</h4>
+  <div class="diagram">
+  <svg viewBox="0 0 1060 150" width="1060">
+    <rect class="box" x="10" y="30" width="150" height="70" rx="10"/><text class="b" x="85" y="58" text-anchor="middle">prepare_workspace</text><text class="s" x="85" y="76" text-anchor="middle">copy → work/, strip</text><text class="s" x="85" y="90" text-anchor="middle">git remote</text>
+    <rect class="box" x="190" y="30" width="170" height="70" rx="10"/><text class="b" x="275" y="58" text-anchor="middle">resolve_lockfiles</text><text class="s" x="275" y="76" text-anchor="middle">npm --package-lock-only</text><text class="s" x="275" y="90" text-anchor="middle">--ignore-scripts</text>
+    <rect class="box" x="390" y="30" width="150" height="70" rx="10"/><text class="b" x="465" y="58" text-anchor="middle">generate_sbom</text><text class="s" x="465" y="76" text-anchor="middle">syft dir:work →</text><text class="s" x="465" y="90" text-anchor="middle">sbom.cdx.json</text>
+    <rect class="box" x="570" y="30" width="170" height="70" rx="10"/><text class="b" x="655" y="58" text-anchor="middle">build_graph</text><text class="s" x="655" y="76" text-anchor="middle">networkx; paths_to();</text><text class="s" x="655" y="90" text-anchor="middle">origin + integrity</text>
+    <rect class="box green" x="770" y="30" width="280" height="70" rx="10"/><text class="b" x="910" y="54" text-anchor="middle">ToolOutput</text><text class="s" x="910" y="72" text-anchor="middle">Evidence(kind="sbom"/"graph") · artifacts:</text><text class="s" x="910" y="88" text-anchor="middle">work_dir · sbom_path · graph</text>
+    <path class="arr" d="M160 65H188"/><path class="arr" d="M360 65H388"/><path class="arr" d="M540 65H568"/><path class="arr g" d="M740 65H768"/>
+    <text class="s" x="10" y="130">Why --package-lock-only --ignore-scripts: Juice Shop has no lockfile; plain npm install would execute untrusted install scripts. Generated lockfile is committed as a fixture so ^ ranges don't drift between rehearsal and demo.</text>
+  </svg></div>
+
+  <h4>Graph build details</h4>
+  <ul>
+    <li>Primary source: CycloneDX <code>components</code> + <code>dependencies</code> → <code>networkx.DiGraph</code>, node id = purl. If dependencies are empty/partial (Syft sometimes gives none), build edges from <code>package-lock.json</code> <code>packages</code> and record which source was used in the evidence.</li>
+    <li>Per node: <code>direct</code> (listed in manifest), <code>scope</code> prod/dev (dependencies vs devDependencies), <code>project</code> (root/frontend), <code>origin</code> (lockfile <code>resolved</code> URL), <code>integrity</code> (sha512).</li>
+    <li><code>paths_to(purl, max_paths=5)</code> enumerates simple paths from roots — this is what turns "lodash has a CVE" into "express → body-parser → … → lodash".</li>
+    <li><code>stats()</code> → components/direct/transitive/projects (feeds the header strip). Two roots: root and <code>frontend/</code>.</li>
+  </ul>
+
+  <h4>Scanners → Findings</h4>
+  <p><code>grype sbom:&lt;file&gt; -o json</code> parsed into <code>Finding(category=cve, vuln_id, aliases, cvss, severity, fixed_versions, affected_range, component_purl)</code>; npm advisories are often GHSA-only so aliases (CVE) are kept for EPSS/KEV later. Raw scanner output is stored as an <code>Evidence(kind="scanner_output")</code> with <code>sha256</code>. OSV-Scanner (<code>osv-scanner scan source -L sbom.cdx.json</code>) is the cross-check; Dev1's dedupe merges both.</p>
+
+  <h4>Detectors (each: file + line + excerpt evidence)</h4>
+  <table><tr><th>Detector</th><th>Logic</th></tr>
+    <tr><td><code>lockfile</code></td><td><code>.npmrc</code> contains <code>package-lock=false</code> → category <code>lockfile</code></td></tr>
+    <tr><td><code>typosquat</code></td><td>for each dep name call Dev4's <code>similarity</code> vs popular list → <code>ngy-cookie</code> near <code>ngx-cookie</code></td></tr>
+    <tr><td><code>dependency_install_scripts</code></td><td>packages in resolved tree with <code>hasInstallScript</code> / registry install scripts (targets <i>dependencies</i>, not the app's own postinstall — avoids false positives)</td></tr>
+    <tr><td><code>unexpected_change</code></td><td>diff manifests/lockfiles (<code>--compare-ref</code> or <code>.bak</code>): new dependency, install script added, integrity change, major-version jump → <code>changes.json</code></td></tr>
+  </table>
+
+  <h4>Patching ops (Day 1 evening / Day 2)</h4>
+  <p>Operate only inside the work copy (path guard G6.6) and emit unified-diff evidence: <code>set_dependency_version</code>, <code>remove_dependency</code>, <code>replace_dependency</code>, <code>pin_action_sha</code> (tag→SHA by <code>git ls-remote</code>), <code>generate_lockfile</code> (also removes <code>package-lock=false</code>), then <code>pin_image_digest</code>, <code>update_base_image</code>, <code>block_package</code>.</p>
+
+  <h4>Sandbox validation pipeline (D2-08) — the "verified" proof</h4>
+  <div class="diagram">
+  <svg viewBox="0 0 1060 250" width="1060">
+    <rect class="box blue" x="10" y="20" width="200" height="86" rx="10"/><text class="b" x="110" y="44" text-anchor="middle">Phase 0 · base image</text><text class="s" x="110" y="64" text-anchor="middle">pre-build deps-installed image</text><text class="s" x="110" y="80" text-anchor="middle">(speed: reuse per attempt)</text>
+    <rect class="box amber" x="240" y="20" width="230" height="86" rx="10"/><text class="b" x="355" y="44" text-anchor="middle">Phase 1 · network ON</text><text class="s" x="355" y="62" text-anchor="middle">registry only, no secrets</text><text class="s" x="355" y="78" text-anchor="middle">install deps · npm audit signatures</text><text class="s" x="355" y="94" text-anchor="middle">→ provenance evidence</text>
+    <rect class="box red" x="500" y="20" width="250" height="86" rx="10"/><text class="b" x="625" y="44" text-anchor="middle">Phase 2 · --network none</text><text class="s" x="625" y="62" text-anchor="middle">build · unit (test:server)</text><text class="s" x="625" y="78" text-anchor="middle">integration (test:api, app in sandbox)</text>
+    <rect class="box violet" x="780" y="20" width="270" height="86" rx="10"/><text class="b" x="915" y="44" text-anchor="middle">Phase 3 · artifact</text><text class="s" x="915" y="62" text-anchor="middle">docker build patched image (G6.7)</text><text class="s" x="915" y="78" text-anchor="middle">Syft image SBOM → Grype → re-run detectors</text><text class="s" x="915" y="94" text-anchor="middle">→ sbom_diff</text>
+    <path class="arr" d="M210 63H238"/><path class="arr" d="M470 63H498"/><path class="arr" d="M750 63H778"/>
+    <rect class="box green" x="240" y="140" width="810" height="90" rx="10"/><text class="b" x="645" y="164" text-anchor="middle">ValidationResult</text><text class="s" x="645" y="184" text-anchor="middle">build_ok · unit/integration counts · artifact_rescanned · target_finding_resolved · new_findings · sbom_diff_evidence_id</text><text class="s" x="645" y="200" text-anchor="middle">risk_before → risk_after · verdict (verified|failed_build|failed_tests|regressed|not_resolved|timeout) · final_confidence</text><text class="s" x="645" y="216" text-anchor="middle">Every container: non-root, CPU/mem/time limits, no host mounts except work copy, removed after the attempt</text>
+    <path class="arr g" d="M915 106V138"/>
+  </svg></div>
+  <div class="callout">Known, disclosed limitation (G6.7): <code>docker build</code> executes the target's Dockerfile with network on, so it runs under limits + <code>.dockerignore</code> excluding keys/.env + no build secrets.</div>
+
+  <div class="callout good"><b>Show-it proofs:</b> tool versions printed · <code>sbom.cdx.json</code> posted by 15:00 · root→transitive path printed · transitive CVE traced to direct parent · 4 anomaly findings in <code>findings.json</code> at 16:10 · diff tests refuse outside-path writes. <b>Must be able to answer:</b> why Syft/Grype, how the graph is built, why <code>--ignore-scripts</code>.</div>
+</div>
+
+<!-- ============================================================ DEV3 -->
+<div class="view" id="v-d3">
+  <div class="who"><div class="av" style="background:#f472b6">D3</div><div><h2 style="margin:0">Dev3 — UI and API</h2><div style="color:var(--mute)">Makes the invisible visible: the dependency graph, findings, evidence, agent trace, approval, before/after. Status: <span class="status st-wait">NOT IN REPO YET</span> (<code>ui/</code> is a placeholder)</div></div></div>
+
+  <div class="grid g3">
+    <div class="card p"><h5>Owns</h5><ul><li><code>ui/</code> — Vite + React + TS + Tailwind, React Flow + dagre</li><li><code>guardian/api/</code> — FastAPI + SSE (Dev1 reviews)</li></ul></div>
+    <div class="card c"><h5>Receives</h5><ul><li>Dev1: run files, <code>serve-runs</code>, gate resume hook, AgentEvents</li><li>Dev2/4: contents of graph.json / changes.json</li></ul></div>
+    <div class="card g"><h5>Gives</h5><ul><li>Humans: the dashboard & approval panel</li><li>Dev1: <code>decision</code> POSTs that resume the human gate</li><li>Judges: the demo visuals</li></ul></div>
+  </div>
+
+  <h3>Task list</h3>
+  <table><tr><th>ID</th><th>When · P</th><th>What</th><th>Acceptance</th></tr>
+    <tr><td>D3-01</td><td>14:15–14:45 · P0</td><td>Scaffold; <code>src/api/types.ts</code> mirroring §4/§5; <b>realistic-size mocks</b> (≥1,000 nodes, 2 roots, pseudo-nodes, changes, trace, summary)</td><td><code>npm run dev</code> shows mocks</td></tr>
+    <tr><td>D3-02</td><td>14:45–15:40 · P0</td><td>Graph view: React Flow + dagre; collapsed per §4.3; colour by risk; path highlight; side panel (version, scope, origin, integrity, findings, path)</td><td>1,000-node mock &lt; 2 s</td></tr>
+    <tr><td>D3-07</td><td>15:40–16:10 · P0</td><td>Findings list + evidence viewer + VERIFIED/INFERRED/initial-risk badges; header strip; agent trace list; "what changed" panel</td><td>All render mocks then real data</td></tr>
+    <tr><td>D3-08</td><td>15:50–16:10 · P0</td><td>Wire to real <code>runs/&lt;id&gt;/</code> via <code>VITE_RUNS_BASE=http://localhost:8001</code>; screenshots → <code>docs/cp1/</code></td><td>Real Juice Shop renders &lt; 2 s</td></tr>
+    <tr><td>D3-03</td><td>17:00–18:00 · P0</td><td>FastAPI core routes reading run files; CORS</td><td><code>curl</code>: create run → findings → evidence</td></tr>
+    <tr><td>D3-09</td><td>18:00–19:30 · P0</td><td>SSE <code>/events</code> streaming <code>trace.jsonl</code>; decision endpoints bound to <code>plan_hash</code></td><td>Trace streams; wrong hash rejected</td></tr>
+    <tr><td>D3-04</td><td>Day 2 A · P0</td><td>Approval panel: action, target version + evidence, diff, risk reduction, compat hint, rollback, claims; Approve / Reject (comment required) / Accept risk</td><td>Cannot approve before all sections load</td></tr>
+    <tr><td>D3-05/06</td><td>Day 2 B–C</td><td>Validation view (attempt history, before→after) · live trace timeline, provenance badges, watch list, multi-repo table, report download</td><td>Renders from mocks / live</td></tr>
+  </table>
+
+  <h3>How it works inside</h3>
+  <div class="diagram">
+  <svg viewBox="0 0 1060 300" width="1060">
+    <rect class="box amber" x="10" y="100" width="150" height="76" rx="10"/><text class="b" x="85" y="128" text-anchor="middle">runs/&lt;id&gt;/</text><text class="s" x="85" y="146" text-anchor="middle">JSON files (Dev1)</text>
+    <rect class="box cyan" x="200" y="30" width="180" height="60" rx="10"/><text class="b" x="290" y="55" text-anchor="middle">serve-runs :8001</text><text class="s" x="290" y="73" text-anchor="middle">static + CORS (Day 1)</text>
+    <rect class="box" x="200" y="190" width="180" height="60" rx="10" style="stroke-dasharray:4 3"/><text class="b" x="290" y="215" text-anchor="middle">FastAPI (D3-03/09)</text><text class="s" x="290" y="233" text-anchor="middle">routes + SSE events</text>
+    <rect class="box pink" x="430" y="60" width="350" height="180" rx="12"/><text class="b" x="605" y="84" text-anchor="middle" style="fill:#f472b6">React app (types.ts = contract)</text>
+    <rect class="box" x="445" y="98" width="150" height="34" rx="6"/><text class="t" x="520" y="120" text-anchor="middle">Header strip</text>
+    <rect class="box" x="615" y="98" width="150" height="34" rx="6"/><text class="t" x="690" y="120" text-anchor="middle">Graph (React Flow)</text>
+    <rect class="box" x="445" y="140" width="150" height="34" rx="6"/><text class="t" x="520" y="162" text-anchor="middle">Findings + evidence</text>
+    <rect class="box" x="615" y="140" width="150" height="34" rx="6"/><text class="t" x="690" y="162" text-anchor="middle">Agent trace</text>
+    <rect class="box" x="445" y="182" width="150" height="34" rx="6"/><text class="t" x="520" y="204" text-anchor="middle">What changed</text>
+    <rect class="box amber" x="615" y="182" width="150" height="34" rx="6"/><text class="t" x="690" y="204" text-anchor="middle">Approval panel (D2)</text>
+    <rect class="box" x="840" y="110" width="200" height="60" rx="10"/><text class="b" x="940" y="136" text-anchor="middle">Human</text><text class="s" x="940" y="154" text-anchor="middle">clicks Approve/Reject</text>
+    <path class="arr" d="M160 126L198 70"/><path class="arr d" d="M160 150L198 210"/><path class="arr" d="M380 60L428 100"/><path class="arr d" d="M380 220L428 190"/>
+    <path class="arr" d="M780 140H838"/><path class="arr g d" d="M940 170V280H290V252"/><text class="s" x="420" y="274" style="fill:#34d399">POST /plans/{id}/decision {approve|reject|accept_risk, comment, plan_hash} → Dev1 resumes the human gate</text>
+  </svg></div>
+
+  <h4>Graph rendering rule (§4.3)</h4>
+  <p>1,500 nodes won't render legibly. The UI draws only: roots, direct dependencies, nodes on a path to a finding, and non-package pseudo-nodes (<code>ci:</code>, <code>image:</code>, <code>config:</code>); everything else collapses into a count on its parent. <b>dagre</b> lays it out left-to-right; node colour = max risk; clicking a node highlights its path and opens a side panel with origin and integrity. Mocks must be realistic size so performance problems appear early.</p>
+
+  <h4>Trace list</h4>
+  <p>Reads <code>trace.jsonl</code> (one AgentEvent per line) and colours by agent role: supervisor, discovery, detection, evidence_analyst, guardrail. Shows hand-offs and the supervisor's <code>decision</code> lines — this is the main "this is agentic" proof for judges. Later fed live via SSE.</p>
+
+  <h4>Approval panel safety rules</h4>
+  <ul><li>Buttons disabled until action, evidence, diff, risk reduction, compat hint, rollback and claims have all loaded.</li><li>Reject / Accept risk require a comment.</li><li>Decision body includes <code>plan_hash</code>; backend rejects a mismatch (G5.1), so a stale plan can't be approved.</li></ul>
+
+  <div class="callout good"><b>Show-it proofs:</b> mock data in <code>npm run dev</code> · click node → path highlighted, 1,000-node mock &lt; 2 s · all panels render · real Juice Shop &lt; 2 s · <code>curl</code> returns real data · trace streams during a run · approve via API resumes a stub run. <b>Fallbacks:</b> Dev5's static HTML viewer and screenshots in <code>docs/cp1/</code>.</div>
+</div>
+
+<!-- ============================================================ DEV4 -->
+<div class="view" id="v-d4">
+  <div class="who"><div class="av" style="background:#fbbf24">D4</div><div><h2 style="margin:0">Dev4 — Threat intel, scoring, data, detectors, reports</h2><div style="color:var(--mute)">Turns raw findings into <i>prioritised</i> risk and produces the human-readable deliverables. Status: <span class="status st-wait">NOT IN REPO YET</span></div></div></div>
+
+  <div class="grid g3">
+    <div class="card a"><h5>Owns</h5><ul><li><code>core/scoring.py</code></li><li><code>tools/threat_intel.py reachability.py exposure.py compat_hint.py policy.py</code></li><li><code>tools/detectors/ci_pin image_pin outdated similarity</code></li><li><code>adapters/github_actions.py dockerfile.py</code></li><li><code>reporting/</code>, <code>policies/*.rego</code>, <code>data/popular_packages/</code>, <code>guardian.yaml</code> content</li></ul></div>
+    <div class="card c"><h5>Receives</h5><ul><li>Dev1: findings, models, run context</li><li>Dev2: npm audit signatures evidence, graph</li></ul></div>
+    <div class="card g"><h5>Gives</h5><ul><li>Dev1: <code>initial_risk()</code>, <code>compute()</code>, evidence for risk analyst, report renderer</li><li>Dev2: <code>similarity</code> fn, denylist for <code>block_package</code></li><li>Dev3: report files</li></ul></div>
+  </div>
+
+  <h3>Task list</h3>
+  <table><tr><th>ID</th><th>When · P</th><th>What</th><th>Acceptance</th></tr>
+    <tr><td>D4-01</td><td>14:15–14:45 · P0</td><td><code>npm.txt</code> popular names (source documented; includes <code>ngx-cookie</code>, <code>epilogue</code>) + <code>similarity.py</code></td><td><code>ngy-cookie</code> flagged; exact popular names not</td></tr>
+    <tr><td>D4-02</td><td>14:45–15:00 · P0</td><td>Initial-risk rule: CVSS ≥9 Critical, ≥7 High, ≥4 Medium + category defaults</td><td>Unit tests</td></tr>
+    <tr><td>D4-12</td><td>15:00–15:40 · P0</td><td>GitHub Actions + Dockerfile adapters; <code>ci_pin</code>, <code>image_pin</code></td><td>Findings for <code>coverallsapp/github-action@v2</code>, <code>node:24</code></td></tr>
+    <tr><td>D4-11</td><td>15:40–16:05 · P0</td><td>"What changed" mini-diff: <code>ftp/package.json.bak</code> vs current → <code>changes.json</code> + evidence</td><td>Panel data for CP1</td></tr>
+    <tr><td>D4-03</td><td>17:00–18:00 · P0</td><td><code>threat_intel.py</code>: EPSS, KEV, OSV, registry metadata, <code>safe_version_lookup</code>; disk cache + <code>GUARDIAN_OFFLINE=1</code> + throttle</td><td>Recorded-response tests; offline works</td></tr>
+    <tr><td>D4-04</td><td>18:00–18:45 · P0</td><td><code>scoring.py</code> (pure function) + <code>simulate_after(plan)</code></td><td>Tests per band, KEV override, confidence</td></tr>
+    <tr><td>D4-08</td><td>18:45–19:30 · P0</td><td><code>outdated</code> detector (deprecated flag, stale publish, far behind latest major)</td><td>≥1 finding on Juice Shop</td></tr>
+    <tr><td>D4-05/13/14</td><td>Day 2 A · P0</td><td>Reachability (import-level) · exposure signals · compat hint</td><td>Evidence with file+line; <code>jsonwebtoken 0.4.0→9.x</code> = major/high</td></tr>
+    <tr><td>D4-09</td><td>Day 2 A · P1</td><td>Provenance status per package + score modifier + <code>provenance_gap</code> findings</td><td>Every prod dep has a status</td></tr>
+    <tr><td>D4-06</td><td>Day 2 B · P0</td><td>Reports: JSON (validates against Pydantic) + HTML (Jinja2)</td><td>Includes factor tables, before/after, audit</td></tr>
+    <tr><td>D4-07/10</td><td>Day 2 · P1/P2</td><td>Policies: <code>guardian.yaml</code> denylist + Rego · advanced package risk (maintainer change, release burst, dependency confusion)</td><td>Juice Shop fails ≥3 policies before, targeted ones pass after</td></tr>
+  </table>
+
+  <h3>How it works inside</h3>
+  <h4>Typosquat detection (<code>similarity.py</code>)</h4>
+  <p>For each dependency name, compare to the popular list: Damerau-Levenshtein distance ≤1–2, minimum name length 5, a popularity gap (candidate not itself popular), swapped-character and <code>-js</code>-suffix checks. <code>ngy-cookie</code> vs <code>ngx-cookie</code> = distance 1 ⇒ finding. Exact popular names are never flagged. False-positive count on Juice Shop deps is reported.</p>
+
+  <h4>CI & Dockerfile adapters</h4>
+  <p><code>github_actions.py</code> parses workflows and finds <code>uses:</code> refs not equal to a 40-char hex SHA → <code>unpinned_ci</code>; <code>dockerfile.py</code> finds <code>FROM</code> lines without <code>@sha256:</code> → <code>untrusted_image</code>. Each finding has file + line + excerpt evidence — which Dev1 turns into <code>ci:</code>/<code>image:</code> pseudo-nodes in the graph.</p>
+
+  <h4>The scoring engine (pure function)</h4>
+  <div class="diagram">
+  <svg viewBox="0 0 1060 250" width="1060">
+    <rect class="box cyan" x="10" y="20" width="150" height="40" rx="8"/><text class="t" x="85" y="45" text-anchor="middle">S · severity</text>
+    <rect class="box red" x="10" y="70" width="150" height="40" rx="8"/><text class="t" x="85" y="95" text-anchor="middle">E · EPSS pct / KEV</text>
+    <rect class="box green" x="10" y="120" width="150" height="40" rx="8"/><text class="t" x="85" y="145" text-anchor="middle">R · reachability</text>
+    <rect class="box blue" x="10" y="170" width="150" height="40" rx="8"/><text class="t" x="85" y="195" text-anchor="middle">P · prod / dev</text>
+    <rect class="box violet" x="10" y="220" width="150" height="26" rx="8"/><text class="s" x="85" y="238" text-anchor="middle">X · exposure signals</text>
+    <rect class="box amber" x="260" y="60" width="300" height="130" rx="12"/><text class="b" x="410" y="90" text-anchor="middle">compute(factors)</text><text class="s" x="410" y="112" text-anchor="middle">100×(.30S+.25E+.20R+.15P+.10X)</text><text class="s" x="410" y="130" text-anchor="middle">+5 provenance modifier (cap 100)</text><text class="s" x="410" y="148" text-anchor="middle">override: KEV+reachable+prod ⇒ ≥High</text><text class="s" x="410" y="166" text-anchor="middle">confidence −1 per unknown S/E/R/P</text>
+    <rect class="box green" x="650" y="60" width="180" height="130" rx="12"/><text class="b" x="740" y="90" text-anchor="middle">Outputs</text><text class="s" x="740" y="112" text-anchor="middle">score · band</text><text class="s" x="740" y="130" text-anchor="middle">confidence</text><text class="s" x="740" y="148" text-anchor="middle">factor table (recomputable)</text><text class="s" x="740" y="166" text-anchor="middle">simulate_after(plan)</text>
+    <rect class="box" x="900" y="60" width="150" height="130" rx="12"/><text class="b" x="975" y="96" text-anchor="middle">Used by</text><text class="s" x="975" y="118" text-anchor="middle">Dev1 risk_analyst</text><text class="s" x="975" y="136" text-anchor="middle">Dev1 remediation</text><text class="s" x="975" y="154" text-anchor="middle">Dev3 factor table</text><text class="s" x="975" y="172" text-anchor="middle">Dev4 report</text>
+    <path class="arr" d="M160 40L258 100"/><path class="arr" d="M160 90L258 110"/><path class="arr" d="M160 140L258 130"/><path class="arr" d="M160 190L258 150"/><path class="arr" d="M160 233L258 170"/><path class="arr g" d="M560 125H648"/><path class="arr" d="M830 125H898"/>
+  </svg></div>
+  <p>Each factor carries <code>value, tier, unknown, label, evidence_ids</code>: values from tool evidence are VERIFIED; any value the LLM proposes (only exposure when signals are unknown) is INFERRED. The weights are the team's choice — say so openly. Raw EPSS is ≈0 for most CVEs, so the <b>percentile</b> is used.</p>
+
+  <h4>Threat intel (<code>threat_intel.py</code>)</h4>
+  <ul>
+    <li><code>epss_lookup</code> — <code>api.first.org/data/v1/epss?cve=…</code> (≤100 CVEs per call); <code>kev_lookup</code> — CISA KEV JSON; <code>osv_query(purl)</code>; <code>registry_metadata(purl)</code> (deprecated flag, maintainers, repository, engines); <code>safe_version_lookup(purl, vuln_ids)</code> = lowest version fixing all.</li>
+    <li>All calls: disk cache + throttle; <code>GUARDIAN_OFFLINE=1</code> returns cache only — keeps the demo working without Wi-Fi and avoids hammering public services.</li>
+    <li>Each result becomes <code>Evidence</code> (kinds <code>epss</code>, <code>kev</code>, <code>osv</code>, <code>registry_metadata</code>) so Dev1's grounding can verify claims against them.</li>
+  </ul>
+
+  <h4>Reachability, exposure, compatibility</h4>
+  <table><tr><th>Tool</th><th>Mechanism</th><th>Evidence facts</th></tr>
+    <tr><td>reachability_import</td><td>search production paths for <code>require('x')</code> / <code>import … from 'x'</code> / Python <code>import x</code> → tier called/imported/not_imported; optional 1–2 Semgrep rules for demo CVEs → <code>called</code></td><td>tier + file + line</td></tr>
+    <tr><td>exposure_signals</td><td>Dockerfile <code>EXPOSE</code>/server entrypoint + package imported under server/route dirs ⇒ network-facing; only in build/test/frontend ⇒ internal</td><td><code>{expose, imported_in_server_paths}</code></td></tr>
+    <tr><td>compat_hint(purl, from, to)</td><td>semver delta, target's <code>engines.node</code> vs project, peer-dep changes, deprecated target; level rule: major→high, minor→medium, patch→low, +1 if engines/peer problem</td><td><code>CompatHint</code></td></tr>
+  </table>
+
+  <h4>Reports & policy</h4>
+  <p><b>Report JSON</b> (validates against Pydantic): inventory + paths, findings + evidence, risk ranking + factor tables, actions + approvals, validation before/after, remaining/accepted risk, final confidence, guardrail events, audit. <b>HTML</b> via Jinja2 for people. <b>Policies</b>: <code>guardian.yaml</code> (denylist, thresholds, internal scopes) and Conftest/Rego rules (deny unpinned actions, tag-only images, missing lockfile, denylisted/typosquat packages, packages younger than N days); <code>policy_check</code> runs inside the Validator.</p>
+
+  <div class="callout good"><b>Show-it proofs:</b> <code>ngy-cookie</code> flagged, exact names not · unit tests on initial-risk · CI/Docker findings with file+line · <code>changes.json</code> from <code>.bak</code> vs current · <code>GUARDIAN_OFFLINE=1</code> returns cached values · scoring tests per band + KEV override · ≥1 outdated finding. <b>Must be able to answer:</b> how initial risk is decided, how typosquats are detected.</div>
+</div>
+
+<!-- ============================================================ DEV5 -->
+<div class="view" id="v-d5">
+  <div class="who"><div class="av" style="background:#34d399">D5</div><div><h2 style="margin:0">Dev5 — Targets, QA, docs, demo</h2><div style="color:var(--mute)">Owns the story and the safety net: what we scan, whether it's right, how we present it, and the coverage checklist. Status: <span class="status st-wait">NOT IN REPO YET</span> (<code>targets/</code> gitignored)</div></div></div>
+
+  <div class="grid g3">
+    <div class="card g"><h5>Owns</h5><ul><li><code>targets/</code> (gitignored), <code>scripts/fetch_targets.sh</code>, <code>static_view.py</code></li><li><code>tests/golden/</code>, <code>tests/fixtures/</code> (with Dev2)</li><li><code>docs/</code> decisions, targets, architecture, responsible_ai, demo_script, <code>cp1/</code></li><li><code>README</code>, <code>GUARDIAN_PLAN.md</code> upkeep</li></ul></div>
+    <div class="card c"><h5>Receives</h5><ul><li>Dev1: real run output to diff</li><li>Dev2: lockfile timing, outputs to capture</li><li>Dev3: screenshots</li><li>Mentor answers (§11)</li></ul></div>
+    <div class="card a"><h5>Gives</h5><ul><li>Everyone: pinned targets + backup lockfiles</li><li>QA: golden file diff, bug list</li><li>Team: talk track, drop-order calls, §17 status</li></ul></div>
+  </div>
+
+  <h3>Task list</h3>
+  <table><tr><th>ID</th><th>When · P</th><th>What</th><th>Acceptance</th></tr>
+    <tr><td>D5-01</td><td>14:15–15:00 · P0</td><td>Clone Juice Shop at pinned commit; verify §10 facts; ask mentor §11 questions → <code>docs/decisions.md</code>; run lockfile resolve as <b>backup</b> and post lockfiles + timing</td><td>Facts confirmed/corrected</td></tr>
+    <tr><td>D5-02</td><td>14:45–16:10 · P0</td><td>Golden <code>tests/golden/juice_shop_expected.yaml</code>; capture real tool outputs as fixtures; QA integration; CP1 talk track</td><td>CP1 checklist verified</td></tr>
+    <tr><td>D5-09</td><td>15:15–16:00 · P1</td><td><code>scripts/static_view.py</code> Jinja2 viewer from a run folder (insurance; stop once React graph works)</td><td>Opens from <code>runs/&lt;id&gt;/</code> w/o server</td></tr>
+    <tr><td>D5-03/07</td><td>17:00–18:30 · P0</td><td>Juice Shop timings (<code>test:server</code>, <code>test:api</code>, image build); PyGoat clone + containerised?</td><td><code>docs/targets.md</code>; 2nd target confirmed</td></tr>
+    <tr><td>D5-04</td><td>18:00–19:30 · P1</td><td><code>docs/decisions.md</code> "why we chose X"</td><td>Reviewed by Dev1/Dev2</td></tr>
+    <tr><td>D5-08</td><td>19:30–20:00 + Day 2 D</td><td>Walk §17 coverage matrix, fresh-clone test</td><td>No P0 row open at freeze</td></tr>
+    <tr><td>D5-05/06</td><td>Day 2</td><td>Architecture diagram + <code>responsible_ai.md</code> · demo script, 2 rehearsals, backup video, cached offline run</td><td>Rehearsed &lt; 8 min</td></tr>
+  </table>
+
+  <h3>How the role works</h3>
+  <h4>Why Dev5 matters to the pipeline</h4>
+  <ul>
+    <li><b>Pins reality.</b> Juice Shop is cloned at a fixed commit so results don't drift. §10 facts (no lockfile; old <code>jsonwebtoken 0.4.0</code>, <code>express-jwt 0.1.3</code>, <code>sanitize-html 1.4.2</code>; <code>ngy-cookie</code> in <code>frontend/package.json</code>; unpinned <code>coverallsapp/github-action@v2</code>; tag-only <code>node:24</code>) are <i>unverified</i> until Dev5 checks them by 15:00 — then corrections go in chat.</li>
+    <li><b>Insurance.</b> Backup lockfiles if Dev2's resolve is slow; static HTML viewer if React isn't ready; screenshots; recorded video; cached offline run (LLM replay + intel cache).</li>
+    <li><b>Golden-file QA.</b> <code>juice_shop_expected.yaml</code> lists the findings that must appear (P0 = must not miss). QA diffs a real run against it; "diff = 0 P0 misses" is the CP1 gate.</li>
+    <li><b>Triage.</b> Calls the drop-order when someone is behind: OSV cross-check → typosquat → dagre polish → React graph. Never dropped: SBOM, graph with paths, ≥1 CVE with path, ≥1 anomaly, LLM agent with citations, visible trace.</li>
+  </ul>
+
+  <h4>Mentor questions to settle (before 14:45)</h4>
+  <ol class="steps">
+    <li>What must CP1 at 16:30 show — graph only, or CVEs/anomalies too? How is it evaluated?</li>
+    <li>When is the Day-1 milestone checked? When is the final demo and when does Day 2 start?</li>
+    <li>Allowed public read-only APIs (npm, OSV, EPSS, KEV, GitHub) and the LLM provider API?</li>
+    <li>Is a local clone/branch acceptable for the remediation-branch stretch goal?</li>
+    <li>Any LLM cost limit? Is a local/open model preferred?</li>
+    <li>Is <code>docker build</code> of the target (which runs its Dockerfile's npm install) acceptable in our sandbox?</li>
+  </ol>
+
+  <h4>CP1 talk track (3 min)</h4>
+  <ol class="steps">
+    <li>Problem in one line; idea: tools = facts, agents = reasoning, humans approve.</li>
+    <li>Run the command; show the agent trace (Discovery → Detection → Evidence analyst, hand-offs, routing decisions).</li>
+    <li>Header strip (N components, M direct); graph: direct vs transitive; click a vulnerable package; path to direct parent; origin + integrity.</li>
+    <li>Findings: one CVE and one anomaly with VERIFIED/INFERRED labels. What changed: open the <code>.bak</code> diff.</li>
+    <li>What's next: prioritise, remediate, approve, validate.</li>
+  </ol>
+
+  <h4>Final demo (~7–8 min)</h4>
+  <p>Problem (30 s) → live run + trace (60 s) → vulnerable path + <code>.bak</code> diff (60 s) → <code>ngy-cookie</code> investigation (60 s) → <code>jsonwebtoken</code> factor table, major-bump plan, approve, tests fail, agent re-plans (90 s) → lockfile + CI pin → verified (60 s) → <code>--repos</code> Juice Shop + PyGoat (45 s) → <code>watch</code> (20 s, cut first) → report, provenance, policies, audit (45 s).</p>
+
+  <h4>§17 coverage matrix</h4>
+  <p>Maps every slide / briefing requirement (Discover… Validate, guidelines, Day 1, Day 2, stretch goals, spoken requirements) to task IDs. Dev5 marks each row done / partial with proof (screenshot or file path) at Day-1 end and before freeze. <b>Team gate for Day 2:</b> every Day-1 row done or consciously deferred, <code>v0.5-day1</code> tagged, and a fresh clone + <code>make setup</code> + one command reproduces Day-1 output.</p>
+
+  <h4>Responsible-AI note (D5-05) — what it must cover</h4>
+  <div class="grid g2">
+    <div class="card"><h5>Where AI is used</h5><p>Evidence analyst, risk analyst summary, investigator, remediation choice — never for facts.</p></div>
+    <div class="card"><h5>Controls</h5><p>Hallucination: G4 grounding · Approvals: G5 · Secrets: G1 · Sandbox: G6 incl. the image-build limitation (G6.7) · Audit: G7 · stated limitations.</p></div>
+  </div>
+
+  <div class="callout good"><b>Show-it proofs:</b> <code>docs/decisions.md</code> has mentor answers · corrections to §10 posted · golden diff = 0 P0 misses · <code>docs/targets.md</code> timings · fresh-clone reproduction. <b>Everyone</b> (not just Dev5) must be able to explain their own module — mentors probe harder when paid AI tools are used.</div>
+</div>
+</main>
+
+<script>
+const colors={all:'#22d3ee',d1:'#a78bfa',d2:'#4c9aff',d3:'#f472b6',d4:'#fbbf24',d5:'#34d399'};
+function show(v){
+  if(!document.getElementById('v-'+v)) v='all';
+  document.querySelectorAll('.view').forEach(e=>e.classList.toggle('on',e.id==='v-'+v));
+  document.querySelectorAll('#tabs button').forEach(b=>{
+    const on=b.dataset.v===v; b.classList.toggle('on',on);
+    b.style.background=on?colors[b.dataset.v]:''; });
+  history.replaceState(null,'','#'+v); window.scrollTo({top:0});
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>show(b.dataset.v)));
+show(location.hash.slice(1)||'all');
+</script>
+</body>
+</html>

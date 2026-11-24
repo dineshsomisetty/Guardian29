@@ -260,7 +260,7 @@ class ValidationResult(BaseModel):
     attempt_id: str
     plan_id: str
     finding_id: str
-    build_ok: bool
+    build_ok: bool | None  # ADDITIVE (Dev1): None = build not run (Day-1 validator: detectors only)
     unit_tests: dict[str, int] = {}
     integration_tests: dict[str, int] = {}
     artifact_rescanned: str | None = None

@@ -1,0 +1,22 @@
+{
+ "evidence_id": "ev_6W14WMCHWYFGCW8T7SWM4FV4DK",
+ "run_id": "run_20261123_172422",
+ "kind": "patch_diff",
+ "source_tool": "patching",
+ "created_at": "2026-11-23T11:55:17.802Z",
+ "facts": {
+  "plan_id": "pl_T83PXT891WB09B9Y73MY63FCH2",
+  "preview": true,
+  "files": [
+   "package.json"
+  ],
+  "ops": [
+   "set_dependency_version"
+  ]
+ },
+ "excerpt": "--- a/package.json\n+++ b/package.json\n@@ -41,7 +41,7 @@\n     \"helmet\": \"^4.6.0\",\n     \"jsonwebtoken\": \"0.4.0\",\n-    \"lodash\": \"2.4.2\",\n+    \"lodash\": \"4.17.21\",\n     \"morgan\": \"^1.10.0\",\n     \"multer\": \"^1.4.5-lts.1\",\n",
+ "file_path": null,
+ "line": null,
+ "artifact_path": null,
+ "sha256": null
+}

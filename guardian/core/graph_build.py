@@ -14,6 +14,7 @@ from pathlib import Path
 
 import networkx as nx
 
+from guardian.adapters import pypi
 from guardian.adapters.npm import find_projects, purl
 from guardian.core.models import Evidence
 from guardian.tools.registry import ToolContext, ToolOutput
@@ -82,6 +83,24 @@ class DependencyGraph:
                 if k in key_to_id and key_to_id[k] != src:
                     self.g.add_edge(src, key_to_id[k])
 
+    def add_flat_components(self, name: str, components: list[dict], ecosystem: str) -> int:
+        """Fallback for ecosystems without a lockfile graph (pip): one package node per SBOM component, a root
+        edge to each (requirements pins are direct, production scope)."""
+        if name not in self.g:
+            self.roots.append(name)
+            self.g.add_node(name, id=name, kind="project", label=name, project=name)
+        n = 0
+        for c in components:
+            p = c.get("purl") or ""
+            if not p.startswith(f"pkg:{ecosystem}/") or p in self.g:
+                continue
+            self.g.add_node(p, id=p, kind="package", label=c.get("name") or p.split("/")[-1].split("@")[0],
+                            version=c.get("version"), ecosystem=ecosystem, direct=True, scope="prod", project=name,
+                            projects=[name], origin=None, integrity=None, deprecated=False, has_install_script=False)
+            self.g.add_edge(name, p)
+            n += 1
+        return n
+
     # --------------------------------------------------------------- queries
     def packages(self) -> list[str]:
         return [n for n, d in self.g.nodes(data=True) if d.get("kind") == "package"]
@@ -124,9 +143,24 @@ def build_graph(ctx: ToolContext) -> ToolOutput:
         if proj.lockfile.exists():
             graph.add_project(proj.name, json.loads(proj.lockfile.read_text(encoding="utf-8")))
             used.append(proj.lockfile.relative_to(work).as_posix())
+    edge_source = "package-lock.json packages map (node resolution)"
+    if ctx.sbom_path is not None and Path(ctx.sbom_path).exists():
+        comps = json.loads(Path(ctx.sbom_path).read_text(encoding="utf-8")).get("components", [])
+        # ecosystems without a lockfile graph here (pip, maven, gem, golang, ...): one node per SBOM component
+        # with a root edge. GitHub Actions purls are CI steps, shown as ci: pseudo-nodes, not packages.
+        ecos = sorted({(c.get("purl") or "")[4:].split("/", 1)[0] for c in comps
+                       if (c.get("purl") or "").startswith("pkg:")} - {"npm", "github", "githubactions", "docker", "oci"})
+        for eco in ecos:
+            if eco == "pypi" and not pypi.find_projects(work):
+                continue
+            label = {"pypi": "pip"}.get(eco, eco)
+            added = graph.add_flat_components("root" if "root" not in graph.roots else label, comps, eco)
+            if added:
+                used.append(f"sbom.cdx.json ({eco} components)")
+                edge_source += f"; {label}: SBOM components with root edges"
     stats = graph.stats()
     ev = Evidence(run_id=ctx.run_id, kind="graph", source_tool="graph_build:npm-lockfile",
-                  facts={**stats, "edge_source": "package-lock.json packages map (node resolution)",
+                  facts={**stats, "edge_source": edge_source,
                          "lockfiles": used})
     return ToolOutput(evidence=[ev], artifacts={"graph": graph},
                       summary=f"{stats['components']} packages, {stats['edges']} edges, roots {stats['projects']}")
