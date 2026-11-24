@@ -293,6 +293,8 @@ def plan_args(*ops: PatchOp, attempt: str | None = None) -> PlanArgs:
 
 
 def test_plan_args_validation():
+    from guardian.tools.patching import MAX_PLAN_OPS
+
     good = op("remove_dependency", name="lodash")
     with pytest.raises(ValueError):
         PlanArgs(plan_id="pl_bad", ops=[good])
@@ -301,7 +303,7 @@ def test_plan_args_validation():
     with pytest.raises(ValueError):
         PlanArgs(plan_id=new_id("pl"), ops=[])
     with pytest.raises(ValueError):
-        PlanArgs(plan_id=new_id("pl"), ops=[good] * 21)
+        PlanArgs(plan_id=new_id("pl"), ops=[good] * (MAX_PLAN_OPS + 1))  # bounded (G3.2)
 
 
 @pytest.mark.parametrize("action,ref", [("../x", "v1"), ("a/b", "v1;ls"), ("a/b", "x..y"), ("a/..", "v1"), ("nope", "v1")])
