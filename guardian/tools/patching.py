@@ -236,6 +236,9 @@ def _rewrite_image(text: str, rel: str, image: str, tag: str, new_ref: str) -> s
     ref = re.escape(image) + "(?::" + re.escape(tag) + ")" + ("?" if tag == "latest" else "")
     if _is_dockerfile(rel):
         pat = re.compile(r"^(\s*FROM\s+(?:--platform=\S+\s+)?)" + ref + r"(?=\s|$)", re.I | re.M)
+    elif rel.endswith((".gitlab-ci.yml", ".gitlab-ci.yaml")) or rel.startswith(".gitlab/"):
+        # GitLab CI: `image: ref`, `name: ref` (image/service mappings) and bare `- ref` service list items
+        pat = re.compile(r"^(\s*(?:-\s+)?(?:(?:image|name)\s*:\s*)?['\"]?)" + ref + r"(?=['\"]?\s*(?:#.*)?$)", re.M)
     else:
         pat = re.compile(r"^(\s*(?:-\s+)?image\s*:\s*['\"]?)" + ref + r"(?=['\"]?\s*(?:#.*)?$)", re.M)
     new, n = pat.subn(lambda m: m.group(1) + new_ref, text)

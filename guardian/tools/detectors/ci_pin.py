@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from guardian.adapters import github_actions
+from guardian.adapters import github_actions, gitlab_ci
 from guardian.core.models import Evidence, Finding, FindingCategory, Scope
 from guardian.tools.registry import ToolContext, ToolOutput
 
@@ -27,5 +27,19 @@ def detect(ctx: ToolContext) -> ToolOutput:
             run_id=ctx.run_id, category=FindingCategory.UNPINNED_CI,
             title=f"GitHub Action {target} not pinned to a commit SHA", detector="detector:ci_pin",
             scope=Scope.PROD, project="root", file_path=file, line=first.line, evidence_ids=[ev.evidence_id]))
+    # GitLab CI: `include:` of another project's pipeline at a branch/tag, or of a remote URL
+    _, includes = gitlab_ci.parse(root)
+    for inc in includes:
+        if inc.pinned:
+            continue
+        ev = Evidence(run_id=ctx.run_id, kind="file_excerpt", source_tool="detector:ci_pin",
+                      facts={"include": inc.source, "ref": inc.ref, "pinned_to_sha": False, "ci": "gitlab"},
+                      file_path=inc.file, line=inc.line, excerpt=inc.raw)
+        evidence.append(ev)
+        at = f"@{inc.ref}" if inc.ref else " (remote URL)"
+        findings.append(Finding(
+            run_id=ctx.run_id, category=FindingCategory.UNPINNED_CI,
+            title=f"GitLab CI include {inc.source}{at} not pinned to a commit SHA", detector="detector:ci_pin",
+            scope=Scope.PROD, project="root", file_path=inc.file, line=inc.line, evidence_ids=[ev.evidence_id]))
     return ToolOutput(findings=findings, evidence=evidence,
-                      summary=f"{len(refs)} action refs, {len(findings)} not SHA-pinned")
+                      summary=f"{len(refs)} action refs + {len(includes)} GitLab includes, {len(findings)} not SHA-pinned")
