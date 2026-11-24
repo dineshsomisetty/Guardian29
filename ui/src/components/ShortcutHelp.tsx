@@ -6,7 +6,7 @@ const GROUPS: { title: string; rows: [string[], string][] }[] = [
   {
     title: "Anywhere",
     rows: [
-      [["1", "2", "3", "4", "5", "6"], "Switch view (Overview, Map, Findings, Approval, Validation, Report)"],
+      [["1", "2", "3", "4", "5", "6"], "Switch view (Overview, Map, Findings, Remediation, Validation, Report)"],
       [["/"], "Search in the current view"],
       [["?"], "Show this help"],
       [["Esc"], "Close the panel on top"],

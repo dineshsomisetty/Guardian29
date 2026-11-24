@@ -48,6 +48,37 @@ export default function Overview() {
   const pf = plan ? findingsById.get(plan.finding_id) : undefined;
   const sum = plan ? planSummary(plan, pf, pf ? bandOf(pf, riskById) : null) : null;
 
+  // batch mode: the whole round of suggested fixes waits for decisions together
+  const recs = data.recommendations;
+  const toDecide = recs && recs.status === "awaiting_decisions" ? recs.items.filter((i) => i.kind === "fix" && i.outcome === "awaiting_decision").length : 0;
+  const testing = recs && recs.status === "validating" ? recs.items.filter((i) => i.outcome === "validating").length : 0;
+  const result = useMemo(() => {
+    let verified: number, needs: number, noAlt = 0, accepted = 0, fixedFindings = 0;
+    if (recs) {
+      // one recommendation row can cover several findings (all advisories on a package): count fixes as rows,
+      // but accepted / no-fix / open as the FINDINGS those rows cover, so the numbers add up to the total
+      const rows = (o: string) => recs.items.filter((i) => i.outcome === o);
+      const findings = (o: string) => rows(o).reduce((sum, i) => sum + i.finding_ids.length, 0);
+      verified = rows("verified").length;
+      fixedFindings = findings("verified");
+      needs = ["needs_person", "failed", "rejected", "awaiting_decision", "validating"].reduce((s2, o) => s2 + findings(o), 0);
+      noAlt = findings("no_alternative");
+      accepted = findings("accepted");
+    } else {
+      verified = new Set(data.validation.filter((v) => v.verdict === "verified").map((v) => v.finding_id)).size;
+      needs = (s.remediation ?? []).filter((r) => r.status && r.status !== "verified" && r.status !== "accepted").length;
+    }
+    const parts = [
+      verified
+        ? `${plural(verified, "fix", "fixes")} verified in a sandbox${fixedFindings > verified ? ` (resolving ${fixedFindings} findings)` : ""}`
+        : "",
+      accepted ? `risk accepted for ${plural(accepted, "finding")}` : "",
+      noAlt ? `${plural(noAlt, "finding")} with no suggested fix` : "",
+      needs ? `${plural(needs, "finding")} still ${needs === 1 ? "needs" : "need"} a person` : "",
+    ].filter(Boolean);
+    return parts.length ? `${parts.join(", ")}. The full report is ready.`.replace(/^./, (x) => x.toUpperCase()) : "Guardian has finished. The full report is ready.";
+  }, [recs, data.validation, s.remediation]);
+
   const active = pipeline.nodes.find((n) => n.state === "active");
   const stepsDone = pipeline.nodes.filter((n) => n.state === "done").length;
 
@@ -76,7 +107,19 @@ export default function Overview() {
         </header>
 
         {/* ---- next step */}
-        {status === "awaiting_human" && plan && sum ? (
+        {status === "awaiting_human" && toDecide > 0 ? (
+          <section className="nextstep gate" aria-label="Next step">
+            <ShieldAlert size={22} aria-hidden className="ns-ico" />
+            <div className="ns-text">
+              <p className="ns-title">{plural(toDecide, "suggested fix", "suggested fixes")} {toDecide === 1 ? "needs" : "need"} your decision</p>
+              <p className="ns-sub">Approve or reject each one. Validation starts once every fix has a decision, and approved fixes are tested together in one sandbox copy.</p>
+              <p className="ns-small">Nothing is changed in your repository.</p>
+            </div>
+            <button type="button" className="btn amber lg" onClick={() => setView("gate")}>
+              Review suggested fixes <ArrowRight size={16} aria-hidden />
+            </button>
+          </section>
+        ) : status === "awaiting_human" && plan && sum ? (
           <section className="nextstep gate" aria-label="Next step">
             <ShieldAlert size={22} aria-hidden className="ns-ico" />
             <div className="ns-text">
@@ -93,11 +136,7 @@ export default function Overview() {
             <CheckCircle2 size={22} aria-hidden className="ns-ico" />
             <div className="ns-text">
               <p className="ns-title">The scan is complete</p>
-              <p className="ns-sub">
-                {data.validation.some((v) => v.verdict === "verified")
-                  ? "A fix was approved and verified in a sandbox. The full report is ready."
-                  : "Guardian has finished. The full report is ready."}
-              </p>
+              <p className="ns-sub">{result}</p>
             </div>
             <button type="button" className="btn lg" onClick={() => setView("report")}>
               <FileText size={16} aria-hidden /> Open the report
@@ -117,7 +156,7 @@ export default function Overview() {
             <div className="ns-text">
               <p className="ns-title">Guardian is working</p>
               <p className="ns-sub">
-                {active ? STEP_DOING[active.id] : STEP_DOING[AGENTS[Math.min(stepsDone, AGENTS.length - 1)]]}
+                {testing > 0 ? `Testing ${plural(testing, "approved fix", "approved fixes")} together in one sandbox copy.` : active ? STEP_DOING[active.id] : STEP_DOING[AGENTS[Math.min(stepsDone, AGENTS.length - 1)]]}
                 {" "}
                 <span className="faint">
                   (step {Math.min(stepsDone + 1, AGENTS.length)} of {AGENTS.length})

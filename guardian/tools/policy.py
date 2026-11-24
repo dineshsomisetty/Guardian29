@@ -1,15 +1,23 @@
 """Policy-as-code (D4-07; ported from dev04 and adapted to this branch's adapters/registry/evidence).
 
-Rules (guardian.yaml `policies`/`thresholds`/`denylist`): lockfile committed, GitHub Actions pinned to a commit
-SHA, base images pinned by digest, no denylisted / typosquat packages, no package younger than N days.
+Called by: the detection agent (registered tool `policy_check`) and the validator, which may re-run it on a
+patched copy to prove a policy violation is gone (set ctx.artifacts["policy_lock_root"] to the patched copy so
+the lockfile check looks there instead of the original repo).
+
+Rules (guardian.yaml `policies` / `thresholds` / `denylist`): lockfile committed, GitHub Actions pinned to a
+commit SHA, base images pinned by digest, no denylisted / typosquat packages, no package younger than N days.
 
 * `policy_check(doc, config)` evaluates the rules natively (no OPA needed) over one input document.
 * The same rules exist as Rego in policies/guardian.rego. If `conftest` or `opa` is on PATH the Rego is also run on
   the same document and both results are recorded in the `policy_result` Evidence (`facts.rego`).
-* `run_policy_check(ctx)` is the registered tool `policy_check` (detection; the validator may re-run it on a
-  patched copy: set `ctx.artifacts["policy_lock_root"]` to the patched copy so the lockfile check looks there).
-  It writes `policy_input.json`, one `policy_result` Evidence per rule that fired (or one passing result) and one
-  aggregated `policy_violation` Finding per rule. Registry age lookups are cache/throttle bound and offline-safe.
+* `run_policy_check(ctx)` writes `policy_input.json`, one `policy_result` Evidence per rule that fired (or one
+  passing result) and one aggregated `policy_violation` Finding per rule.
+  policy_result facts: {checked{actions,images,packages,has_lockfile}, rego, engine, rule, violations (max 50),
+  count, passed}. The Finding is scoped prod / project "root" and points at the first violation's file and line.
+
+Network: only package ages need the npm registry (IntelClient: G3.5 allowlist, disk cache, throttle, at most
+AGE_LOOKUP_CAP lookups per run). Offline or on a cache miss the age is None = unknown, and that rule is skipped
+rather than guessed. Rego is optional: when neither tool is installed the native result stands alone.
 
 Input document: {has_lockfile, actions:[{file,line,uses}], images:[{file,line,image}],
                  packages:[{name, version, age_days|None, typosquat_of|None, denylisted}]}
@@ -34,6 +42,7 @@ DEFAULT_CONFIG = REPO_ROOT / "guardian.yaml"
 POLICY_DIR = REPO_ROOT / "policies"
 AGE_LOOKUP_CAP = 80  # registry lookups for package age per run (cached, throttled)
 
+# Rule id -> human-readable reason; also used as the finding title suffix and by the Rego policy messages.
 RULES = {
     "missing_lockfile": "No lockfile committed; installs are not reproducible",
     "unpinned_action": "GitHub Action not pinned to a commit SHA",
@@ -45,6 +54,8 @@ RULES = {
 
 
 def load_config(path: Path | str | None = None) -> dict:
+    """Read guardian.yaml (path argument, else env GUARDIAN_CONFIG, else the repo default). A missing or empty
+    file gives {} so every rule falls back to its default (all rules on)."""
     p = Path(path or os.environ.get("GUARDIAN_CONFIG") or DEFAULT_CONFIG)
     if not p.exists():
         return {}
@@ -52,25 +63,35 @@ def load_config(path: Path | str | None = None) -> dict:
 
 
 def min_age_days(cfg: dict) -> int | None:
+    """Minimum package age in days from thresholds; None disables the rule.
+    `max_package_age_days` is the old (misleading) key name, still accepted."""
     thr = cfg.get("thresholds", {})
     return thr.get("min_package_age_days", thr.get("max_package_age_days"))
 
 
 def _v(rule: str, message: str, file: str | None = None, line: int | None = None, **extra) -> dict:
+    """One violation record; `extra` carries e.g. the package name."""
     return {"rule": rule, "message": message, "file": file, "line": line, **extra}
 
 
 def _is_sha(ref: str) -> bool:
+    """A full 40-character lowercase hex commit SHA (a short SHA or a tag is mutable/ambiguous, so not accepted)."""
     return len(ref) == 40 and all(c in "0123456789abcdef" for c in ref)
 
 
 def _has_digest(image: str) -> bool:
+    """True when the image reference carries an @sha256:<64 hex> digest (content-addressed, cannot be moved)."""
     _, _, d = image.partition("@sha256:")
     return len(d) == 64 and all(c in "0123456789abcdef" for c in d)
 
 
 def policy_check(doc: dict, config: dict | None = None) -> list[dict]:
-    """Native evaluation of the guardian rules over `doc`. Returns violations (empty = pass)."""
+    """Native evaluation of the guardian rules over `doc`. Returns violations (empty = pass).
+
+    `config` defaults to guardian.yaml. Each violation is {rule, message, file, line, ...}. Rules can be turned
+    off with policies.require_lockfile / require_pinned_actions / require_pinned_base_images (default on); the
+    denylist and the age threshold come from `denylist` and `thresholds`. A package with unknown age
+    (age_days None) is never reported as too new."""
     cfg = config if config is not None else load_config()
     pol = cfg.get("policies", {})
     out: list[dict] = []
@@ -81,7 +102,7 @@ def policy_check(doc: dict, config: dict | None = None) -> list[dict]:
     if pol.get("require_pinned_actions", True):
         for a in doc.get("actions", []):
             ref = a["uses"]
-            if ref.startswith(("./", "docker://")):
+            if ref.startswith(("./", "docker://")):  # local composite action / docker image: no ref to pin
                 continue
             version = ref.split("@", 1)[1] if "@" in ref else ""
             if not _is_sha(version):
@@ -94,6 +115,7 @@ def policy_check(doc: dict, config: dict | None = None) -> list[dict]:
             if img.lower() != "scratch" and not _has_digest(img):
                 out.append(_v("tag_only_image", f"{img} is not pinned by digest", i.get("file"), i.get("line")))
 
+    # denylist from guardian.yaml: lowercase name -> why it is banned (names are compared case-insensitively)
     deny = {str(d["name"]).lower(): d.get("reason", "") for d in cfg.get("denylist", [])}
     min_age = min_age_days(cfg)
     for p in doc.get("packages", []):
@@ -116,6 +138,8 @@ def policy_check(doc: dict, config: dict | None = None) -> list[dict]:
 
 
 def _npm_packages(root: Path) -> list[dict]:
+    """Every distinct dependency name declared in the repo's package.json files (plus the legacy backup manifest),
+    as policy-document package entries with age/typosquat/denylist still unset. First declaration wins."""
     pk: list[dict] = []
     seen: set[str] = set()
     manifests = [(p.manifest, p.manifest.relative_to(root).as_posix()) for p in npm.find_projects(root)]
@@ -137,11 +161,14 @@ def _npm_packages(root: Path) -> list[dict]:
 
 
 def _has_lockfile(root: Path) -> bool:
+    """True when every npm project under `root` has a lockfile (vacuously true when there is no npm project)."""
     projects = npm.find_projects(root)
     return all(p.lockfile.exists() for p in projects)  # no npm project -> nothing to lock (pip pins are in-file)
 
 
 def package_age_days(meta: dict | None, now: datetime | None = None) -> int | None:
+    """Days since the package was first published (registry `time.created`); None if unknown.
+    `now` is injectable for tests. Never negative."""
     created = ((meta or {}).get("time") or {}).get("created")
     if not created:
         return None
@@ -156,6 +183,7 @@ def build_policy_input(root: Path | str, config: dict | None = None, intel=None,
                        lock_root: Path | str | None = None, now: datetime | None = None) -> dict:
     """Build the evaluator input from a project tree. `intel` (an IntelClient) adds package ages for the first
     AGE_LOOKUP_CAP direct prod packages; without it (or on offline cache misses) age stays None = unknown."""
+    # imported here, not at module level, to keep tools.policy importable without the detectors package
     from guardian.tools.detectors.similarity import check_name
 
     root = Path(root)
@@ -165,7 +193,7 @@ def build_policy_input(root: Path | str, config: dict | None = None, intel=None,
                for r in github_actions.parse(root) if not r.local]
     images, _ = dockerfile.parse(root)
     pk = _npm_packages(root)
-    looked = 0
+    looked = 0  # registry age lookups spent so far (capped by AGE_LOOKUP_CAP)
     for p in pk:
         p["denylisted"] = p["name"].lower() in deny
         hit = check_name(p["name"])
@@ -173,10 +201,12 @@ def build_policy_input(root: Path | str, config: dict | None = None, intel=None,
         if intel is not None and p["section"] == "dependencies" and looked < AGE_LOOKUP_CAP:
             looked += 1
             p["age_days"] = package_age_days(intel.registry_metadata(npm.purl(p["name"], "0")), now)
+    # Python requirements are only checked against the denylist (typosquat/age data is npm-only here)
     pk += [{"name": n, "version": v or "", "section": "requirements", "file": req.name, "line": line,
             "age_days": None, "typosquat_of": None, "denylisted": n.lower() in deny}
            for proj in pypi.find_projects(root) for req in proj.requirements
            for n, v, _spec, line in pypi.requirement_pins(req) if n.lower() in deny]
+    # image refs are rebuilt as name[:tag][@digest] so the evaluator sees exactly what the Dockerfile pins
     return {"has_lockfile": _has_lockfile(Path(lock_root) if lock_root else root),
             "actions": actions,
             "images": [{"file": i.file, "line": i.line,
@@ -189,7 +219,11 @@ def build_policy_input(root: Path | str, config: dict | None = None, intel=None,
 
 
 def run_rego(doc: dict, workdir: Path, policies: Path = POLICY_DIR) -> dict:
-    """Run policies/guardian.rego with `conftest` or `opa` when installed. Never raises."""
+    """Run policies/guardian.rego with `conftest` or `opa` when installed. Never raises.
+
+    Writes policy_input.json into `workdir`. Returns {available: False, note} when neither tool exists,
+    {available: True, ok: False, error} when the run failed, else {available, ok, engine, denials, messages[:25]}."""
+    # Optional cross-check: prefer conftest (reads the policy dir), fall back to plain opa eval of guardian.rego
     conftest, opa = shutil.which("conftest"), shutil.which("opa")
     if not conftest and not opa:
         return {"available": False, "note": "neither conftest nor opa on PATH; native evaluator only"}
@@ -219,10 +253,17 @@ def run_rego(doc: dict, workdir: Path, policies: Path = POLICY_DIR) -> dict:
 
 
 def run_policy_check(ctx: ToolContext) -> ToolOutput:
+    """Registered tool `policy_check`: build the input document from the work copy, evaluate it (native and, if
+    available, Rego) and emit Evidence + one `policy_violation` Finding per rule that fired.
+
+    Side effects: writes policy_input.json (and the Rego input) into the run directory; may query the npm
+    registry for package ages through the cache. Returns violations as the `policy_violations` artifact."""
     from guardian.tools.threat_intel import IntelClient
 
     cfg = ctx.artifacts.get("guardian_config") or load_config()
     root = ctx.work_dir or ctx.repo
+    # the lockfile check reads the ORIGINAL repo (the work copy gets generated lockfiles) unless the validator
+    # points it at a patched copy
     lock_root = ctx.artifacts.get("policy_lock_root") or ctx.repo
     intel = IntelClient(ctx=ctx, agent="detection")
     doc = build_policy_input(root, cfg, intel=intel, lock_root=lock_root)
@@ -231,7 +272,7 @@ def run_policy_check(ctx: ToolContext) -> ToolOutput:
     rego = run_rego(doc, ctx.run_dir)
     if rego.get("ok"):
         rego["agrees_with_native"] = rego["denials"] == len(violations)
-    by_rule: dict[str, list[dict]] = {}
+    by_rule: dict[str, list[dict]] = {}  # rule id -> its violations (one Finding per rule, not per violation)
     for v in violations:
         by_rule.setdefault(v["rule"], []).append(v)
 
@@ -239,7 +280,7 @@ def run_policy_check(ctx: ToolContext) -> ToolOutput:
                         "packages": len(doc["packages"]), "has_lockfile": doc["has_lockfile"]},
             "rego": rego, "engine": "native" + (f"+{rego['engine']}" if rego.get("engine") else "")}
     evidence, findings = [], []
-    if not by_rule:
+    if not by_rule:  # record the pass too, so "checked and clean" is distinguishable from "never ran"
         evidence.append(Evidence(run_id=ctx.run_id, kind="policy_result", source_tool="policy_check",
                                  facts={**base, "violations": [], "count": 0, "passed": True},
                                  artifact_path="policy_input.json"))

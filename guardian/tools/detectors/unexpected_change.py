@@ -15,6 +15,15 @@ Two baselines:
 
 `changes.json` (§4.1) holds the compare-ref diff when one was given (legacy diff under `legacy`), otherwise
 the legacy diff.
+
+Called by: the detection agent (tool `changes`; `mini_diff` is the older CP1 binding). The investigator's
+manifest_diff tool and the report read the `changes` artifact it returns.
+Inputs: package.json and package-lock.json of each npm project, the shipped `ftp/*.bak` baseline files, and for
+--compare-ref the same files read from git (`git show <sha>:<path>`; the ref is validated first). No network.
+Output: Findings (scope unknown, at most MAX_FINDINGS_PER_KIND per category) with Evidence kind `diff`, facts
+{compare_ref, project, change: added | major_jump | integrity | install_script_added, ...}; plus one Evidence kind
+`changes` with the counts {base, head, added, removed, changed, major_jumps, integrity_changed,
+install_scripts_added, removed_names}. With no baseline at all the tool reports that and emits nothing.
 """
 
 from __future__ import annotations
@@ -28,9 +37,13 @@ from guardian.core.models import Evidence, Finding, FindingCategory, Scope
 from guardian.tools.binaries import run
 from guardian.tools.registry import ToolContext, ToolOutput
 
+# Legacy baseline: old copies of the manifests that ship inside the target (the diff is "then vs now").
 BASE_MANIFEST = "ftp/package.json.bak"
 BASE_LOCK = "ftp/package-lock.json.bak"
+# First version found in a range string: major[.minor[.patch]] (so "^4.17.1" -> 4, 17, 1).
 _VER = re.compile(r"(\d+)(?:\.(\d+))?(?:\.(\d+))?")
+# Conservative git ref syntax (branch/tag/sha/HEAD~2); rejects spaces, leading "-" and shell metacharacters so a
+# user-supplied --compare-ref cannot inject git options.
 _GIT_REF = re.compile(r"^[A-Za-z0-9_.][A-Za-z0-9_./~^@{}-]{0,99}$")
 MAX_FINDINGS_PER_KIND = 25  # a huge diff is one story, not 500 findings; counts stay complete in changes.json
 
@@ -39,21 +52,25 @@ MAX_FINDINGS_PER_KIND = 25  # a huge diff is one story, not 500 findings; counts
 
 
 def _deps(data: dict) -> dict[str, str]:
+    """{name: version range} of dependencies and devDependencies of a parsed package.json."""
     return {**data.get("dependencies", {}), **data.get("devDependencies", {})}
 
 
 def _base(rng: str) -> str:
+    """The plain version inside a range ("^4.17.1" -> "4.17.1"); the input unchanged if none is found."""
     m = _VER.search(rng)
     return ".".join(g for g in m.groups() if g is not None) if m else rng
 
 
 def _major(rng: str) -> int | None:
+    """Major version number inside a range string, or None."""
     m = _VER.search(rng)
     return int(m.group(1)) if m else None
 
 
 def _lock_index(data: dict) -> dict[str, dict]:
-    """name@version -> {integrity, install_script}, lockfile v1 (nested) and v2/v3 (`packages`)."""
+    """name@version -> {integrity, install_script}, lockfile v1 (nested) and v2/v3 (`packages`).
+    v1 lockfiles do not record install scripts, so their entries always say install_script False."""
     out: dict[str, dict] = {}
     for key, e in (data.get("packages") or {}).items():
         if key and e.get("version"):
@@ -72,6 +89,8 @@ def _lock_index(data: dict) -> dict[str, dict]:
 
 
 def diff_manifests(base: dict, head: dict) -> dict:
+    """Compare two parsed package.json files: {added: [purl], removed: [purl], changed: [{name, from, to,
+    from_range, to_range, major_jump}]}. A major_jump is a rise of the major version of at least 1."""
     b, h = _deps(base), _deps(head)
     added = sorted(purl(n, _base(h[n])) for n in h.keys() - b.keys())
     removed = sorted(purl(n, _base(b[n])) for n in b.keys() - h.keys())
@@ -85,6 +104,9 @@ def diff_manifests(base: dict, head: dict) -> dict:
 
 
 def diff_locks(base: dict, head: dict) -> dict:
+    """Compare two parsed lockfiles: {integrity_changed: [{purl, from, to}], install_scripts_added: [{purl,
+    new_package}]}. Only name@version pairs present in both are checked for integrity: the same release must
+    always hash the same, so a different digest means the published bytes were swapped."""
     bi, hi = _lock_index(base), _lock_index(head)
     integrity, scripts = [], []
     for key in sorted(bi.keys() & hi.keys()):
@@ -104,6 +126,7 @@ def diff_locks(base: dict, head: dict) -> dict:
 
 
 def legacy_diff(root: Path) -> dict | None:
+    """Diff the shipped legacy baseline against the current manifest/lockfile; None if either manifest is missing."""
     base, head = root / BASE_MANIFEST, root / "package.json"
     if not base.exists() or not head.exists():
         return None
@@ -127,6 +150,7 @@ def mini_diff(ctx: ToolContext) -> ToolOutput:
 
 
 def git_show(repo: Path, ref: str, rel: str) -> str | None:
+    """File contents at a git ref, or None if the path does not exist there (git exits 128)."""
     proc = run(["git", "-C", str(repo), "show", f"{ref}:{rel}"], timeout=30, ok_codes=(0, 128))
     return proc.stdout if proc.returncode == 0 else None
 
@@ -135,20 +159,22 @@ def compare_ref_diff(repo: Path, work: Path, ref: str) -> tuple[dict, list[dict]
     """Diff every npm project of the target between `ref` and the working tree. Returns (changes, per-project)."""
     if not _GIT_REF.match(ref):
         raise ValueError(f"unexpected git ref {ref!r}")
+    # resolve to a full commit SHA once, so every later `git show` reads the same commit even if the ref moves
     sha = run(["git", "-C", str(repo), "rev-parse", "--verify", f"{ref}^{{commit}}"], timeout=30).stdout.strip()
     total = {"base": f"{ref} ({sha[:12]})", "head": "working tree", "added": [], "removed": [], "changed": [],
              "integrity_changed": [], "install_scripts_added": [], "compare_ref": ref, "compare_sha": sha}
     per_project = []
     for proj in find_projects(repo):
-        rel_dir = "" if proj.name == "root" else f"{proj.name}/"
+        rel_dir = "" if proj.name == "root" else f"{proj.name}/"  # sub-project folder prefix inside the repo
         old_manifest = git_show(repo, sha, f"{rel_dir}package.json")
         if old_manifest is None:
-            entry = {"project": proj.name, "new_project": True}
+            entry = {"project": proj.name, "new_project": True}  # project did not exist at the ref: nothing to diff
             per_project.append(entry)
             continue
         d = diff_manifests(json.loads(old_manifest), json.loads(proj.manifest.read_text(encoding="utf-8")))
         locks = {"integrity_changed": [], "install_scripts_added": []}
         old_lock = git_show(repo, sha, f"{rel_dir}package-lock.json")
+        # the target may commit no lockfile; then the one Guardian generated in the work copy is the "head"
         head_lock = proj.lockfile if proj.lockfile.exists() else work / rel_dir / "package-lock.json"
         if old_lock and head_lock.exists():
             locks = diff_locks(json.loads(old_lock), json.loads(head_lock.read_text(encoding="utf-8")))
@@ -163,8 +189,10 @@ def compare_ref_diff(repo: Path, work: Path, ref: str) -> tuple[dict, list[dict]
 
 
 def _findings(ctx: ToolContext, ref: str, per_project: list[dict]) -> tuple[list[Finding], list[Evidence]]:
+    """Turn per-project compare-ref diffs into Findings + `diff` Evidence: new dependency (unexpected_change),
+    major jump, integrity change, install script added. Each kind is capped at MAX_FINDINGS_PER_KIND."""
     findings, evidence = [], []
-    counts: dict[str, int] = {}
+    counts: dict[str, int] = {}  # findings emitted so far per category, for the cap
 
     def add(category: FindingCategory, title: str, project: str, file_path: str, facts: dict,
             component: str | None, line: int | None = None) -> None:
@@ -184,6 +212,7 @@ def _findings(ctx: ToolContext, ref: str, per_project: list[dict]) -> tuple[list
         proj, manifest = p["project"], p["manifest"]
         mpath = ctx.repo / manifest
         for added in p["added"]:
+            # purl pkg:npm/%40scope/name@1.0.0 -> "@scope/name" (drop "pkg:npm/" prefix and "@version" suffix)
             name = added.split("/", 1)[1].rsplit("@", 1)[0].replace("%40", "@")
             line = line_of(mpath, rf'^\s*"{re.escape(name)}"\s*:')
             add(FindingCategory.UNEXPECTED_CHANGE, f"New dependency {name} added since {ref}", proj, manifest,
@@ -206,6 +235,9 @@ def _findings(ctx: ToolContext, ref: str, per_project: list[dict]) -> tuple[list
 
 
 def _output(ctx: ToolContext, compare: dict | None, legacy: dict | None, findings: list, evidence: list) -> ToolOutput:
+    """Assemble the ToolOutput: the summary `changes` Evidence, the `changes` artifact (full diff for the report
+    and the investigator) and, for a legacy-only run, integrity findings. The compare-ref diff wins as the main
+    diff when both exist; the legacy one is nested under changes["legacy"]."""
     if compare is None and legacy is None:
         return ToolOutput(summary="no baseline to compare (no --compare-ref, no legacy manifest)")
     main = compare or legacy
@@ -217,6 +249,7 @@ def _output(ctx: ToolContext, compare: dict | None, legacy: dict | None, finding
              "removed_names": [r.split("/")[-1] for r in main["removed"]][:50]}
     ev = Evidence(run_id=ctx.run_id, kind="changes", source_tool="detector:unexpected_change", facts=facts,
                   file_path=main["base"] if main is legacy else None)
+    # artifact stored as changes.json; evidence ids let the report link each change to its proof (capped at 200)
     changes = {**main, "evidence_ids": [ev.evidence_id, *(e.evidence_id for e in evidence)][:200]}
     if compare is not None and legacy is not None:
         changes["legacy"] = {**legacy, "evidence_ids": [ev.evidence_id]}  # same changes evidence covers both
@@ -236,6 +269,8 @@ def _output(ctx: ToolContext, compare: dict | None, legacy: dict | None, finding
 
 
 def detect(ctx: ToolContext) -> ToolOutput:
+    """Entry point of the `changes` tool: legacy diff always, compare-ref diff + findings when
+    ctx.artifacts["compare_ref"] is set. Raises ValueError for a malformed git ref."""
     work = ctx.work_dir or ctx.repo
     legacy = legacy_diff(work)
     ref = ctx.artifacts.get("compare_ref")

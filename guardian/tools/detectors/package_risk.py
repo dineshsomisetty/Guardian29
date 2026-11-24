@@ -1,10 +1,21 @@
 """D4-10 advanced package risk detectors (registry metadata, offline-safe). Owner: Dev1 (ported from dev04).
 
+Called by: the detection agent (package_risk tool). The rule logic itself lives in tools/package_risk.py (pure
+functions); this module finds the packages, fetches registry metadata and turns rule hits into Findings.
 One tool, four rules, each capped (guardian.yaml thresholds.package_risk_max_findings, default 15):
 maintainer change, unusual release activity, dependency confusion, provenance gap.
 Only DIRECT PROD dependencies are looked up (thresholds.package_risk_max_packages, default 80); internal-scope
-names are checked in every dependency section. Registry calls go through IntelClient (G3.5, cache, throttle);
-with GUARDIAN_OFFLINE=1 only the cache is read and a miss simply yields no finding.
+names (guardian.yaml internal_scopes) are checked in every dependency section. Registry calls go through
+IntelClient (G3.5, cache, throttle); with GUARDIAN_OFFLINE=1 only the cache is read and a miss simply yields no
+finding.
+Output (scope prod; one Evidence of kind `registry_metadata` per finding, excerpt = the manifest line):
+  maintainer_change      facts {rule: maintainer_change, previous, latest, latest_version} (full takeover only), or
+                         {rule: release_activity, signals:[release_burst | very_recent_release | very_young_package]}
+                         (both rules use the category `maintainer_change`)
+  provenance_gap         facts {rule: provenance_gap, reasons, provenance, peers}
+  dependency_confusion   facts {rule: dependency_confusion, public_latest, public_maintainers, public_created,
+                         public_versions, internal_scopes}
+Every Evidence also carries {name, purl}. Packages without registry data are silently skipped.
 """
 from __future__ import annotations
 
@@ -15,10 +26,12 @@ from guardian.tools.policy import load_config
 from guardian.tools.registry import ToolContext, ToolOutput
 from guardian.tools.threat_intel import IntelClient
 
-DETECTOR = "detector:package_risk"
+DETECTOR = "detector:package_risk"  # detector / source_tool label on every finding and evidence row
 
 
 def _installed(ctx: ToolContext) -> dict[str, str]:
+    """{package name: installed purl} from the dependency graph, so findings point at the real resolved version
+    (empty when no graph is available)."""
     g = getattr(ctx.graph, "g", None)
     if g is None:
         return {}
@@ -26,6 +39,7 @@ def _installed(ctx: ToolContext) -> dict[str, str]:
 
 
 def detect(ctx: ToolContext) -> ToolOutput:
+    """Run the four package-risk rules over the direct prod dependencies and emit capped findings."""
     cfg = ctx.artifacts.get("guardian_config") or load_config()
     thr = cfg.get("thresholds", {})
     cap = int(thr.get("package_risk_max_findings", 15))
@@ -50,12 +64,15 @@ def detect(ctx: ToolContext) -> ToolOutput:
                 direct.setdefault(name, (rng, rel, line, proj.name))
 
     def purl_of(name: str, rng: str) -> str:
+        """Installed purl if the graph knows the package, else a purl built from the manifest range
+        (operators stripped; "0" when nothing usable)."""
         return installed.get(name) or npm.purl(name, rng.lstrip("^~=<> ") or "0")
 
-    names = sorted(direct)[:max_pkgs]
+    names = sorted(direct)[:max_pkgs]  # deterministic order, bounded so a huge repo cannot trigger endless lookups
     by_purl = {purl_of(n, direct[n][0]): n for n in names}
     metas: dict[str, dict] = {}  # purl -> trimmed packument
     for purl, name in by_purl.items():
+        # metadata is per package name, so the version part of the lookup purl is irrelevant ("0")
         meta = intel.registry_metadata(npm.purl(name, "0"))
         if meta:
             metas[purl] = meta
@@ -64,6 +81,8 @@ def detect(ctx: ToolContext) -> ToolOutput:
     evidence: list[Evidence] = []
 
     def emit(category: FindingCategory, name: str, purl: str, title: str, facts: dict, where) -> None:
+        """Append one Evidence + Finding pair located at the dependency's manifest line (`where` = the
+        (range, manifest path, line, project) tuple recorded for the package)."""
         rng, rel, line, project = where
         ev = Evidence(run_id=ctx.run_id, kind="registry_metadata", source_tool=DETECTOR,
                       facts={"name": name, "purl": purl, **facts}, file_path=rel, line=line,
@@ -73,6 +92,7 @@ def detect(ctx: ToolContext) -> ToolOutput:
                                 component_purl=purl, scope=Scope.PROD, project=project, file_path=rel, line=line,
                                 evidence_ids=[ev.evidence_id]))
 
+    # per-rule counters enforcing the findings cap, so a noisy rule cannot bury the others
     counts = {"maintainer_change": 0, "release_activity": 0, "dependency_confusion": 0, "provenance_gap": 0}
     for purl, meta in metas.items():
         name = by_purl[purl]
@@ -96,6 +116,7 @@ def detect(ctx: ToolContext) -> ToolOutput:
         name = by_purl[purl]
         emit(FindingCategory.PROVENANCE_GAP, name, purl,
              f"{name}: provenance gap ({', '.join(gap['reasons'])})", {"rule": "provenance_gap", **gap}, direct[name])
+    # confusion needs one registry lookup per internal name, so look at no more than twice the cap
     for name in sorted(internal_names)[:cap * 2]:
         if counts["dependency_confusion"] >= cap:
             break

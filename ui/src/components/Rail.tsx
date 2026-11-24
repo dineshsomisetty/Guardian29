@@ -9,7 +9,7 @@ export const VIEW_INFO: Record<View, { label: string; title: string; Icon: Lucid
   overview: { label: "Overview", title: "Overview", Icon: LayoutDashboard, key: "1" },
   graph: { label: "Dependency map", title: "Dependency map", Icon: Network, key: "2" },
   findings: { label: "Findings", title: "Findings", Icon: ListChecks, key: "3" },
-  gate: { label: "Approval", title: "Approval", Icon: CheckCheck, key: "4" },
+  gate: { label: "Remediation", title: "Remediation", Icon: CheckCheck, key: "4" },
   validation: { label: "Validation", title: "Validation", Icon: FlaskConical, key: "5" },
   report: { label: "Report", title: "Report", Icon: FileText, key: "6" },
 };
@@ -19,7 +19,10 @@ export default function Rail({ collapsed, toggle }: { collapsed: boolean; toggle
   const { view, setView, data, status } = useStore();
   const badge = (id: View) => {
     if (id === "findings") return String(data.findings.length);
-    if (id === "gate" && data.summary.pending_plan) return "1";
+    if (id === "gate") {
+      const n = data.summary.pending_batch?.count ?? (data.summary.pending_plan ? 1 : 0);
+      return n ? String(n) : null;
+    }
     return null;
   };
   return (

@@ -1,3 +1,9 @@
+/**
+ * Dependency map page. Draws the dependency graph as routes from the project to packages with findings,
+ * coloured by Guardian's risk level (not the advisory's). Interactions: hover or select a package to light
+ * every route into it, pick one from the ranked list or search, filter by level, toggle 'Routes only', zoom and
+ * fit.
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background, BackgroundVariant, MiniMap, Panel, ReactFlow, ReactFlowProvider, useReactFlow, useStore as useRFStore,
@@ -14,32 +20,42 @@ import { typingTarget, useStoredState } from "./hooks";
 import { nodeTypes, type GNode } from "./graphNodes";
 import { EmptyState, Tip } from "./ui";
 
+// Minimap node colour per Guardian level.
 const RISK_COLOR: Record<string, string> = { critical: "#ef4444", high: "#f59e0b", medium: "#3b82f6", low: "#71717a" };
 const MIN_ZOOM = 0.2;
 const MAX_ZOOM = 1.75;
+// Lower zoom limit when focusing the riskiest route, so labels stay readable.
 const READABLE_ZOOM = 0.7;
 const ANIM = 220;
 
+// Which findings' routes are drawn: all, High and Critical, or Critical only. It filters what is drawn, not the
+// findings themselves.
 type Level = "all" | "high" | "critical";
 const LEVELS: { id: Level; label: string; tip: string }[] = [
   { id: "all", label: "All", tip: "Draw the route to every finding" },
   { id: "high", label: "High and up", tip: "Only draw routes to High and Critical findings" },
   { id: "critical", label: "Critical", tip: "Only draw routes to Critical findings" },
 ];
+/** True when a level passes the filter (riskRank 0 is Critical, 1 is High). */
 const passes = (b: Risk | null, level: Level) => level === "all" || (b != null && riskRank(b) <= (level === "critical" ? 0 : 1));
 
+/** Guardian's roll-up for one package: its worst level, highest score and number of findings. */
 export interface NodeRisk {
   band: Risk;
   score: number | null;
   count: number;
 }
 
+/** Chooses the findings to draw (by level), computes the visible graph and hands it to Canvas. */
 export default function GraphView() {
   const { data, riskById } = useStore();
   const hasFindings = data.findings.length > 0;
   const [onlyRisk, setOnlyRisk] = useState(hasFindings);
   const [level, setLevel] = useStoredState<Level>("guardian.map.level", "all");
+  // Findings at or above the chosen level.
   const shown = useMemo(() => data.findings.filter((f) => passes(bandOf(f, riskById), level)), [data.findings, riskById, level]);
+  // Ids of those findings, or null for no filtering. Passed to the layout so packages whose findings are all
+  // filtered out fall back to plain dependencies.
   const allowed = useMemo(() => (level === "all" ? null : new Set(shown.map((f) => f.finding_id))), [level, shown]);
   const vis = useMemo(() => buildVisible(data.graph, shown, onlyRisk, allowed), [data.graph, shown, onlyRisk, allowed]);
   if (data.graph.nodes.length === 0)
@@ -55,6 +71,7 @@ export default function GraphView() {
   );
 }
 
+/** The React Flow canvas with its panels, the ranked list and all tracing and viewport behaviour. */
 function Canvas({
   vis, onlyRisk, setOnlyRisk, level, setLevel, shown,
 }: {
@@ -67,13 +84,19 @@ function Canvas({
 }) {
   const { data, findingsById, riskById, order, selectedFindingId, selectedNodeId, focusIds, openNode, graphTarget, clearGraphTarget } = useStore();
   const rf = useReactFlow();
+  // hover: package under the pointer (or its list row), temporary. pinned: package the user selected, kept lit
+  // until Esc or a click on the empty map. Hover wins while active.
   const [hover, setHover] = useState<string | null>(null);
   const [pinned, setPinned] = useState<string | null>(null);
   const [listOpen, setListOpen] = useStoredState<"open" | "closed">("guardian.map.list", "open");
+  // Hover updates are batched to one per animation frame, so sweeping the mouse does not re-render constantly.
   const hoverRaf = useRef(0);
+  // Drawn nodes by id.
   const visIds = useMemo(() => new Map(vis.nodes.map((n) => [n.id, n])), [vis.nodes]);
 
   // ---------------------------------------------------------------- Guardian's level and top score per node
+  // Per package: the worst Guardian level and highest score over its findings. Packages without findings are
+  // absent.
   const nodeRisk = useMemo(() => {
     const m = new Map<string, NodeRisk>();
     for (const n of data.graph.nodes) {
@@ -94,6 +117,7 @@ function Canvas({
     return m;
   }, [data.graph.nodes, findingsById, riskById]);
 
+  // Ids of the findings that pass the level filter.
   const allowedIds = useMemo(() => new Set(shown.map((f) => f.finding_id)), [shown]);
   /** what the "N of M drawn" count is made of, said in words */
   const countWhy = useMemo(() => {
@@ -133,6 +157,7 @@ function Canvas({
     return m;
   }, [shown, riskById]);
 
+  // Drawn edges as child id to parent ids, for walking upstream.
   const parents = useMemo(() => {
     const m = new Map<string, string[]>();
     for (const e of vis.edges) (m.get(e.target) ?? m.set(e.target, []).get(e.target)!).push(e.source);
@@ -153,9 +178,11 @@ function Canvas({
     },
     [parents],
   );
+  // Upstream sets for the hovered and the pinned package.
   const hoverSet = useMemo(() => upstream(hover), [hover, upstream]);
   const pinSet = useMemo(() => upstream(pinned), [pinned, upstream]);
 
+  // Edges on the selected finding's dependency paths: lit when nothing is hovered or pinned.
   const focusEdges = useMemo(() => {
     const s = new Set<string>();
     const f = selectedFindingId ? findingsById.get(selectedFindingId) : undefined;
@@ -163,9 +190,12 @@ function Canvas({
     return s;
   }, [selectedFindingId, findingsById]);
 
+  // trace: nodes to light up, from hover first, else the pinned package. active: trace, else the selected
+  // finding's nodes (focusIds). Anything outside `active` is dimmed.
   const trace = hoverSet ?? pinSet;
   const active = trace ?? focusIds;
 
+  // Node objects from the layout. Kept apart from `nodes` so hover and selection never recompute positions.
   const base = useMemo<GNode[]>(
     () =>
       vis.nodes.map((n) => {
@@ -186,6 +216,8 @@ function Canvas({
     [vis, nodeRisk],
   );
 
+  // base plus the dim / selected / hover classes. A node whose classes did not change keeps its identity, so
+  // React Flow skips it.
   const nodes = useMemo<GNode[]>(
     () =>
       base.map((n) => {
@@ -197,6 +229,8 @@ function Canvas({
     [base, active, selectedNodeId, pinned, hover],
   );
 
+  // lit: on a traced or focused route. dim: outside the active set. The colour class comes from the worst
+  // finding reached through the link (edgeBand).
   const edges = useMemo<Edge[]>(
     () =>
       vis.edges.map((e) => {
@@ -218,6 +252,8 @@ function Canvas({
   );
 
   // ---------------------------------------------------------------- ranked list: the way into the map
+  // Packages with findings at the chosen level, worst first (level, then score, then count). drawn is false
+  // when the map currently hides the package.
   const ranked = useMemo(() => {
     const out: { id: string; label: string; version?: string; risk: NodeRisk; drawn: boolean }[] = [];
     for (const n of data.graph.nodes) {
@@ -239,10 +275,12 @@ function Canvas({
     }
     return Number.isFinite(x0) ? { x0, y0, x1, y1 } : null;
   }, [vis.nodes]);
+  // Limits panning to the area around the drawn nodes.
   const extent = useMemo<[[number, number], [number, number]] | undefined>(
     () => (bounds ? [[bounds.x0 - 800, bounds.y0 - 400], [bounds.x1 + 600, bounds.y1 + 400]] : undefined),
     [bounds],
   );
+  // Fit padding; leaves room for the list while it is open.
   const pad = useMemo(() => ({ ...FIT_PAD, left: (listOpen === "open" ? "380px" : FIT_PAD.left) as `${number}px` }), [listOpen]);
 
   /** The riskiest path: where the first look should land. */
@@ -258,11 +296,13 @@ function Canvas({
     return [];
   }, [order, findingsById, visIds, onlyRisk, shown]);
 
+  // Nodes to fit for 'whole map': everything except the grouped plain dependencies.
   const overviewNodes = useMemo(
     () => vis.nodes.filter((n) => !n.data.plain && n.data.kind !== "tray").map((n) => ({ id: n.id })),
     [vis.nodes],
   );
 
+  /** Fit the riskiest route (or the whole map if there is none) into view. */
   const focusRisk = useCallback(
     (duration: number) => {
       if (focusNodes.length)
@@ -278,8 +318,14 @@ function Canvas({
 
   // first look, and again whenever the set of drawn nodes changes (filters toggled)
   const firstDraw = useRef(true);
+  // arriving to show a particular package: the first look is that package, not the riskiest route
+  const arrivedForTarget = useRef(!!graphTarget);
   useEffect(() => {
     const t = window.setTimeout(() => {
+      if (firstDraw.current && arrivedForTarget.current) {
+        firstDraw.current = false;
+        return;
+      }
       focusRisk(firstDraw.current ? 0 : ANIM);
       firstDraw.current = false;
     }, 60);
@@ -287,6 +333,7 @@ function Canvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vis]);
 
+  /** Centre a package at the given zoom. Returns false when it is not drawn. */
   const centerOn = useCallback(
     (id: string, zoom = 1) => {
       const n = visIds.get(id);
@@ -301,6 +348,10 @@ function Canvas({
 
   // a package picked in search, the list, or "Show in map" from the inspector, possibly not drawn yet
   const [pending, setPending] = useState<string | null>(null);
+  /**
+   * Select a package (search, list, or 'Show in map'): pin it and centre it. If filters hide it, clear them
+   * first and centre once it appears (`pending`).
+   */
   const goTo = useCallback(
     (id: string) => {
       setPinned(id);
@@ -324,11 +375,15 @@ function Canvas({
     }, 120);
     return () => window.clearTimeout(t);
   }, [pending, visIds, centerOn]);
+  // Clear the request only when the jump actually runs: clearing it first re-ran this effect, whose cleanup
+  // cancelled the pending jump, so "Show in dependency map" landed on the default view instead.
   useEffect(() => {
     if (!graphTarget) return;
     const id = graphTarget;
-    clearGraphTarget();
-    const t = window.setTimeout(() => goTo(id), 120);
+    const t = window.setTimeout(() => {
+      clearGraphTarget();
+      goTo(id);
+    }, 120);
     return () => window.clearTimeout(t);
   }, [graphTarget, clearGraphTarget, goTo]);
   useEffect(() => {
@@ -481,6 +536,10 @@ function Canvas({
   );
 }
 
+/**
+ * Left panel: packages ranked by risk. Selecting one traces it and expands its PackageDetail; hovering a drawn
+ * one lights its routes.
+ */
 function RiskList({
   items, pinned, level, onPick, onHover,
 }: {
@@ -582,7 +641,7 @@ function PackageDetail({ id, label }: { id: string; label: string }) {
         </button>
         {plans.length > 0 && (
           <button type="button" className="btn sm" onClick={() => setView("gate")}>
-            <CheckCheck size={14} aria-hidden /> Proposed fix
+            <CheckCheck size={14} aria-hidden /> Remediation
           </button>
         )}
         {validated && (
@@ -604,6 +663,7 @@ function ZoomReadout() {
 // keep fitted nodes clear of the toolbar on top and the controls at the bottom
 const FIT_PAD = { top: "84px", right: "48px", bottom: "48px", left: "72px" } as const;
 
+/** Popover explaining the colours and chips. Closes on an outside click or Esc. */
 function Legend() {
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
@@ -639,6 +699,10 @@ function Legend() {
   );
 }
 
+/**
+ * Package search: substring match, with prefix matches and packages that have findings listed first. Arrow keys
+ * and Enter pick.
+ */
 function GraphSearch({ onPick }: { onPick: (id: string) => void }) {
   const { data } = useStore();
   const [q, setQ] = useState("");
@@ -653,6 +717,8 @@ function GraphSearch({ onPick }: { onPick: (id: string) => void }) {
       const l = n.label.toLowerCase();
       const i = l.indexOf(t);
       if (i < 0) continue;
+      // rank: lower sorts first. A name starting with the text beats a match inside it, and a package with
+      // findings beats one without.
       hits.push({ id: n.id, label: n.label, version: n.version, findings: n.finding_ids?.length ?? 0, rank: (i === 0 ? 0 : 2) - (n.finding_ids?.length ? 1 : 0) });
     }
     return hits.sort((a, b) => a.rank - b.rank || a.label.localeCompare(b.label)).slice(0, 8);

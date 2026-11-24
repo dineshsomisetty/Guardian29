@@ -2,6 +2,14 @@
 
 `python -m guardian watch --run <id> [--interval 1h] [--once]`
 
+Why: advisories (OSV), exploit-probability scores (EPSS) and the known-exploited list (KEV) change daily, so a
+risk ranking computed last week can be stale today. Re-checking is cheap compared with a full run because only
+the threat-intel lookups and the scoring are repeated; the repository is not scanned again.
+
+Callers: the `watch` subcommand of guardian/cli.py (`watch_loop`) and tests (`watch_once`). Input: a finished or
+paused run (status done / awaiting_human) under settings.runs_dir. Output: one watch/<timestamp>.json per check,
+a rewritten risk.json, appended risk.history.jsonl and trace events; a dict summarising the check is returned.
+
 Reloads the stored inventory (sbom.cdx.json, graph.json, findings.json, risk.json) and does NOT re-run discovery,
 scanners or detectors. Each check
   1. refreshes OSV advisories for the SBOM components (cache max-age capped by GUARDIAN_INTEL_MAX_AGE, default 15 min
@@ -40,16 +48,18 @@ from guardian.tools.registry import ToolContext
 from guardian.tools.scanners import _osv_fixed
 from guardian.tools.threat_intel import IntelClient, parse_purl
 
+# Tunables. A watch check is meant to see *fresh* data, hence the short cache age compared with a normal run.
 DEFAULT_MAX_AGE_S = 900  # watch mode: advisories older than this in the intel cache are refetched
 DEFAULT_MAX_COMPONENTS = 400  # OSV lookups per check (cached + throttled); existing findings and direct deps first
 _RANK = {Priority.LOW: 0, Priority.MEDIUM: 1, Priority.HIGH: 2, Priority.CRITICAL: 3}
 
 
 class WatchError(Exception):
-    pass
+    """The run cannot be watched (unknown run, still running/failed, or no SBOM to re-check)."""
 
 
 def parse_interval(text: str) -> float:
+    """Turn "30s", "15m", "1h", "1d" (a bare number means seconds) into seconds. Raises ValueError if malformed."""
     m = re.fullmatch(r"\s*(\d+(?:\.\d+)?)\s*([smhd]?)\s*", text or "")
     if not m:
         raise ValueError(f"bad interval {text!r}; use e.g. 30s, 15m, 1h, 1d")
@@ -57,6 +67,7 @@ def parse_interval(text: str) -> float:
 
 
 def _vuln_keys(purl: str | None, ids) -> set[tuple[str, str]]:
+    """(component purl, upper-cased advisory id) pairs: the identity used to tell a known advisory from a new one."""
     return {(purl or "", str(i).upper()) for i in ids if i}
 
 
@@ -78,6 +89,9 @@ def _inventory(run_dir: Path) -> tuple[dict[str, dict], dict[str, dict]]:
 
 
 def _watch_set(comps: dict, nodes: dict, findings: list[Finding], limit: int) -> list[str]:
+    """Which components to look up this time, at most `limit`: those that already have a finding first, then
+    direct production deps, then the rest of production. Dev-only packages come last or are cut, because OSV
+    lookups are throttled and a vulnerable dev dependency is the least urgent."""
     with_findings = [f.component_purl for f in findings if f.component_purl in comps]
     direct = sorted(p for p in comps if nodes.get(p, {}).get("direct") and nodes[p].get("scope") != "dev")
     prod = sorted(p for p in comps if nodes.get(p, {}).get("scope") != "dev")
@@ -87,6 +101,11 @@ def _watch_set(comps: dict, nodes: dict, findings: list[Finding], limit: int) ->
 
 def _advisory_finding(run_id: str, purl: str, comp: dict, vuln: dict, node: dict, checked_at: str,
                       ) -> tuple[Finding, Evidence]:
+    """Turn one OSV advisory that was not in the original scan into a (Finding, Evidence) pair.
+
+    The CVE id is preferred as the primary id and the other ids become aliases. Evidence is marked
+    `new_since_scan` so the UI/report can say the issue appeared after the run, not during it.
+    """
     name, version = comp.get("name") or parse_purl(purl)[0], comp.get("version")
     ids = [vuln["id"], *vuln.get("aliases", [])]
     cve = next((i for i in ids if i.upper().startswith("CVE-")), None)
@@ -112,6 +131,13 @@ def _advisory_finding(run_id: str, purl: str, comp: dict, vuln: dict, node: dict
 
 def _rescore(rc: RunContext, findings: list[Finding], old: dict[str, RiskAssessment], has_work: bool,
              ) -> dict[str, RiskAssessment]:
+    """Recompute the section-7 risk score of every finding with fresh EPSS/KEV data.
+
+    `old` is the previous assessment per finding id. Conservative rules: a lookup that came back empty (cache
+    miss or offline) never lowers a previously known exploitability signal; without a work copy the earlier
+    reachability/priority/exposure factors are kept; and an assessment whose score and band did not move is
+    returned as the old object so its LLM-written summary survives.
+    """
     store = rc.store
     pkgs = {f.finding_id: (None if f.category in NOT_APPLICABLE else package_of(f, store)) for f in findings}
     g: Gathered = _collect(rc, findings, pkgs)
@@ -138,6 +164,7 @@ def _rescore(rc: RunContext, findings: list[Finding], old: dict[str, RiskAssessm
 
 
 def _next_path(wdir: Path, ts: datetime) -> Path:
+    """watch/<UTC timestamp>.json, with -1, -2 ... appended if two checks land in the same second."""
     base = ts.strftime("%Y%m%dT%H%M%SZ")
     p = wdir / f"{base}.json"
     n = 1
@@ -150,6 +177,15 @@ def _next_path(wdir: Path, ts: datetime) -> Path:
 def watch_once(run_id: str, settings: Settings | None = None, intel: IntelClient | None = None,
                max_age_s: float = DEFAULT_MAX_AGE_S, max_components: int = DEFAULT_MAX_COMPONENTS,
                echo: bool = False) -> dict:
+    """Do ONE re-check of run `run_id` and return its result dict (the same content as the watch/ file plus "path").
+
+    Steps: load the stored inventory; look up OSV for up to `max_components` components; create Findings for
+    advisories not seen before; rescore every finding; classify each as escalated / de-escalated / unchanged;
+    persist risk.json, risk.history.jsonl, watch/<ts>.json and trace events. Raises WatchError for an unknown
+    run or one that is still running or failed. `intel` lets tests inject a fake IntelClient; `max_age_s`
+    is how old a cached intel answer may be before it is refetched; `echo` also prints audit events.
+    Side effects: writes into runs/<run_id>/ and temporarily sets GUARDIAN_INTEL_MAX_AGE in os.environ.
+    """
     settings = settings or load_settings()
     run_dir = settings.runs_dir / run_id
     summary_path = run_dir / "run_summary.json"
@@ -172,6 +208,7 @@ def watch_once(run_id: str, settings: Settings | None = None, intel: IntelClient
     findings = store.list_findings()
     old = load_risks(run_dir)
 
+    # The intel client reads its cache max-age from the environment; set it for this check only and restore after.
     prev_env = os.environ.get("GUARDIAN_INTEL_MAX_AGE")
     os.environ["GUARDIAN_INTEL_MAX_AGE"] = str(max_age_s)
     try:
@@ -182,7 +219,7 @@ def watch_once(run_id: str, settings: Settings | None = None, intel: IntelClient
                    f"(offline={client.offline}, cache max-age {int(max_age_s)}s); no discovery re-run",
                    data={"watch": True, "phase": "start", "components": len(watch_set), "offline": client.offline})
 
-        known: set[tuple[str, str]] = set()
+        known: set[tuple[str, str]] = set()  # (purl, advisory id) pairs already present as findings
         for f in findings:
             if f.category is FindingCategory.CVE:
                 known |= _vuln_keys(f.component_purl, [f.vuln_id, *f.aliases])
@@ -212,7 +249,7 @@ def watch_once(run_id: str, settings: Settings | None = None, intel: IntelClient
     by_id = {f.finding_id: f for f in findings}
     escalated, deescalated, unchanged, history = [], [], 0, []
     hist_path = run_dir / "risk.history.jsonl"
-    if not hist_path.exists():
+    if not hist_path.exists():  # first ever check: record the pre-watch scores as the baseline of the history
         history += [{"checked_at": stamp, "finding_id": fid, "score": a.score, "band": a.band.value,
                      "reason": "baseline"} for fid, a in old.items()]
     for fid, a in fresh.items():
@@ -262,6 +299,11 @@ def watch_once(run_id: str, settings: Settings | None = None, intel: IntelClient
 
 def watch_loop(run_id: str, interval_s: float, once: bool = False, settings: Settings | None = None,
                **kw) -> int:
+    """Repeat `watch_once` every `interval_s` seconds until Ctrl+C, or just once if `once`. Returns exit code 0.
+
+    Extra keyword arguments (max_age_s, max_components, ...) are passed through to `watch_once`. Prints one
+    status line per check. A WatchError propagates to the caller (the CLI turns it into exit code 2).
+    """
     settings = settings or load_settings()
     try:
         while True:

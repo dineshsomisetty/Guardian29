@@ -1,3 +1,7 @@
+/**
+ * Pieces that explain a risk score: the factor table (how the points add up), the level scale and the stacked
+ * score bar. Used by the finding inspector and the remediation views.
+ */
 import type { ReactNode } from "react";
 import type { Finding, Risk, RiskAssessment } from "../api/types";
 import { RISK_LABEL } from "../lib/format";
@@ -14,6 +18,7 @@ export const FACTOR_FILL: Record<string, string> = {
   X: "var(--n1)",
 };
 
+/** Evidence chips behind one factor; selecting one opens that source. */
 function BasedOn({ ids, onCite }: { ids: string[]; onCite: (id: string) => void }) {
   const ev = useEvidenceMany(ids);
   if (!ids.length) return <span className="faint">No source recorded</span>;
@@ -37,8 +42,10 @@ function BasedOn({ ids, onCite }: { ids: string[]; onCite: (id: string) => void 
  */
 export function FactorTable({ risk, finding, onCite }: { risk: RiskAssessment; finding?: Finding; onCite: (id: string) => void }) {
   const f = risk.factors;
+  // Weights actually used for this finding (not always the defaults, see weightsFor).
   const w = weightsFor(risk);
   const prov = f.provenance_modifier;
+  // Largest weight: every track is drawn relative to it.
   const top = Math.max(...FACTOR_KEYS.map((k) => w[k]));
   return (
     <div className="factors">
@@ -46,6 +53,7 @@ export function FactorTable({ risk, finding, onCite }: { risk: RiskAssessment; f
         const info = FACTOR_INFO[key];
         const v = f[key];
         const max = w[key] * 100;
+        // A factor with no weight does not apply to this finding: hide its row.
         if (max === 0) return null;
         const pts = v.value * max;
         return (
@@ -125,6 +133,8 @@ export function BandScale({ score, band }: { score: number; band: Risk }) {
 /** Stacked contribution bar in neutral greys, with before -> expected after. */
 export function ScoreBar({ risk, after, extra }: { risk: RiskAssessment; after?: number | null; extra?: ReactNode }) {
   const w = weightsFor(risk);
+  // Points per applicable factor. Widths are in percent of the 100-point scale, so the bar's length equals the
+  // score.
   const parts = FACTOR_KEYS.filter((k) => w[k] > 0).map((k) => ({ k, name: FACTOR_INFO[k].name, pts: risk.factors[k].value * w[k] * 100 }));
   const prov = risk.factors.provenance_modifier;
   return (

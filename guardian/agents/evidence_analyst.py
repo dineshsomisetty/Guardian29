@@ -1,10 +1,25 @@
 """Evidence analyst agent (LLM): per finding, explanation + initial risk, every claim grounded. Owner: Dev1.
 
+Role: third node. For each Finding it writes a short explanation, an initial risk (critical/high/medium/low) and
+a list of Claims. This is the first LLM agent; the LLM proposes, code disposes (section 4 guardrails).
+
 Flow per batch of findings:
   build prompt (untrusted content in <data> blocks, G2) -> LLM structured JSON -> parse (G4.1, 1 repair retry)
   -> ground each claim against evidence facts (G4.2-G4.4, G4.6) -> update Finding.
 
-Findings beyond GUARDIAN_MAX_LLM_FINDINGS, or when the LLM is unavailable, get the rule-based initial risk
+Inputs:  state `run_id`, `finding_ids`; the Findings and their Evidence from the store; the system prompt in
+         guardian/prompts/evidence_analyst.md (with the untrusted-data rule appended).
+Outputs: the same Findings updated in place (`store.update_finding`): `initial_risk`, `initial_risk_source`
+         ("llm" or "rule"), `explanation`, `claims`, `status` (ASSESSED, or ESCALATED when the LLM output stayed
+         invalid). No new evidence is created and no file other than findings.json changes. State: `status`.
+Audit:   `agent_start`/`agent_end`, a supervisor `decision` when the LLM budget excludes findings, `llm_call` and
+         `llm_result` per batch/finding, and `guardrail` events (G2.3 injection-like text, G3.6 token budget,
+         G4.x grounding / schema issues).
+Grounding: claim labels are assigned by code in guardrails/grounding.py, never by the LLM. A claim is VERIFIED only
+         when it cites real evidence ids and its field/value matches a fact in that evidence; otherwise it is
+         INFERRED, or rejected when it cites an unknown id (an alias that does not map back is still rejected).
+         Finding/evidence text is attacker-controlled, so it only ever appears inside <data> blocks.
+Failure: findings beyond GUARDIAN_MAX_LLM_FINDINGS, or when the LLM is unavailable, get the rule-based initial risk
 (labelled initial_risk_source="rule"), so the pipeline always completes.
 """
 
@@ -27,12 +42,20 @@ from guardian.guardrails.untrusted import SYSTEM_RULE, wrap
 from guardian.llm.provider import LLMError
 from guardian.tools.registry import INITIAL_RISK_RULE, ToolUnavailable, resolve
 
+# Name used in audit events and as the key for per-agent tool/LLM budgets.
 AGENT = "evidence_analyst"
+# Findings per LLM call: small enough for the model to give each one attention and to keep the
+# JSON output bounded, large enough to amortise the system prompt.
 BATCH_SIZE = 8
+# Batches analysed in parallel threads (LLM calls are I/O bound).
 WORKERS = 4
+# Sort rank of a risk band (0 = most urgent); None (no risk yet) sorts last.
 _RANK = {Priority.CRITICAL: 0, Priority.HIGH: 1, Priority.MEDIUM: 2, Priority.LOW: 3, None: 4}
+# System prompt template; contains an {untrusted_rule} placeholder filled in by system_prompt().
 _PROMPT = Path(__file__).resolve().parent.parent / "prompts" / "evidence_analyst.md"
 
+# Default initial risk of non-CVE categories when no scoring rule is available: these have no
+# CVSS, so the category itself carries the severity.
 _CATEGORY_DEFAULT = {
     FindingCategory.TYPOSQUAT: Priority.HIGH,
     FindingCategory.MALICIOUS_INDICATOR: Priority.CRITICAL,
@@ -42,7 +65,12 @@ _CATEGORY_DEFAULT = {
 
 
 def fallback_rule(f: Finding) -> Priority:
-    """Used only if Dev4's scoring.initial_risk is not available yet. Same bands as §7 / D4-02."""
+    """Built-in initial-risk rule, used only if the shared scoring rule is not registered.
+
+    Maps CVSS to a band (>=9 critical, >=7 high, >=4 medium, else low); with no CVSS falls back to the advisory
+    severity text for CVEs, then to a per-category default (medium for anything unlisted).
+    Args: f - the finding. Returns: a Priority.
+    """
     if f.cvss is not None:
         if f.cvss >= 9:
             return Priority.CRITICAL
@@ -58,6 +86,11 @@ def fallback_rule(f: Finding) -> Priority:
 
 
 def rule_risk(f: Finding) -> Priority:
+    """Rule-based initial risk of a finding (no LLM): the registered scoring rule, else `fallback_rule`.
+
+    Used for findings that do not reach the LLM, for LLM failures, and to rank findings for the LLM budget.
+    Any error in the registered rule also degrades to `fallback_rule`, so this never raises.
+    """
     try:
         return Priority(resolve(INITIAL_RISK_RULE)(f))
     except (ToolUnavailable, Exception):  # noqa: BLE001
@@ -65,10 +98,16 @@ def rule_risk(f: Finding) -> Priority:
 
 
 def system_prompt() -> str:
+    """Load the evidence-analyst system prompt and insert the standing "data is untrusted" rule (G2)."""
     return _PROMPT.read_text(encoding="utf-8").replace("{untrusted_rule}", SYSTEM_RULE)
 
 
 def _finding_view(f: Finding) -> dict:
+    """The finding fields the LLM may see, as a JSON-safe dict (no claims, no internal status).
+
+    An allowlist (`include`) is used so new Finding fields do not leak into prompts by accident, and the prompt
+    stays stable across runs, which record/replay depends on.
+    """
     return f.model_dump(
         mode="json",
         include={"finding_id", "category", "title", "detector", "component_purl", "scope", "project", "file_path",
@@ -77,6 +116,7 @@ def _finding_view(f: Finding) -> dict:
     )
 
 
+# Fact keys that record where data was fetched from (not what it says).
 _FETCH_KEYS = ("source", "scripts_source")
 
 
@@ -91,7 +131,13 @@ def _prompt_facts(facts: dict) -> dict:
 
 
 def _evidence_view(ev: Evidence) -> dict:
+    """One Evidence record as the LLM sees it: id, kind, tool, location, facts (JSON text), excerpt.
+
+    Facts are serialised with sorted keys for a stable prompt and truncated to 3000 chars; the source excerpt is cut
+    to 600 chars. Both limits bound prompt size (and cost) per evidence record.
+    """
     facts = json.dumps(_prompt_facts(ev.facts), default=str, sort_keys=True)
+    # Cap per-evidence prompt size; the full record stays in the store.
     if len(facts) > 3000:
         facts = facts[:3000] + "...(truncated)"
     return {"evidence_id": ev.evidence_id, "kind": ev.kind, "source_tool": ev.source_tool,
@@ -102,26 +148,36 @@ def _evidence_view(ev: Evidence) -> dict:
 class Aliases:
     """Stable short ids (F1.., E1..) in place of per-run ULIDs.
 
-    The prompt must be identical across runs of the same target so LLM record/replay (§5.3) can serve a
+    The prompt must be identical across runs of the same target so LLM record/replay (section 5.3) can serve a
     fresh run offline; it also saves tokens. Aliases are mapped back to real ids before grounding, so an
     unknown alias is still rejected by G4.2.
     """
 
     def __init__(self) -> None:
+        """Start empty. `to_alias` maps real id -> alias, `to_real` maps alias -> real id."""
         self.to_alias: dict[str, str] = {}
         self.to_real: dict[str, str] = {}
 
     def of(self, real: str, prefix: str) -> str:
+        """Return the alias for a real id, creating the next one for that prefix ("F" findings, "E" evidence)."""
         if real not in self.to_alias:
             alias = f"{prefix}{sum(1 for a in self.to_real if a.startswith(prefix)) + 1}"
             self.to_alias[real], self.to_real[alias] = alias, real
         return self.to_alias[real]
 
     def real(self, alias: str) -> str:
+        """Map an alias back to the real id; an unknown alias is returned unchanged so grounding rejects it."""
         return self.to_real.get(alias, alias)
 
 
 def build_user_prompt(findings: list[Finding], rc: RunContext, aliases: Aliases | None = None) -> tuple[str, list[str]]:
+    """Build the user message for one batch of findings.
+
+    Each finding and its evidence is rendered as JSON inside an untrusted-data block (`wrap`), with ids replaced by
+    aliases (F1.., E1..) so the prompt is identical between runs.
+    Args: findings - the batch; rc - run context (for the evidence store); aliases - alias table to reuse, or None.
+    Returns: (prompt text, list of injection-like phrases found in the data, reported as G2.3).
+    """
     aliases = aliases or Aliases()
     blocks, hits = [], []
     for f in findings:
@@ -139,6 +195,10 @@ def build_user_prompt(findings: list[Finding], rc: RunContext, aliases: Aliases 
 
 
 def _unalias(assessments: list[RawAssessment], aliases: Aliases) -> list[RawAssessment]:
+    """Rewrite the LLM's finding/evidence aliases back to real ids, in place, before grounding.
+
+    Ids that are not known aliases stay as they are and are later rejected by the grounding checks (G4.2).
+    """
     for a in assessments:
         a.finding_id = aliases.real(a.finding_id)
         for c in a.claims:
@@ -147,6 +207,13 @@ def _unalias(assessments: list[RawAssessment], aliases: Aliases) -> list[RawAsse
 
 
 def _call_with_repair(rc: RunContext, system: str, user: str) -> tuple[list[RawAssessment] | None, str | None]:
+    """Call the LLM for a batch and parse its JSON, with one repair retry (G4.1).
+
+    Charges the tokens used against the run's LLM budget. On a schema error the validation message is fed back to
+    the model once; a second failure gives up.
+    Returns: (assessments, None) on success, or (None, last error text) after two invalid answers.
+    Raises: LLMError if the provider is unavailable (handled by the caller).
+    """
     schema = batch_json_schema()
     prompt = user
     last_err = None
@@ -167,15 +234,27 @@ def _call_with_repair(rc: RunContext, system: str, user: str) -> tuple[list[RawA
 
 
 def _apply_rule(f: Finding) -> Finding:
+    """Give a finding the rule-based initial risk and label it as such (initial_risk_source="rule")."""
     f.initial_risk = rule_risk(f)
     f.initial_risk_source = "rule"
     return f
 
 
 def analyse_batch(rc: RunContext, findings: list[Finding], system: str) -> list[Finding]:
+    """Assess one batch of findings with the LLM and ground the answer; never raises on LLM trouble.
+
+    Each finding ends in one of these states: LLM assessment grounded and stored on the finding (status ASSESSED);
+    rule-based risk (token budget spent G3.6, LLM unavailable, or no assessment returned for it); or rule-based
+    risk plus status ESCALATED when the output was invalid twice (G4.1), meaning a human should look.
+    Args: rc - run context; findings - the batch; system - the system prompt.
+    Returns: the same findings, mutated. The caller persists them.
+    Side effects: audit events (llm_call, llm_result, guardrail), LLM token budget charges.
+    """
     audit, store = rc.audit, rc.store
     aliases = Aliases()
     user, hits = build_user_prompt(findings, rc, aliases)
+    # Injection-like phrases (e.g. "ignore previous instructions") were seen. They stay wrapped as data;
+    # the hit is only surfaced for the audit trail and UI.
     if hits:  # G2.3: still wrapped, but surfaced
         audit.emit("guardrail", "guardrail", f"G2.3 injection-like text in untrusted data: {hits[:3]}",
                    data={"rule": "G2.3", "hits": hits[:10]})
@@ -204,6 +283,8 @@ def analyse_batch(rc: RunContext, findings: list[Finding], system: str) -> list[
             out.append(f)
         return out
 
+    # Index the LLM answers by (real) finding id. `lookup` = all evidence by id, so grounding can
+    # verify that every cited id exists and its facts match.
     by_id = {a.finding_id: a for a in _unalias(assessments, aliases)}
     lookup = {e.evidence_id: e for e in store.list_evidence()}
     out = []
@@ -214,7 +295,10 @@ def analyse_batch(rc: RunContext, findings: list[Finding], system: str) -> list[
                        finding_id=f.finding_id, data={"rule": "G4.1"})
             out.append(_apply_rule(f))
             continue
+        # The finding's own evidence; grounding checks claims against these facts first.
         fev = [lookup[e] for e in f.evidence_ids if e in lookup]
+        # Code decides each claim's label (verified / inferred) and drops unsupported ones; issues are
+        # audited as guardrail events with their rule code (G4.2-G4.6).
         g = ground_assessment(raw, fev, lookup, finding_facts=_finding_view(f))
         for issue in g.issues:
             audit.emit("guardrail", "guardrail", f"{issue.rule}: {issue.detail}", finding_id=f.finding_id,
@@ -235,6 +319,14 @@ def analyse_batch(rc: RunContext, findings: list[Finding], system: str) -> list[
 
 
 def evidence_analyst_node(state: GraphState) -> dict:
+    """LangGraph node: choose which findings go to the LLM, analyse them, and store the results.
+
+    Ranking: non-CVE anomalies first (no advisory text, so the explanation matters most), then by rule risk, then by
+    descending CVSS. The first GUARDIAN_MAX_LLM_FINDINGS go to the LLM in batches of BATCH_SIZE, run in parallel on
+    WORKERS threads; the rest, and everything when there is no LLM, get the rule-based initial risk.
+    Args: state - graph state with `run_id` and `finding_ids`.
+    Returns: {"status": "analysing"}. Findings are updated in the store as a side effect, plus audit events.
+    """
     rc = get_ctx(state["run_id"])
     audit, store = rc.audit, rc.store
     findings = [store.get_finding(i) for i in state.get("finding_ids", [])]
@@ -243,7 +335,9 @@ def evidence_analyst_node(state: GraphState) -> dict:
 
     # Supply-chain anomalies (non-CVE) always go to the analyst first: they have no advisory text, so the
     # explanation matters most there; CVEs then fill the budget by rule risk and CVSS.
+    # Sort key: (is a CVE, risk rank, -cvss); False sorts before True, so anomalies lead.
     ranked = sorted(findings, key=lambda f: (f.category is FindingCategory.CVE, _RANK[rule_risk(f)], -(f.cvss or 0)))
+    # Number of findings the LLM may analyse this run; 0 when no LLM is configured.
     limit = rc.tool_ctx.settings.max_llm_findings if rc.llm is not None else 0
     to_llm, rest = ranked[:limit], ranked[limit:]
     if rest:
